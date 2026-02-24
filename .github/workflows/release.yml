@@ -150,6 +150,10 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
+      - name: Install Android SDK (API 36)
+        run: |
+          sdkmanager "platforms;android-36"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:

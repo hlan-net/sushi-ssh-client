@@ -16,12 +16,12 @@ val hasKeystore = !keystorePath.isNullOrBlank() &&
 
 android {
     namespace = "com.sushi.sshclient"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.sushi.sshclient"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = versionCodeOverride ?: 1
         versionName = versionNameOverride ?: "0.1.0"
 
@@ -77,8 +77,8 @@ dependencies {
     implementation("com.jcraft:jsch:0.1.55")
     implementation("androidx.security:security-crypto:1.0.0")
     implementation("com.google.android.gms:play-services-auth:20.7.0")
-    implementation("com.google.api-client:google-api-client-android:1.34.2")
-    implementation("com.google.api-client:google-api-client-gson:1.34.2")
+    implementation("com.google.api-client:google-api-client-android:2.2.0")
+    implementation("com.google.api-client:google-api-client-gson:2.2.0")
     implementation("com.google.apis:google-api-services-drive:v3-rev20230815-2.0.0")
 
     testImplementation("junit:junit:4.13.2")
