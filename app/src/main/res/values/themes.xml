@@ -1,0 +1,29 @@
+<resources>
+    <style name="Theme.Sushi" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/sushi_green</item>
+        <item name="colorOnPrimary">@color/sushi_white</item>
+        <item name="colorSecondary">@color/sushi_ink</item>
+        <item name="colorOnSecondary">@color/sushi_white</item>
+        <item name="colorSurface">@color/sushi_mist</item>
+        <item name="colorOnSurface">@color/sushi_ink</item>
+        <item name="android:statusBarColor">@color/sushi_ink</item>
+        <item name="android:navigationBarColor">@color/sushi_ink</item>
+        <item name="materialButtonStyle">@style/Widget.Sushi.PrimaryButton</item>
+    </style>
+
+    <style name="TextAppearance.Sushi.Headline" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textColor">@color/sushi_ink</item>
+    </style>
+
+    <style name="TextAppearance.Sushi.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/sushi_slate</item>
+    </style>
+
+    <style name="TextAppearance.Sushi.Caption" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textColor">@color/sushi_slate</item>
+    </style>
+
+    <style name="Widget.Sushi.PrimaryButton" parent="Widget.Material3.Button">
+        <item name="cornerRadius">16dp</item>
+    </style>
+</resources>

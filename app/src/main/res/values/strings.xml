@@ -1,0 +1,30 @@
+<resources>
+    <string name="app_name_short">sushi</string>
+    <string name="app_name_long">sushi - SSH client</string>
+    <string name="placeholder_status">Ready to add your first host.</string>
+    <string name="placeholder_status_active">Session stub: connect logic coming soon.</string>
+    <string name="placeholder_footer">Open source SSH client for Android.</string>
+    <string name="action_start_session">Start session</string>
+    <string name="gemini_section_title">Gemini voice commands</string>
+    <string name="gemini_status_disabled">Gemini is off. Enable it in settings to use voice commands.</string>
+    <string name="gemini_status_missing_key">Gemini needs an API key. Add one in settings.</string>
+    <string name="gemini_status_ready">Gemini is ready for voice input.</string>
+    <string name="gemini_prompt_label">Voice request</string>
+    <string name="gemini_prompt_placeholder">No voice input captured yet.</string>
+    <string name="gemini_output_label">Suggested CLI command</string>
+    <string name="gemini_output_placeholder">Gemini output will appear here.</string>
+    <string name="gemini_output_waiting">Thinking...</string>
+    <string name="gemini_output_error">Gemini could not generate a command.</string>
+    <string name="gemini_voice_prompt">Describe the command you want to run.</string>
+    <string name="gemini_permission_denied">Microphone permission is required for voice commands.</string>
+    <string name="action_gemini_voice">Talk to Gemini</string>
+    <string name="action_gemini_settings">Gemini settings</string>
+    <string name="gemini_settings_title">Gemini settings</string>
+    <string name="gemini_settings_subtitle">Optional voice control for SSH commands. Requires your own Gemini API key.</string>
+    <string name="gemini_settings_toggle">Enable Gemini voice control</string>
+    <string name="gemini_api_key_hint">Gemini API key</string>
+    <string name="gemini_api_key_helper">Stored locally on this device.</string>
+    <string name="action_save_settings">Save settings</string>
+    <string name="gemini_saved">Gemini settings saved.</string>
+    <string name="gemini_missing_key_message">Missing API key. Add one in settings.</string>
+</resources>
