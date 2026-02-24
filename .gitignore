@@ -5,6 +5,7 @@ build/
 
 # Local configuration
 local.properties
+google-services.json
 
 # IDEs and editors
 .idea/
