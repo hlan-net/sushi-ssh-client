@@ -15,11 +15,11 @@ val hasKeystore = !keystorePath.isNullOrBlank() &&
     !keyPassword.isNullOrBlank()
 
 android {
-    namespace = "com.sushi.sshclient"
+    namespace = "net.hlan.sushi"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.sushi.sshclient"
+        applicationId = "net.hlan.sushi"
         minSdk = 24
         targetSdk = 36
         versionCode = versionCodeOverride ?: 1

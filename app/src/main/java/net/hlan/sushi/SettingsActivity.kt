@@ -1,11 +1,11 @@
-package com.sushi.sshclient
+package net.hlan.sushi
 
 import android.app.Activity
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import com.sushi.sshclient.databinding.ActivitySettingsBinding
+import net.hlan.sushi.databinding.ActivitySettingsBinding
 
 class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding

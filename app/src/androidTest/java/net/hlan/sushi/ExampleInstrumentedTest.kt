@@ -1,4 +1,4 @@
-package com.sushi.sshclient
+package net.hlan.sushi
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -11,6 +11,6 @@ class ExampleInstrumentedTest {
     @Test
     fun useAppContext() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.sushi.sshclient", appContext.packageName)
+        assertEquals("net.hlan.sushi", appContext.packageName)
     }
 }

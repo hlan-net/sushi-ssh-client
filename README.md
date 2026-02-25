@@ -15,7 +15,7 @@ Prerequisites:
 
 Optional integrations:
 - Gemini voice mode: add your API key in app settings.
-- Google Drive logs: create an OAuth client for the package `com.sushi.sshclient` and enable the Drive API.
+- Google Drive logs: create an OAuth client for the package `net.hlan.sushi` and enable the Drive API.
 
 Build a debug APK:
 ```bash

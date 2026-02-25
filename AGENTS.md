@@ -5,7 +5,7 @@ It summarizes build/test commands and local coding conventions.
 ## Project summary
 - Android app built with Gradle (Kotlin DSL).
 - Single module: `app`.
-- Package: `com.sushi.sshclient`.
+- Package: `net.hlan.sushi`.
 - UI uses view binding (no Compose).
 ## Environment
 - JDK 17 required.
@@ -44,7 +44,7 @@ Unit tests (JVM):
 ```
 Run a single unit test method:
 ```bash
-./gradlew testDebugUnitTest --tests "com.sushi.sshclient.ExampleUnitTest.testAddition_isCorrect"
+./gradlew testDebugUnitTest --tests "net.hlan.sushi.ExampleUnitTest.testAddition_isCorrect"
 ```
 Instrumented tests (device/emulator):
 ```bash
@@ -54,12 +54,12 @@ Instrumented tests (device/emulator):
 Run a single instrumented test class:
 ```bash
 ./gradlew connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=com.sushi.sshclient.ExampleInstrumentedTest
+  -Pandroid.testInstrumentationRunnerArguments.class=net.hlan.sushi.ExampleInstrumentedTest
 ```
 Run a single instrumented test method:
 ```bash
 ./gradlew connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=com.sushi.sshclient.ExampleInstrumentedTest#useAppContext
+  -Pandroid.testInstrumentationRunnerArguments.class=net.hlan.sushi.ExampleInstrumentedTest#useAppContext
 ```
 Device tests require an emulator or physical device.
 ## Kotlin & formatting
