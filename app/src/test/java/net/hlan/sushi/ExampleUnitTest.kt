@@ -1,4 +1,4 @@
-package com.sushi.sshclient
+package net.hlan.sushi
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

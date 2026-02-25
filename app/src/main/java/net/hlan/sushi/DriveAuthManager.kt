@@ -1,4 +1,4 @@
-package com.sushi.sshclient
+package net.hlan.sushi
 
 import android.content.Context
 import android.content.Intent

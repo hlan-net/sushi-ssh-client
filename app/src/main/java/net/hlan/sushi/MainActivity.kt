@@ -1,4 +1,4 @@
-package com.sushi.sshclient
+package net.hlan.sushi
 
 import android.Manifest
 import android.app.Activity
@@ -9,7 +9,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import com.sushi.sshclient.databinding.ActivityMainBinding
+import net.hlan.sushi.databinding.ActivityMainBinding
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
