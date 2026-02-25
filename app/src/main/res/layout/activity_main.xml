@@ -35,16 +35,133 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/titleText" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/startSessionButton"
-            style="@style/Widget.Sushi.PrimaryButton"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/sessionCard"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/action_start_session"
+            android:layout_marginTop="20dp"
+            app:cardBackgroundColor="@color/sushi_white"
+            app:cardElevation="2dp"
+            app:strokeColor="@color/sushi_card_stroke"
+            app:strokeWidth="1dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/statusText" />
+            app:layout_constraintTop_toBottomOf="@id/statusText">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/sessionTitleText"
+                    style="@style/TextAppearance.Sushi.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/session_title"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/sessionStatusText"
+                    style="@style/TextAppearance.Sushi.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/session_status_disconnected" />
+
+                <TextView
+                    android:id="@+id/sessionTargetText"
+                    style="@style/TextAppearance.Sushi.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/session_target_empty" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/startSessionButton"
+                    style="@style/Widget.Sushi.PrimaryButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/action_start_session" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/copyLogButton"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/action_copy_log" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/clearLogButton"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:text="@string/action_clear_log" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/commandLabel"
+                    style="@style/TextAppearance.Sushi.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/session_command_label" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/commandInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:hint="@string/session_command_hint">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/commandInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/runCommandButton"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/action_run_command" />
+
+                <TextView
+                    android:id="@+id/sessionLogLabel"
+                    style="@style/TextAppearance.Sushi.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/session_log_label" />
+
+                <TextView
+                    android:id="@+id/sessionLogText"
+                    style="@style/TextAppearance.Sushi.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@color/sushi_terminal_bg"
+                    android:fontFamily="monospace"
+                    android:minHeight="160dp"
+                    android:padding="12dp"
+                    android:text="@string/session_log_placeholder"
+                    android:textColor="@color/sushi_ink" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:id="@+id/geminiTitleText"
@@ -55,7 +172,7 @@
             android:text="@string/gemini_section_title"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/startSessionButton" />
+            app:layout_constraintTop_toBottomOf="@id/sessionCard" />
 
         <TextView
             android:id="@+id/geminiStatusText"
@@ -159,6 +276,8 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/footerText" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
