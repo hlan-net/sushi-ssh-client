@@ -22,6 +22,12 @@ Build a debug APK:
 ./gradlew assembleDebug
 ```
 
+Local checks before push:
+```bash
+./scripts/install-git-hooks.sh
+```
+This installs a pre-push hook that runs `./gradlew testDebugUnitTest`. To skip once: `SKIP_PRE_PUSH_TESTS=1 git push`.
+
 If you do not have the Gradle wrapper JAR yet, generate it once with:
 ```bash
 gradle wrapper
