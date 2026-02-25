@@ -7,12 +7,12 @@ val versionCodeOverride = (project.findProperty("versionCode") as String?)?.toIn
 val versionNameOverride = project.findProperty("versionName") as String?
 val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
 val keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-val keyAlias = System.getenv("ANDROID_KEY_ALIAS")
-val keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+val keystoreAlias = System.getenv("ANDROID_KEY_ALIAS")
+val keystoreKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
 val hasKeystore = !keystorePath.isNullOrBlank() &&
     !keystorePassword.isNullOrBlank() &&
-    !keyAlias.isNullOrBlank() &&
-    !keyPassword.isNullOrBlank()
+    !keystoreAlias.isNullOrBlank() &&
+    !keystoreKeyPassword.isNullOrBlank()
 
 android {
     namespace = "net.hlan.sushi"
@@ -36,8 +36,8 @@ android {
             create("release") {
                 storeFile = file(keystorePath!!)
                 storePassword = keystorePassword
-                keyAlias = keyAlias
-                keyPassword = keyPassword
+                keyAlias = keystoreAlias
+                keyPassword = keystoreKeyPassword
             }
         }
     }
