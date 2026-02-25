@@ -198,5 +198,6 @@ jobs:
           serviceAccountJsonPlainText: ${{ env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: net.hlan.sushi
           releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          mappingFile: app/build/outputs/mapping/release/mapping.txt
           track: ${{ needs.create-release.outputs.play-track }}
           status: completed
