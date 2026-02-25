@@ -4,4 +4,6 @@
     <color name="sushi_slate">#3B4A44</color>
     <color name="sushi_mist">#F2F5F3</color>
     <color name="sushi_white">#FFFFFF</color>
+    <color name="sushi_card_stroke">#1A3B4A44</color>
+    <color name="sushi_terminal_bg">#E7ECE9</color>
 </resources>
