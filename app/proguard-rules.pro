@@ -7,3 +7,8 @@
 # -keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #     public *;
 # }
+
+# Silence missing platform classes referenced by Apache HTTP/GSS code paths.
+-dontwarn javax.naming.**
+-dontwarn org.ietf.jgss.**
+-dontwarn org.apache.http.**
