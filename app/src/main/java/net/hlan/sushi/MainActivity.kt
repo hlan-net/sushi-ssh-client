@@ -5,6 +5,8 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.content.pm.ApplicationInfo
+import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.speech.RecognizerIntent
@@ -16,6 +18,7 @@ import net.hlan.sushi.databinding.ActivityMainBinding
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -173,7 +176,7 @@ class MainActivity : AppCompatActivity() {
 
         isCommandRunning = true
         binding.commandInput.setText("")
-        appendSessionLog("> $command")
+        appendSessionLog(getString(R.string.session_command_prefix, command))
         updateSessionUi()
 
         Thread {
@@ -182,7 +185,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 isCommandRunning = false
                 if (!result.success) {
-                    appendSessionLog("Command failed: ${result.message}")
+                    appendSessionLog(getString(R.string.session_command_failed, result.message))
                     Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
                 }
                 updateSessionUi()
@@ -211,26 +214,41 @@ class MainActivity : AppCompatActivity() {
         isConnecting = true
         lastConnectFailed = false
         updateSessionUi()
-        appendSessionLog("Connecting to ${config.displayTarget()}")
+        val connectStartedAt = System.currentTimeMillis()
+        appendSessionLog(
+            getString(
+                R.string.session_connect_attempt_start,
+                config.displayTarget(),
+                formatTimestamp(connectStartedAt)
+            )
+        )
 
         Thread {
             val client = SshClient(config)
             val result = client.connect { line ->
                 appendSessionLog(line)
             }
+            val elapsedMs = System.currentTimeMillis() - connectStartedAt
             runOnUiThread {
                 isConnecting = false
                 if (result.success) {
                     sshClient = client
                     lastConnectFailed = false
-                    val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
-                        .format(Date())
-                    appendSessionLog("Session started at $timestamp")
-                    appendSessionLog("Connected to ${config.displayTarget()}")
+                    appendSessionLog(getString(R.string.session_connect_attempt_success, elapsedMs))
+                    appendSessionLog(
+                        getString(
+                            R.string.session_started_at,
+                            formatTimestamp(System.currentTimeMillis())
+                        )
+                    )
+                    appendSessionLog(getString(R.string.session_connected_to, config.displayTarget()))
                 } else {
                     sshClient = null
                     lastConnectFailed = true
-                    appendSessionLog("Connection failed: ${result.message}")
+                    appendSessionLog(
+                        getString(R.string.session_connect_attempt_failed, elapsedMs, result.message)
+                    )
+                    appendDebugInfoIfMissing()
                     Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
                 }
                 updateSessionUi()
@@ -246,9 +264,9 @@ class MainActivity : AppCompatActivity() {
         activeConfig = null
         appendSessionLog(
             if (target.isNullOrBlank()) {
-                "Session disconnected"
+                getString(R.string.session_disconnected)
             } else {
-                "Disconnected from $target"
+                getString(R.string.session_disconnected_from, target)
             }
         )
         updateSessionUi()
@@ -288,7 +306,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         val clipboard = getSystemService(ClipboardManager::class.java)
-        clipboard.setPrimaryClip(ClipData.newPlainText("SSH Session Log", log))
+        val reportLog = buildReportLog(log)
+        clipboard.setPrimaryClip(ClipData.newPlainText("SSH Session Log", reportLog))
         Toast.makeText(this, getString(R.string.session_log_copied), Toast.LENGTH_SHORT).show()
     }
 
@@ -365,4 +384,82 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    private fun appendDebugInfoIfMissing() {
+        val header = getString(R.string.debug_info_header)
+        if (consoleLogRepository.getLog().contains(header)) {
+            return
+        }
+        appendSessionLog(buildDebugInfoBlock())
+    }
+
+    private fun buildReportLog(log: String): String {
+        val header = getString(R.string.debug_info_header)
+        if (log.contains(header)) {
+            return log
+        }
+
+        val debugInfo = buildDebugInfoBlock()
+        return if (log.isBlank()) {
+            debugInfo
+        } else {
+            "$log\n\n$debugInfo"
+        }
+    }
+
+    private fun buildDebugInfoBlock(): String {
+        val androidVersion = Build.VERSION.RELEASE?.takeIf { it.isNotBlank() }
+            ?: getString(R.string.debug_info_unknown)
+        val appVersion = getAppVersionInfo()
+        val buildType = if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            "debug"
+        } else {
+            "release"
+        }
+        val locale = Locale.getDefault().toLanguageTag()
+        val timeZone = TimeZone.getDefault().id
+
+        val lines = listOf(
+            getString(R.string.debug_info_header),
+            getString(R.string.debug_info_app_version, appVersion.name, appVersion.code),
+            getString(R.string.debug_info_build_type, buildType),
+            getString(R.string.debug_info_android, androidVersion, Build.VERSION.SDK_INT),
+            getString(
+                R.string.debug_info_device,
+                Build.MANUFACTURER,
+                Build.MODEL,
+                Build.DEVICE
+            ),
+            getString(R.string.debug_info_locale, locale),
+            getString(R.string.debug_info_timezone, timeZone)
+        )
+
+        return lines.joinToString("\n")
+    }
+
+    private fun formatTimestamp(timestampMs: Long): String {
+        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(timestampMs))
+    }
+
+    private fun getAppVersionInfo(): AppVersionInfo {
+        return runCatching {
+            val packageInfo = packageManager.getPackageInfo(packageName, 0)
+            val versionName = packageInfo.versionName?.takeIf { it.isNotBlank() }
+                ?: getString(R.string.debug_info_unknown)
+            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                packageInfo.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                packageInfo.versionCode.toLong()
+            }
+            AppVersionInfo(versionName, versionCode.toString())
+        }.getOrElse {
+            AppVersionInfo(getString(R.string.debug_info_unknown), getString(R.string.debug_info_unknown))
+        }
+    }
+
+    private data class AppVersionInfo(
+        val name: String,
+        val code: String
+    )
 }

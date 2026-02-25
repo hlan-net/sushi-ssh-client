@@ -18,6 +18,8 @@ android {
     namespace = "net.hlan.sushi"
     compileSdk = 36
 
+    testBuildType = "minifiedDebug"
+
     defaultConfig {
         applicationId = "net.hlan.sushi"
         minSdk = 24
@@ -43,10 +45,22 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Default debug settings.
+        }
         release {
             if (hasKeystore) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+        create("minifiedDebug") {
+            initWith(getByName("debug"))
+            matchingFallbacks += listOf("debug")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -83,6 +97,7 @@ dependencies {
     implementation("com.google.android.material:material:1.13.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("com.jcraft:jsch:0.1.55")
+    implementation("com.jcraft:jzlib:1.1.3")
     implementation("androidx.security:security-crypto:1.0.0")
     implementation("com.google.android.gms:play-services-auth:20.7.0")
     implementation("com.google.api-client:google-api-client-android:2.2.0")

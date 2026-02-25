@@ -12,3 +12,7 @@
 -dontwarn javax.naming.**
 -dontwarn org.ietf.jgss.**
 -dontwarn org.apache.http.**
+
+# JSch loads crypto providers by reflection; keep these classes for release builds.
+-keep class com.jcraft.jsch.jce.** { *; }
+-keep class com.jcraft.jsch.jcraft.** { *; }
