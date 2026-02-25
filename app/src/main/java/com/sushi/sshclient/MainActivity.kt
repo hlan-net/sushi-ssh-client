@@ -10,11 +10,18 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.sushi.sshclient.databinding.ActivityMainBinding
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val geminiSettings by lazy { GeminiSettings(this) }
     private val geminiClient by lazy { GeminiClient(this, geminiSettings) }
+    private val driveLogSettings by lazy { DriveLogSettings(this) }
+    private val driveAuthManager by lazy { DriveAuthManager(this) }
+    private val driveLogUploader by lazy { DriveLogUploader(this) }
+    private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
 
     private val voiceResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -54,6 +61,8 @@ class MainActivity : AppCompatActivity() {
 
         binding.startSessionButton.setOnClickListener {
             binding.statusText.text = getString(R.string.placeholder_status_active)
+            appendSessionLog()
+            attemptDriveLogUpload()
         }
 
         binding.geminiVoiceButton.setOnClickListener {
@@ -108,5 +117,39 @@ class MainActivity : AppCompatActivity() {
                 binding.geminiOutputText.text = result.message
             }
         }.start()
+    }
+
+    private fun appendSessionLog() {
+        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+        val timestamp = formatter.format(Date())
+        consoleLogRepository.appendLine("Session started at $timestamp")
+    }
+
+    private fun attemptDriveLogUpload() {
+        if (!driveLogSettings.isAlwaysSaveEnabled()) {
+            return
+        }
+
+        val account = driveAuthManager.getSignedInAccount()
+        if (account == null) {
+            Toast.makeText(this, getString(R.string.drive_upload_disabled), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val log = consoleLogRepository.getLog()
+        if (log.isBlank()) {
+            return
+        }
+
+        driveLogUploader.uploadLog(account, log) { result ->
+            runOnUiThread {
+                val message = if (result.success) {
+                    getString(R.string.drive_upload_success)
+                } else {
+                    getString(R.string.drive_upload_failed)
+                }
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }
