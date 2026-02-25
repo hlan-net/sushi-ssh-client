@@ -177,20 +177,13 @@ class MainActivity : AppCompatActivity() {
         updateSessionUi()
 
         Thread {
-            val result = client.runCommand(command) { line ->
-                appendSessionLog(line)
-            }
+            val result = client.sendCommand(command)
 
             runOnUiThread {
                 isCommandRunning = false
                 if (!result.success) {
                     appendSessionLog("Command failed: ${result.message}")
                     Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
-                } else {
-                    val exitStatus = result.exitStatus
-                    if (exitStatus != null) {
-                        appendSessionLog(getString(R.string.session_command_done, exitStatus))
-                    }
                 }
                 updateSessionUi()
             }
@@ -222,7 +215,9 @@ class MainActivity : AppCompatActivity() {
 
         Thread {
             val client = SshClient(config)
-            val result = client.connect()
+            val result = client.connect { line ->
+                appendSessionLog(line)
+            }
             runOnUiThread {
                 isConnecting = false
                 if (result.success) {

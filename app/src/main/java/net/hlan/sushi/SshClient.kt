@@ -1,8 +1,9 @@
 package net.hlan.sushi
 
+import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
-import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.Session
+import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
 
@@ -28,17 +29,44 @@ data class SshCommandResult(
 
 class SshClient(private val config: SshConnectionConfig) {
     private var session: Session? = null
+    private var shellChannel: ChannelShell? = null
+    private var shellInput: OutputStream? = null
+    private var shellReaderThread: Thread? = null
 
-    fun connect(): SshConnectResult {
+    fun connect(onLine: (String) -> Unit): SshConnectResult {
+        var newSession: Session? = null
+        var newChannel: ChannelShell? = null
         return runCatching {
             val jsch = JSch()
-            val newSession = jsch.getSession(config.username, config.host, config.port)
-            newSession.setPassword(config.password)
-            newSession.setConfig("StrictHostKeyChecking", "no")
-            newSession.connect(CONNECTION_TIMEOUT_MS)
-            session = newSession
+            val createdSession = jsch.getSession(config.username, config.host, config.port)
+            newSession = createdSession
+            createdSession.setPassword(config.password)
+            createdSession.setConfig("StrictHostKeyChecking", "no")
+            createdSession.connect(CONNECTION_TIMEOUT_MS)
+
+            val createdChannel = createdSession.openChannel("shell") as? ChannelShell
+                ?: throw IllegalStateException("Unable to open shell channel")
+            newChannel = createdChannel
+            createdChannel.setPty(true)
+
+            val inputStream = createdChannel.inputStream
+                ?: throw IllegalStateException("Shell input stream unavailable")
+            val outputStream = createdChannel.outputStream
+                ?: throw IllegalStateException("Shell output stream unavailable")
+            createdChannel.connect(SHELL_CONNECT_TIMEOUT_MS)
+
+            session = createdSession
+            shellChannel = createdChannel
+            shellInput = outputStream
+            startShellReader(inputStream, onLine)
             SshConnectResult(true, "Connected")
         }.getOrElse { error ->
+            newChannel?.disconnect()
+            newSession?.disconnect()
+            session = null
+            shellChannel = null
+            shellInput = null
+            shellReaderThread = null
             val message = error.message?.takeIf { it.isNotBlank() }
                 ?: "Unable to connect. Check host and credentials."
             SshConnectResult(false, message)
@@ -46,51 +74,31 @@ class SshClient(private val config: SshConnectionConfig) {
     }
 
     fun disconnect() {
+        shellChannel?.disconnect()
+        shellChannel = null
+        runCatching { shellInput?.close() }
+        shellInput = null
         session?.disconnect()
         session = null
+        shellReaderThread = null
     }
 
-    fun isConnected(): Boolean = session?.isConnected == true
+    fun isConnected(): Boolean = session?.isConnected == true && shellChannel?.isConnected == true
 
     fun getConfig(): SshConnectionConfig = config
 
-    fun runCommand(command: String, onLine: (String) -> Unit): SshCommandResult {
-        val activeSession = session
-        if (activeSession == null || !activeSession.isConnected) {
+    fun sendCommand(command: String): SshCommandResult {
+        val activeChannel = shellChannel
+        val output = shellInput
+        if (activeChannel == null || !activeChannel.isConnected || output == null) {
             return SshCommandResult(false, null, "Not connected")
         }
 
         return runCatching {
-            val channel = activeSession.openChannel("exec") as ChannelExec
-            channel.setCommand(command)
-            val errorStream = LineOutputStream { line ->
-                if (line.isNotBlank()) {
-                    onLine("[stderr] $line")
-                }
-            }
-            channel.setErrStream(errorStream)
-            channel.inputStream = null
-            val inputStream = channel.inputStream
-            channel.connect(COMMAND_TIMEOUT_MS)
-
-            InputStreamReader(inputStream).buffered().use { reader ->
-                var line = reader.readLine()
-                while (line != null) {
-                    if (line.isNotBlank()) {
-                        onLine(line)
-                    }
-                    line = reader.readLine()
-                }
-            }
-
-            while (!channel.isClosed) {
-                Thread.sleep(25)
-            }
-
-            val exitStatus = channel.exitStatus
-            channel.disconnect()
-            errorStream.close()
-            SshCommandResult(true, exitStatus, "Command finished")
+            val payload = if (command.endsWith("\n")) command else "$command\n"
+            output.write(payload.toByteArray())
+            output.flush()
+            SshCommandResult(true, null, "Command sent")
         }.getOrElse { error ->
             val message = error.message?.takeIf { it.isNotBlank() } ?: "Command failed"
             SshCommandResult(false, null, message)
@@ -99,35 +107,53 @@ class SshClient(private val config: SshConnectionConfig) {
 
     companion object {
         private const val CONNECTION_TIMEOUT_MS = 10000
-        private const val COMMAND_TIMEOUT_MS = 10000
+        private const val SHELL_CONNECT_TIMEOUT_MS = 10000
     }
 
-    private class LineOutputStream(
-        private val onLine: (String) -> Unit
-    ) : OutputStream() {
-        private val buffer = StringBuilder()
+    private fun startShellReader(inputStream: InputStream, onLine: (String) -> Unit) {
+        shellReaderThread = Thread {
+            readShellOutput(inputStream, onLine)
+        }.apply {
+            isDaemon = true
+            name = "SshShellReader"
+            start()
+        }
+    }
 
-        override fun write(b: Int) {
-            when (b.toChar()) {
-                '\n' -> flushLine()
-                '\r' -> Unit
-                else -> buffer.append(b.toChar())
+    private fun readShellOutput(inputStream: InputStream, onLine: (String) -> Unit) {
+        val reader = InputStreamReader(inputStream)
+        val buffer = CharArray(1024)
+        val lineBuffer = StringBuilder()
+
+        fun flushLine() {
+            if (lineBuffer.isNotEmpty()) {
+                onLine(lineBuffer.toString())
+                lineBuffer.setLength(0)
             }
         }
 
-        override fun flush() {
-            flushLine()
-        }
+        try {
+            while (true) {
+                val read = reader.read(buffer)
+                if (read == -1) {
+                    break
+                }
 
-        override fun close() {
-            flushLine()
-        }
+                for (i in 0 until read) {
+                    when (val ch = buffer[i]) {
+                        '\n', '\r' -> flushLine()
+                        else -> lineBuffer.append(ch)
+                    }
+                }
 
-        private fun flushLine() {
-            if (buffer.isNotEmpty()) {
-                onLine(buffer.toString())
-                buffer.setLength(0)
+                val shouldFlush = runCatching { inputStream.available() == 0 }.getOrDefault(false)
+                if (shouldFlush) {
+                    flushLine()
+                }
             }
+        } finally {
+            flushLine()
+            runCatching { reader.close() }
         }
     }
 }
