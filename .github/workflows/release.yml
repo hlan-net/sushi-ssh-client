@@ -150,14 +150,15 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install Android SDK (API 36)
         run: |
           sdkmanager "platforms;android-36"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.2.1"
 
       - name: Setup Android signing (if keystore available)
         if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
@@ -176,7 +177,7 @@ jobs:
             exit 1
           fi
 
-          gradle bundleRelease \
+          ./gradlew bundleRelease \
             -PversionName="$RELEASE_VERSION_NAME" \
             -PversionCode="$ANDROID_VERSION_CODE"
 

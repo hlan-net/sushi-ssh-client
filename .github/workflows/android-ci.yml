@@ -32,8 +32,6 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
-        with:
-          gradle-version: "8.2.1"
 
       - name: Assemble debug
-        run: gradle assembleDebug
+        run: ./gradlew assembleDebug
