@@ -90,7 +90,7 @@ class PhrasesActivity : AppCompatActivity() {
     private fun deletePhrase(phrase: Phrase) {
         AlertDialog.Builder(this)
             .setTitle(R.string.phrase_delete_confirm)
-            .setPositiveButton("Delete") { _, _ ->
+            .setPositiveButton(R.string.action_delete) { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     db.delete(phrase)
                 }
@@ -108,8 +108,8 @@ class PhrasesActivity : AppCompatActivity() {
             
             withContext(Dispatchers.Main) {
                 val clipboard = getSystemService(android.content.ClipboardManager::class.java)
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Exported Phrases", json))
-                Toast.makeText(this@PhrasesActivity, "Phrases exported to clipboard", Toast.LENGTH_SHORT).show()
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(getString(R.string.export_clipboard_label), json))
+                Toast.makeText(this@PhrasesActivity, R.string.export_success_toast, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -131,20 +131,20 @@ class PhrasesActivity : AppCompatActivity() {
                                 db.insert(phrase.copy(id = 0))
                             }
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(this@PhrasesActivity, "Imported ${phrases.size} phrases", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@PhrasesActivity, resources.getQuantityString(R.plurals.import_success_toast, phrases.size, phrases.size), Toast.LENGTH_SHORT).show()
                             }
                         }
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(this@PhrasesActivity, "Failed to parse JSON from clipboard", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@PhrasesActivity, R.string.import_parse_error_toast, Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
             } else {
-                Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.import_empty_clipboard_toast, Toast.LENGTH_SHORT).show()
             }
         } else {
-            Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.import_empty_clipboard_toast, Toast.LENGTH_SHORT).show()
         }
     }
 }

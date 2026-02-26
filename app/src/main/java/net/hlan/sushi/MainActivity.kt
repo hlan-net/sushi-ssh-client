@@ -208,7 +208,7 @@ class MainActivity : AppCompatActivity() {
             val phrases = db.getAllPhrases()
             withContext(Dispatchers.Main) {
                 if (phrases.isEmpty()) {
-                    Toast.makeText(this@MainActivity, "No phrases saved. Add some in Phrases menu.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, R.string.phrases_empty_toast, Toast.LENGTH_SHORT).show()
                     startActivity(Intent(this@MainActivity, PhrasesActivity::class.java))
                     return@withContext
                 }
@@ -219,10 +219,10 @@ class MainActivity : AppCompatActivity() {
                     .setItems(names) { _, which ->
                         binding.commandInput.setText(phrases[which].command)
                     }
-                    .setPositiveButton("Manage") { _, _ ->
+                    .setPositiveButton(R.string.action_manage) { _, _ ->
                         startActivity(Intent(this@MainActivity, PhrasesActivity::class.java))
                     }
-                    .setNegativeButton("Cancel", null)
+                    .setNegativeButton(R.string.phrase_cancel, null)
                     .show()
             }
         }

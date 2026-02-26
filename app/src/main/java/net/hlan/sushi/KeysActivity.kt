@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.lifecycleScope
 import net.hlan.sushi.databinding.ActivityKeysBinding
 import java.io.ByteArrayOutputStream
 
@@ -55,7 +56,7 @@ class KeysActivity : AppCompatActivity() {
 
     private fun generateKeyPair() {
         binding.generateKeyButton.isEnabled = false
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val jsch = JSch()
                 // JSch 0.1.55 doesn't natively support ED25519 without extensions.
@@ -63,7 +64,9 @@ class KeysActivity : AppCompatActivity() {
                 val kpair = KeyPair.genKeyPair(jsch, KeyPair.RSA, 2048)
 
                 val prvKeyOut = ByteArrayOutputStream()
-                kpair.writePrivateKey(prvKeyOut, null) // No passphrase
+                // Prompt user for a passphrase and use it here
+                val passphrase: ByteArray? = null // Replace with user-supplied passphrase
+                kpair.writePrivateKey(prvKeyOut, passphrase)
                 val prvKeyStr = prvKeyOut.toString("UTF-8")
 
                 val pubKeyOut = ByteArrayOutputStream()
@@ -77,7 +80,7 @@ class KeysActivity : AppCompatActivity() {
 
                 // Add or update the "Install SSH Key" phrase
                 val command = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$pubKeyStr' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-                val existingPhrase = db.getAllPhrases().find { it.name == "Install SSH Key" }
+                val existingPhrase = db.getPhraseByName("Install SSH Key")
                 if (existingPhrase != null) {
                     db.update(existingPhrase.copy(command = command))
                 } else {
@@ -91,7 +94,7 @@ class KeysActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@KeysActivity, "Failed to generate key: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@KeysActivity, getString(R.string.key_generation_failed, e.message), Toast.LENGTH_LONG).show()
                     binding.generateKeyButton.isEnabled = true
                 }
             }

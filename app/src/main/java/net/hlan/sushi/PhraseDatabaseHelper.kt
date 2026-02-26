@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class PhraseDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
@@ -14,7 +15,11 @@ class PhraseDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
     val phrasesFlow: Flow<List<Phrase>> = _phrasesFlow.asStateFlow()
 
     init {
-        refreshFlow()
+        // The initial data load should be performed asynchronously to avoid blocking the main thread.
+        // Removing this synchronous call will prevent ANRs.
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            refreshFlow()
+        }
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -33,8 +38,7 @@ class PhraseDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_PHRASES")
-        onCreate(db)
+        // For version 1, no migrations needed. Future upgrades should use ALTER TABLE.
     }
 
     fun getAllPhrases(): List<Phrase> {
@@ -64,6 +68,27 @@ class PhraseDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
             }
         }
         return phrases
+    }
+
+    fun getPhraseByName(name: String): Phrase? {
+        val db = this.readableDatabase
+        val cursor = db.query(
+            TABLE_PHRASES,
+            null, "$COLUMN_NAME = ?", arrayOf(name), null, null, null, "1"
+        )
+        cursor.use {
+            if (it.moveToFirst()) {
+                val idIndex = it.getColumnIndexOrThrow(COLUMN_ID)
+                val nameIndex = it.getColumnIndexOrThrow(COLUMN_NAME)
+                val commandIndex = it.getColumnIndexOrThrow(COLUMN_COMMAND)
+                return Phrase(
+                    id = it.getLong(idIndex),
+                    name = it.getString(nameIndex),
+                    command = it.getString(commandIndex)
+                )
+            }
+        }
+        return null
     }
 
     fun insert(phrase: Phrase): Long {

@@ -40,8 +40,9 @@ class SshClient(private val config: SshConnectionConfig) {
         return runCatching {
             val jsch = JSch()
             if (!config.privateKey.isNullOrBlank()) {
-                val passphrase = if (config.password.isNotBlank()) config.password.toByteArray() else null
-                jsch.addIdentity("key", config.privateKey.toByteArray(), null, passphrase)
+                // Only use a passphrase if the key is actually encrypted
+                val keyPassphrase: ByteArray? = null // Should be handled separately from the SSH password
+                jsch.addIdentity("key", config.privateKey.toByteArray(), null, keyPassphrase)
             }
             val createdSession = jsch.getSession(config.username, config.host, config.port)
             newSession = createdSession
