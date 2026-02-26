@@ -22,6 +22,18 @@ Build a debug APK:
 ./gradlew assembleDebug
 ```
 
+Run the optional local SSH integration test on a connected device (not for CI):
+```bash
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=net.hlan.sushi.LocalSshIntegrationTest \
+  -Pandroid.testInstrumentationRunnerArguments.sshHost=YOUR_HOST \
+  -Pandroid.testInstrumentationRunnerArguments.sshPort=22 \
+  -Pandroid.testInstrumentationRunnerArguments.sshUsername=YOUR_USER \
+  -Pandroid.testInstrumentationRunnerArguments.sshPassword=YOUR_PASSWORD
+```
+
+You can pass `sshPrivateKey` instead of `sshPassword` if you want key-based auth.
+
 Local checks before push:
 ```bash
 ./scripts/install-git-hooks.sh

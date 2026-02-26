@@ -16,3 +16,7 @@
 # JSch loads crypto providers by reflection; keep these classes for release builds.
 -keep class com.jcraft.jsch.jce.** { *; }
 -keep class com.jcraft.jsch.jcraft.** { *; }
+
+# AndroidX test runner references Kotlin lazy helpers at runtime in minified builds.
+-keep class kotlin.LazyKt { *; }
+-keep class kotlin.LazyKt__* { *; }
