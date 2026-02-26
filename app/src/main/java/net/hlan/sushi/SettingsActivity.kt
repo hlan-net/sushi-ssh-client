@@ -1,6 +1,7 @@
 package net.hlan.sushi
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -43,6 +44,10 @@ class SettingsActivity : AppCompatActivity() {
         binding.sshPortInput.setText(sshSettings.getPort().toString())
         binding.sshUsernameInput.setText(sshSettings.getUsername())
         binding.sshPasswordInput.setText(sshSettings.getPassword())
+
+        binding.manageKeysButton.setOnClickListener {
+            startActivity(Intent(this, KeysActivity::class.java))
+        }
 
         binding.geminiEnabledSwitch.setOnCheckedChangeListener { _, isChecked ->
             binding.apiKeyLayout.isEnabled = isChecked
