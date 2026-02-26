@@ -134,6 +134,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/sshPasswordLayout" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/manageKeysButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/action_keys"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/sshHelperText" />
+
     <TextView
         android:id="@+id/geminiSectionTitle"
         style="@style/TextAppearance.Sushi.Body"
@@ -143,7 +154,7 @@
         android:text="@string/gemini_settings_section_title"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/sshHelperText" />
+        app:layout_constraintTop_toBottomOf="@id/manageKeysButton" />
 
         <TextView
             android:id="@+id/settingsGeminiSubtitle"

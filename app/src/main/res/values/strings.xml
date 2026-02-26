@@ -96,4 +96,40 @@
     <string name="drive_upload_success">Log uploaded to Drive.</string>
     <string name="drive_upload_failed">Drive upload failed.</string>
     <string name="drive_upload_disabled">Enable Drive logging in settings.</string>
+
+    <string name="keys_title">SSH Keys</string>
+    <string name="keys_subtitle">Generate and manage the SSH key used for authentication.</string>
+    <string name="key_status_none">No key generated</string>
+    <string name="key_status_configured">Key is ready</string>
+    <string name="public_key_label">Public Key (OpenSSH)</string>
+    <string name="action_generate_key">Generate Key Pair</string>
+    <string name="action_regenerate_key">Generate New Key Pair</string>
+    <string name="action_delete_key">Delete Key Pair</string>
+    <string name="action_keys">Manage Keys</string>
+    <string name="key_generated_success">New SSH key generated</string>
+    <string name="key_generation_failed">Failed to generate key: %1$s</string>
+    <string name="key_deleted">SSH key deleted</string>
+
+    <string name="phrases_title">Phrases</string>
+    <string name="phrases_subtitle">Manage reusable macros and commands.</string>
+    <string name="phrases_empty_toast">No phrases saved. Add some in Phrases menu.</string>
+    <string name="action_phrases">Phrases</string>
+    <string name="action_manage">Manage</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_add_phrase">Add New Phrase</string>
+    <string name="action_export_phrases">Export Phrases</string>
+    <string name="action_import_phrases">Import Phrases</string>
+    <string name="phrase_name_hint">Phrase Name</string>
+    <string name="phrase_command_hint">Command / Script</string>
+    <string name="phrase_save">Save</string>
+    <string name="phrase_cancel">Cancel</string>
+    <string name="phrase_delete_confirm">Delete phrase?</string>
+    <string name="export_clipboard_label">Exported Phrases</string>
+    <string name="export_success_toast">Phrases exported to clipboard</string>
+    <string name="import_parse_error_toast">Failed to parse JSON from clipboard</string>
+    <string name="import_empty_clipboard_toast">Clipboard is empty</string>
+    <plurals name="import_success_toast">
+        <item quantity="one">Imported %d phrase</item>
+        <item quantity="other">Imported %d phrases</item>
+    </plurals>
 </resources>

@@ -11,7 +11,8 @@ data class SshConnectionConfig(
     val host: String,
     val port: Int,
     val username: String,
-    val password: String
+    val password: String,
+    val privateKey: String? = null
 ) {
     fun displayTarget(): String = "$username@$host:$port"
 }
@@ -38,9 +39,16 @@ class SshClient(private val config: SshConnectionConfig) {
         var newChannel: ChannelShell? = null
         return runCatching {
             val jsch = JSch()
+            if (!config.privateKey.isNullOrBlank()) {
+                // Only use a passphrase if the key is actually encrypted
+                val keyPassphrase: ByteArray? = null // Should be handled separately from the SSH password
+                jsch.addIdentity("key", config.privateKey.toByteArray(), null, keyPassphrase)
+            }
             val createdSession = jsch.getSession(config.username, config.host, config.port)
             newSession = createdSession
-            createdSession.setPassword(config.password)
+            if (config.privateKey.isNullOrBlank() && config.password.isNotBlank()) {
+                createdSession.setPassword(config.password)
+            }
             createdSession.setConfig("StrictHostKeyChecking", "no")
             createdSession.connect(CONNECTION_TIMEOUT_MS)
 

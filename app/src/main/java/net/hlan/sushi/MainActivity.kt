@@ -13,7 +13,12 @@ import android.speech.RecognizerIntent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivityMainBinding
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -29,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private val driveLogUploader by lazy { DriveLogUploader(this) }
     private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
     private val sshSettings by lazy { SshSettings(this) }
+    private val db by lazy { PhraseDatabaseHelper.getInstance(this) }
 
     private var sshClient: SshClient? = null
     private var isConnecting = false
@@ -78,6 +84,10 @@ class MainActivity : AppCompatActivity() {
 
         binding.runCommandButton.setOnClickListener {
             handleRunCommand()
+        }
+
+        binding.phrasesButton.setOnClickListener {
+            showPhrasesDialog()
         }
 
         binding.clearLogButton.setOnClickListener {
@@ -191,6 +201,31 @@ class MainActivity : AppCompatActivity() {
                 updateSessionUi()
             }
         }.start()
+    }
+
+    private fun showPhrasesDialog() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val phrases = db.getAllPhrases()
+            withContext(Dispatchers.Main) {
+                if (phrases.isEmpty()) {
+                    Toast.makeText(this@MainActivity, R.string.phrases_empty_toast, Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(this@MainActivity, PhrasesActivity::class.java))
+                    return@withContext
+                }
+
+                val names = phrases.map { it.name }.toTypedArray()
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle(R.string.phrases_title)
+                    .setItems(names) { _, which ->
+                        binding.commandInput.setText(phrases[which].command)
+                    }
+                    .setPositiveButton(R.string.action_manage) { _, _ ->
+                        startActivity(Intent(this@MainActivity, PhrasesActivity::class.java))
+                    }
+                    .setNegativeButton(R.string.phrase_cancel, null)
+                    .show()
+            }
+        }
     }
 
     private fun handleSessionAction() {

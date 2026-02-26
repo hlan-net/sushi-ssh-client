@@ -29,8 +29,30 @@ class SshSettings(context: Context) {
         prefs.edit().putString(KEY_PASSWORD, password).apply()
     }
 
+    fun getPrivateKey(): String? = prefs.getString(KEY_PRIVATE_KEY, null)
+
+    fun setPrivateKey(privateKey: String?) {
+        if (privateKey == null) {
+            prefs.edit().remove(KEY_PRIVATE_KEY).apply()
+        } else {
+            prefs.edit().putString(KEY_PRIVATE_KEY, privateKey).apply()
+        }
+    }
+
+    fun getPublicKey(): String? = prefs.getString(KEY_PUBLIC_KEY, null)
+
+    fun setPublicKey(publicKey: String?) {
+        if (publicKey == null) {
+            prefs.edit().remove(KEY_PUBLIC_KEY).apply()
+        } else {
+            prefs.edit().putString(KEY_PUBLIC_KEY, publicKey).apply()
+        }
+    }
+
     fun isConfigured(): Boolean {
-        return getHost().isNotBlank() && getUsername().isNotBlank() && getPassword().isNotBlank()
+        // Now it's either password OR private key that's needed
+        val hasCredentials = getPassword().isNotBlank() || !getPrivateKey().isNullOrBlank()
+        return getHost().isNotBlank() && getUsername().isNotBlank() && hasCredentials
     }
 
     fun getConfigOrNull(): SshConnectionConfig? {
@@ -41,7 +63,8 @@ class SshSettings(context: Context) {
             host = getHost(),
             port = getPort(),
             username = getUsername(),
-            password = getPassword()
+            password = getPassword(),
+            privateKey = getPrivateKey()
         )
     }
 
@@ -51,5 +74,7 @@ class SshSettings(context: Context) {
         private const val KEY_PORT = "ssh_port"
         private const val KEY_USERNAME = "ssh_username"
         private const val KEY_PASSWORD = "ssh_password"
+        private const val KEY_PRIVATE_KEY = "ssh_private_key"
+        private const val KEY_PUBLIC_KEY = "ssh_public_key"
     }
 }

@@ -26,6 +26,14 @@
             android:name=".SettingsActivity"
             android:exported="false"
             android:label="@string/settings_title" />
+        <activity
+            android:name=".KeysActivity"
+            android:exported="false"
+            android:label="@string/keys_title" />
+        <activity
+            android:name=".PhrasesActivity"
+            android:exported="false"
+            android:label="@string/phrases_title" />
     </application>
 
 </manifest>
