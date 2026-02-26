@@ -34,6 +34,46 @@
         app:layout_constraintTop_toBottomOf="@id/settingsTitle" />
 
     <TextView
+        android:id="@+id/languageSectionTitle"
+        style="@style/TextAppearance.Sushi.Body"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/language_section_title"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/settingsSubtitle" />
+
+    <TextView
+        android:id="@+id/languageSectionSubtitle"
+        style="@style/TextAppearance.Sushi.Caption"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/language_section_subtitle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/languageSectionTitle" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/languageLayout"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="@string/language_label"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/languageSectionSubtitle">
+
+        <AutoCompleteTextView
+            android:id="@+id/languageInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="none" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <TextView
         android:id="@+id/sshSectionTitle"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="0dp"
@@ -42,7 +82,7 @@
         android:text="@string/ssh_section_title"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/settingsSubtitle" />
+        app:layout_constraintTop_toBottomOf="@id/languageLayout" />
 
     <TextView
         android:id="@+id/sshSectionSubtitle"

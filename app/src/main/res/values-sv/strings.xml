@@ -1,0 +1,11 @@
+<resources>
+    <string name="language_section_title">Språk</string>
+    <string name="language_section_subtitle">Välj appens språk. Systemstandard följer telefonens språk.</string>
+    <string name="language_label">Appspråk</string>
+    <string name="language_system_default">Systemstandard</string>
+    <string name="language_english">Engelska</string>
+    <string name="language_finnish">Finska</string>
+    <string name="language_swedish">Svenska</string>
+    <string name="language_german">Tyska</string>
+    <string name="language_spanish">Spanska</string>
+</resources>

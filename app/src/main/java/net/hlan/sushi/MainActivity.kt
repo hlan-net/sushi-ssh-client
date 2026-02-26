@@ -358,7 +358,9 @@ class MainActivity : AppCompatActivity() {
 
         val clipboard = getSystemService(ClipboardManager::class.java)
         val reportLog = buildReportLog(log)
-        clipboard.setPrimaryClip(ClipData.newPlainText("SSH Session Log", reportLog))
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(getString(R.string.clipboard_session_log_label), reportLog)
+        )
         Toast.makeText(this, getString(R.string.session_log_copied), Toast.LENGTH_SHORT).show()
     }
 
