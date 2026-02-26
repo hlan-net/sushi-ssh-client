@@ -76,7 +76,8 @@ class TerminalView @JvmOverloads constructor(
     private fun updateText() {
         val builder = SpannableStringBuilder()
         for (i in 0 until lineBuffer.size) {
-            builder.append(lineBuffer[i])
+            val line = lineBuffer[i]
+            builder.append(line, 0, line.length)
             if (i < lineBuffer.size - 1) {
                 builder.append("\n")
             }
