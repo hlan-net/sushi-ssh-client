@@ -156,6 +156,31 @@
                         android:text="@string/action_phrases" />
                 </LinearLayout>
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/ctrlCButton"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textColor="?attr/colorError"
+                        android:text="Ctrl+C" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/ctrlDButton"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:text="Ctrl+D" />
+                </LinearLayout>
+
                 <TextView
                     android:id="@+id/sessionLogLabel"
                     style="@style/TextAppearance.Sushi.Caption"
@@ -164,7 +189,7 @@
                     android:layout_marginTop="16dp"
                     android:text="@string/session_log_label" />
 
-                <TextView
+                <net.hlan.sushi.TerminalView
                     android:id="@+id/sessionLogText"
                     style="@style/TextAppearance.Sushi.Body"
                     android:layout_width="match_parent"

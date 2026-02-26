@@ -93,6 +93,15 @@ class SshClient(private val config: SshConnectionConfig) {
 
     fun isConnected(): Boolean = session?.isConnected == true && shellChannel?.isConnected == true
 
+    fun resizePty(col: Int, row: Int, wp: Int, hp: Int) {
+        val activeChannel = shellChannel
+        if (activeChannel != null && activeChannel.isConnected) {
+            runCatching {
+                activeChannel.setPtySize(col, row, wp, hp)
+            }
+        }
+    }
+
     fun getConfig(): SshConnectionConfig = config
 
     fun sendCommand(command: String): SshCommandResult {
@@ -113,9 +122,29 @@ class SshClient(private val config: SshConnectionConfig) {
         }
     }
 
+    fun sendCtrlC() {
+        runCatching {
+            shellInput?.apply {
+                write(CTRL_C_ETX) // ETX (End of Text)
+                flush()
+            }
+        }
+    }
+
+    fun sendCtrlD() {
+        runCatching {
+            shellInput?.apply {
+                write(CTRL_D_EOT) // EOT (End of Transmission)
+                flush()
+            }
+        }
+    }
+
     companion object {
         private const val CONNECTION_TIMEOUT_MS = 10000
         private const val SHELL_CONNECT_TIMEOUT_MS = 10000
+        private const val CTRL_C_ETX = 3
+        private const val CTRL_D_EOT = 4
     }
 
     private fun startShellReader(inputStream: InputStream, onLine: (String) -> Unit) {
