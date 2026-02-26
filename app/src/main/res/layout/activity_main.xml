@@ -169,7 +169,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:textColor="?attr/colorError"
-                        android:text="Ctrl+C" />
+                        android:text="@string/action_send_ctrl_c" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/ctrlDButton"
@@ -178,7 +178,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
                         android:layout_weight="1"
-                        android:text="Ctrl+D" />
+                        android:text="@string/action_send_ctrl_d" />
                 </LinearLayout>
 
                 <TextView

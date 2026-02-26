@@ -1,0 +1,11 @@
+<resources>
+    <string name="language_section_title">Sprache</string>
+    <string name="language_section_subtitle">Wahle die App-Sprache. Die Systemeinstellung folgt deiner Telefonsprache.</string>
+    <string name="language_label">App-Sprache</string>
+    <string name="language_system_default">Systemstandard</string>
+    <string name="language_english">Englisch</string>
+    <string name="language_finnish">Finnisch</string>
+    <string name="language_swedish">Schwedisch</string>
+    <string name="language_german">Deutsch</string>
+    <string name="language_spanish">Spanisch</string>
+</resources>

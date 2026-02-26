@@ -39,6 +39,9 @@
     <string name="debug_info_unknown">unknown</string>
     <string name="action_run_command">Run command</string>
     <string name="action_run_command_running">Running...</string>
+    <string name="action_send_ctrl_c">Ctrl+C</string>
+    <string name="action_send_ctrl_d">Ctrl+D</string>
+    <string name="clipboard_session_log_label">SSH Session Log</string>
     <string name="placeholder_footer">Open source SSH client for Android.</string>
     <string name="action_start_session">Start session</string>
     <string name="action_end_session">End session</string>
@@ -73,6 +76,15 @@
     <string name="action_gemini_settings">Gemini settings</string>
     <string name="settings_title">Settings</string>
     <string name="settings_subtitle">Manage optional integrations for voice and cloud logs.</string>
+    <string name="language_section_title">Language</string>
+    <string name="language_section_subtitle">Choose app language. System default follows your phone language.</string>
+    <string name="language_label">App language</string>
+    <string name="language_system_default">System default</string>
+    <string name="language_english">English</string>
+    <string name="language_finnish">Finnish</string>
+    <string name="language_swedish">Swedish</string>
+    <string name="language_german">German</string>
+    <string name="language_spanish">Spanish</string>
     <string name="gemini_settings_title">Gemini settings</string>
     <string name="gemini_settings_section_title">Gemini voice commands</string>
     <string name="gemini_settings_subtitle">Optional voice control for SSH commands. Requires your own Gemini API key.</string>
