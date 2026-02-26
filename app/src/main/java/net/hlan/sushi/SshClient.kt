@@ -125,7 +125,7 @@ class SshClient(private val config: SshConnectionConfig) {
     fun sendCtrlC() {
         runCatching {
             shellInput?.apply {
-                write(3) // ETX (End of Text)
+                write(CTRL_C_ETX) // ETX (End of Text)
                 flush()
             }
         }
@@ -134,7 +134,7 @@ class SshClient(private val config: SshConnectionConfig) {
     fun sendCtrlD() {
         runCatching {
             shellInput?.apply {
-                write(4) // EOT (End of Transmission)
+                write(CTRL_D_EOT) // EOT (End of Transmission)
                 flush()
             }
         }
@@ -143,6 +143,8 @@ class SshClient(private val config: SshConnectionConfig) {
     companion object {
         private const val CONNECTION_TIMEOUT_MS = 10000
         private const val SHELL_CONNECT_TIMEOUT_MS = 10000
+        private const val CTRL_C_ETX = 3
+        private const val CTRL_D_EOT = 4
     }
 
     private fun startShellReader(inputStream: InputStream, onLine: (String) -> Unit) {

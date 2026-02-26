@@ -17,10 +17,15 @@ class TerminalView @JvmOverloads constructor(
 
     private var currentFgColor: Int? = null
     private var currentBgColor: Int? = null
-    private val maxLines = 500
     private val lineBuffer = LinkedList<CharSequence>()
 
     var onSizeChangedListener: ((col: Int, row: Int, wp: Int, hp: Int) -> Unit)? = null
+
+    companion object {
+        private const val MAX_LINES = 500
+        private val ESCAPE_PATTERN = Pattern.compile("\u001B\\[[0-9;?]*[a-ln-zA-LN-Z]")
+        private val SGR_PATTERN = Pattern.compile("\u001B\\[([0-9;]*)m")
+    }
 
     init {
         typeface = android.graphics.Typeface.MONOSPACE
@@ -45,11 +50,17 @@ class TerminalView @JvmOverloads constructor(
     }
 
     fun appendLog(text: String) {
-        val lines = text.split("\n")
-        for (line in lines) {
+        // Prevent DoS from extremely large input strings by truncating
+        val safeText = if (text.length > 50000) text.substring(text.length - 50000) else text
+        val lines = safeText.split('\n')
+        
+        // Process at most MAX_LINES to avoid memory exhaustion
+        val linesToProcess = if (lines.size > MAX_LINES) lines.takeLast(MAX_LINES) else lines
+
+        for (line in linesToProcess) {
             val parsed = parseAnsi(line)
             lineBuffer.add(parsed)
-            if (lineBuffer.size > maxLines) {
+            if (lineBuffer.size > MAX_LINES) {
                 lineBuffer.removeFirst()
             }
         }
@@ -85,12 +96,10 @@ class TerminalView @JvmOverloads constructor(
 
     private fun parseAnsi(rawText: String): CharSequence {
         // Strip out non-color ANSI escape sequences (e.g. cursor movements)
-        val escapePattern = Pattern.compile("\u001B\\[[0-9;?]*[a-ln-zA-LN-Z]")
-        val text = escapePattern.matcher(rawText).replaceAll("")
+        val text = ESCAPE_PATTERN.matcher(rawText).replaceAll("")
 
         val builder = SpannableStringBuilder()
-        val pattern = Pattern.compile("\u001B\\[([0-9;]*)m")
-        val matcher = pattern.matcher(text)
+        val matcher = SGR_PATTERN.matcher(text)
 
         var lastEnd = 0
 
@@ -103,7 +112,8 @@ class TerminalView @JvmOverloads constructor(
             }
 
             val codesStr = matcher.group(1)
-            val codes = if (codesStr.isNullOrEmpty()) listOf(0) else codesStr.split(";").mapNotNull { it.toIntOrNull() }
+            // Limit the number of codes processed to prevent DoS from crafted payloads
+            val codes = if (codesStr.isNullOrEmpty()) listOf(0) else codesStr.split(';').take(10).mapNotNull { it.toIntOrNull() }
 
             for (code in codes) {
                 when (code) {

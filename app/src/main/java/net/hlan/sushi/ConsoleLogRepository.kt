@@ -10,9 +10,9 @@ class ConsoleLogRepository(context: Context) {
         val updated = if (current.isBlank()) {
             line
         } else {
-            val lines = current.split("\n")
+            val lines = current.split('\n')
             if (lines.size >= 500) {
-                lines.drop(lines.size - 499).joinToString("\n") + "\n" + line
+                lines.takeLast(499).joinToString("\n") + "\n" + line
             } else {
                 "$current\n$line"
             }
