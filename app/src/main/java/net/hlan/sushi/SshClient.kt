@@ -93,6 +93,15 @@ class SshClient(private val config: SshConnectionConfig) {
 
     fun isConnected(): Boolean = session?.isConnected == true && shellChannel?.isConnected == true
 
+    fun resizePty(col: Int, row: Int, wp: Int, hp: Int) {
+        val activeChannel = shellChannel
+        if (activeChannel != null && activeChannel.isConnected) {
+            runCatching {
+                activeChannel.setPtySize(col, row, wp, hp)
+            }
+        }
+    }
+
     fun getConfig(): SshConnectionConfig = config
 
     fun sendCommand(command: String): SshCommandResult {
@@ -110,6 +119,24 @@ class SshClient(private val config: SshConnectionConfig) {
         }.getOrElse { error ->
             val message = error.message?.takeIf { it.isNotBlank() } ?: "Command failed"
             SshCommandResult(false, null, message)
+        }
+    }
+
+    fun sendCtrlC() {
+        runCatching {
+            shellInput?.apply {
+                write(3) // ETX (End of Text)
+                flush()
+            }
+        }
+    }
+
+    fun sendCtrlD() {
+        runCatching {
+            shellInput?.apply {
+                write(4) // EOT (End of Transmission)
+                flush()
+            }
         }
     }
 

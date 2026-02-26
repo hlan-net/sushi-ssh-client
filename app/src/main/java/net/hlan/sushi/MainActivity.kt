@@ -86,6 +86,16 @@ class MainActivity : AppCompatActivity() {
             handleRunCommand()
         }
 
+        binding.ctrlCButton.setOnClickListener {
+            sshClient?.sendCtrlC()
+            appendSessionLog("^C")
+        }
+
+        binding.ctrlDButton.setOnClickListener {
+            sshClient?.sendCtrlD()
+            appendSessionLog("^D")
+        }
+
         binding.phrasesButton.setOnClickListener {
             showPhrasesDialog()
         }
@@ -104,6 +114,10 @@ class MainActivity : AppCompatActivity() {
 
         binding.geminiSettingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        binding.sessionLogText.onSizeChangedListener = { col, row, wp, hp ->
+            sshClient?.resizePty(col, row, wp, hp)
         }
 
         updateGeminiState()
@@ -315,21 +329,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         consoleLogRepository.appendLine(message)
-        refreshSessionLog()
+        binding.sessionLogText.appendLog(message)
     }
 
     private fun refreshSessionLog() {
         val log = consoleLogRepository.getLog()
-        binding.sessionLogText.text = if (log.isBlank()) {
-            getString(R.string.session_log_placeholder)
+        binding.sessionLogText.clearLog()
+        if (log.isBlank()) {
+            binding.sessionLogText.appendLog(getString(R.string.session_log_placeholder))
         } else {
-            log
+            binding.sessionLogText.appendLog(log)
         }
     }
 
     private fun clearSessionLog() {
         consoleLogRepository.clear()
-        refreshSessionLog()
+        binding.sessionLogText.clearLog()
+        binding.sessionLogText.appendLog(getString(R.string.session_log_placeholder))
         Toast.makeText(this, getString(R.string.session_log_cleared), Toast.LENGTH_SHORT).show()
     }
 

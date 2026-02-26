@@ -10,7 +10,12 @@ class ConsoleLogRepository(context: Context) {
         val updated = if (current.isBlank()) {
             line
         } else {
-            "$current\n$line"
+            val lines = current.split("\n")
+            if (lines.size >= 500) {
+                lines.drop(lines.size - 499).joinToString("\n") + "\n" + line
+            } else {
+                "$current\n$line"
+            }
         }
         prefs.edit().putString(KEY_LOG, updated).apply()
     }
