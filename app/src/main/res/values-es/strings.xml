@@ -1,11 +1,11 @@
 <resources>
     <string name="language_section_title">Idioma</string>
-    <string name="language_section_subtitle">Elige el idioma de la app. El valor del sistema sigue el idioma del telefono.</string>
+    <string name="language_section_subtitle">Elige el idioma de la app. El valor del sistema sigue el idioma del teléfono.</string>
     <string name="language_label">Idioma de la app</string>
     <string name="language_system_default">Predeterminado del sistema</string>
-    <string name="language_english">Ingles</string>
-    <string name="language_finnish">Finlandes</string>
+    <string name="language_english">Inglés</string>
+    <string name="language_finnish">Finlandés</string>
     <string name="language_swedish">Sueco</string>
-    <string name="language_german">Aleman</string>
-    <string name="language_spanish">Espanol</string>
+    <string name="language_german">Alemán</string>
+    <string name="language_spanish">Español</string>
 </resources>

@@ -82,6 +82,9 @@
     <string name="language_system_default">Järjestelmän oletus</string>
     <string name="language_english">Englanti</string>
     <string name="language_finnish">Suomi</string>
+    <string name="language_swedish">Ruotsi</string>
+    <string name="language_german">Saksa</string>
+    <string name="language_spanish">Espanja</string>
     <string name="gemini_settings_title">Gemini-asetukset</string>
     <string name="gemini_settings_section_title">Gemini-äänikomennot</string>
     <string name="gemini_settings_subtitle">Valinnainen puheohjaus SSH-komennoille. Vaatii oman Gemini API-avaimen.</string>

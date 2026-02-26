@@ -17,6 +17,7 @@ class SettingsActivity : AppCompatActivity() {
     private val driveLogSettings by lazy { DriveLogSettings(this) }
     private val driveAuthManager by lazy { DriveAuthManager(this) }
     private val sshSettings by lazy { SshSettings(this) }
+    // Keep this list in sync with app/src/main/res/xml/locales_config.xml.
     private val languageOptions by lazy {
         listOf(
             LanguageOption("", getString(R.string.language_system_default)),
