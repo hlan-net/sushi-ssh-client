@@ -5,8 +5,10 @@ import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
+import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.ArrayList
@@ -111,7 +113,197 @@ class LocalSshIntegrationTest {
         }
     }
 
-    private fun readCredentialsOrSkip(): LocalSshCredentials {
+    @Test
+    fun passwordLoginThenGenerateKeyInstallViaPhraseThenReconnectWithKey() {
+        val credentials = readCredentialsOrSkip(requirePassword = true)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        resetAppState(context)
+
+        val sshSettings = SshSettings(context)
+        val db = PhraseDatabaseHelper.getInstance(context)
+
+        val passwordHost = SshConnectionConfig(
+            alias = "Password Host",
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password
+        )
+        sshSettings.saveHost(passwordHost)
+        sshSettings.setActiveHostId(passwordHost.id)
+        sshSettings.setPrivateKey(null)
+
+        val installMarker = "SUSHI_KEY_INSTALL_OK_${System.currentTimeMillis()}"
+        val installMarkerLatch = CountDownLatch(1)
+        val passwordClient = SshClient(passwordHost)
+
+        val passwordConnectResult = passwordClient.connect { line ->
+            if (line.contains(installMarker)) {
+                installMarkerLatch.countDown()
+            }
+        }
+        assertTrue(
+            "Password SSH connect failed: ${passwordConnectResult.message}",
+            passwordConnectResult.success
+        )
+
+        try {
+            ActivityScenario.launch(KeysActivity::class.java).use { keysScenario ->
+                keysScenario.onActivity { activity ->
+                    activity.findViewById<android.view.View>(R.id.generateKeyButton).performClick()
+                }
+
+                waitForCondition(
+                    scenario = keysScenario,
+                    timeoutMs = 20_000,
+                    timeoutMessage = "Key generation did not complete"
+                ) {
+                    val generatedPublicKey = sshSettings.getPublicKey().orEmpty()
+                    val generatedPrivateKey = sshSettings.getPrivateKey().orEmpty()
+                    val installPhrase = db.getPhraseByName("Install SSH Key")
+                    generatedPublicKey.isNotBlank() &&
+                        generatedPrivateKey.isNotBlank() &&
+                        installPhrase != null
+                }
+            }
+
+            val installPhrase = db.getPhraseByName("Install SSH Key")
+            assertNotNull("Install SSH Key phrase missing after key generation", installPhrase)
+
+            val installCommand = "${installPhrase!!.command} && echo $installMarker"
+            val installResult = passwordClient.sendCommand(installCommand)
+            assertTrue("Failed to run key install phrase: ${installResult.message}", installResult.success)
+
+            val installed = installMarkerLatch.await(20, TimeUnit.SECONDS)
+            assertTrue("Did not observe install marker from host", installed)
+        } finally {
+            passwordClient.disconnect()
+        }
+
+        val generatedPrivateKey = sshSettings.getPrivateKey().orEmpty()
+        assertTrue("Generated private key missing", generatedPrivateKey.isNotBlank())
+
+        val keyOnlyHost = passwordHost.copy(password = "", privateKey = generatedPrivateKey)
+        val reconnectMarker = "SUSHI_KEY_RELOGIN_OK_${System.currentTimeMillis()}"
+        val reconnectMarkerLatch = CountDownLatch(1)
+        val keyClient = SshClient(keyOnlyHost)
+
+        val keyConnectResult = keyClient.connect { line ->
+            if (line.contains(reconnectMarker)) {
+                reconnectMarkerLatch.countDown()
+            }
+        }
+        assertTrue(
+            "Key-based SSH reconnect failed: ${keyConnectResult.message}",
+            keyConnectResult.success
+        )
+
+        try {
+            val reconnectCommandResult = keyClient.sendCommand("echo $reconnectMarker")
+            assertTrue(
+                "Failed to run reconnect marker command: ${reconnectCommandResult.message}",
+                reconnectCommandResult.success
+            )
+
+            val reconnectMarkerReceived = reconnectMarkerLatch.await(15, TimeUnit.SECONDS)
+            assertTrue("Did not receive reconnect marker", reconnectMarkerReceived)
+        } finally {
+            keyClient.disconnect()
+        }
+    }
+
+    @Test
+    fun runsCommandSequenceAndValidatesResponses() {
+        val credentials = readCredentialsOrSkip(requirePassword = true)
+        val receivedLines = Collections.synchronizedList(ArrayList<String>())
+
+        val config = SshConnectionConfig(
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password,
+            privateKey = credentials.privateKey
+        )
+        val client = SshClient(config)
+
+        val connectResult = client.connect { line ->
+            receivedLines.add(line)
+        }
+
+        assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
+
+        try {
+            val step1Output = runCommandCaptureOutput(
+                client = client,
+                receivedLines = receivedLines,
+                command = "date > date.txt",
+                marker = "SUSHI_STEP1_DONE_${System.currentTimeMillis()}"
+            )
+            assertTrue("Step 1 should not fail", step1Output.none { it.contains("No such file") })
+
+            val sleepStart = System.currentTimeMillis()
+            runCommandCaptureOutput(
+                client = client,
+                receivedLines = receivedLines,
+                command = "sleep 5",
+                marker = "SUSHI_STEP2_DONE_${System.currentTimeMillis()}"
+            )
+            val sleepElapsedMs = System.currentTimeMillis() - sleepStart
+            assertTrue("sleep 5 completed too quickly: ${sleepElapsedMs}ms", sleepElapsedMs >= 4_500)
+
+            val step3Output = runCommandCaptureOutput(
+                client = client,
+                receivedLines = receivedLines,
+                command = "cat date.txt;date",
+                marker = "SUSHI_STEP3_DONE_${System.currentTimeMillis()}"
+            )
+            val dateOutputLines = meaningfulOutput(step3Output, command = "cat date.txt;date")
+            assertTrue(
+                "Expected at least two date output lines from 'cat date.txt;date', got: $dateOutputLines",
+                dateOutputLines.size >= 2
+            )
+
+            val step4Output = runCommandCaptureOutput(
+                client = client,
+                receivedLines = receivedLines,
+                command = "whoami",
+                marker = "SUSHI_STEP4_DONE_${System.currentTimeMillis()}"
+            )
+            val whoamiOutput = meaningfulOutput(step4Output, command = "whoami")
+            assertTrue(
+                "Expected whoami output to contain '${credentials.username}', got: $whoamiOutput",
+                whoamiOutput.any { it.trim() == credentials.username }
+            )
+
+            val step5Output = runCommandCaptureOutput(
+                client = client,
+                receivedLines = receivedLines,
+                command = "ls ..",
+                marker = "SUSHI_STEP5_DONE_${System.currentTimeMillis()}"
+            )
+            val lsOutput = meaningfulOutput(step5Output, command = "ls ..")
+            assertTrue("Expected non-empty output from 'ls ..'", lsOutput.isNotEmpty())
+            assertTrue(
+                "Unexpected ls error output: $lsOutput",
+                lsOutput.none { it.contains("No such file or directory") }
+            )
+        } finally {
+            client.disconnect()
+        }
+    }
+
+    @Ignore("Enable after custom phrases are supported in automation.")
+    @Test
+    fun removesSushiKeysViaPhraseThenFailsReconnect() {
+        // TODO: Once custom phrase automation is available:
+        // 1) Create a phrase that removes "Sushi - SSH client key ..." entries from authorized_keys.
+        // 2) Log in to the target host.
+        // 3) Run the remove phrase.
+        // 4) Disconnect.
+        // 5) Verify a new key-only login attempt fails.
+    }
+
+    private fun readCredentialsOrSkip(requirePassword: Boolean = false): LocalSshCredentials {
         val args = InstrumentationRegistry.getArguments()
         val host = args.getString(ARG_HOST).orEmpty().trim()
         val username = args.getString(ARG_USERNAME).orEmpty().trim()
@@ -129,6 +321,13 @@ class LocalSshIntegrationTest {
             host.isNotBlank() && username.isNotBlank() &&
                 (password.isNotBlank() || privateKeyRaw.isNotBlank())
         )
+
+        if (requirePassword) {
+            assumeTrue(
+                "Set sshPassword to run password-to-key migration test.",
+                password.isNotBlank()
+            )
+        }
 
         return LocalSshCredentials(
             host = host,
@@ -158,6 +357,55 @@ class LocalSshIntegrationTest {
         return if (parsed in 1..65535) parsed else null
     }
 
+    private fun runCommandCaptureOutput(
+        client: SshClient,
+        receivedLines: MutableList<String>,
+        command: String,
+        marker: String,
+        timeoutSec: Long = 25
+    ): List<String> {
+        val startIndex = synchronized(receivedLines) { receivedLines.size }
+        val result = client.sendCommand("$command; echo $marker")
+        assertTrue("Failed to send command '$command': ${result.message}", result.success)
+
+        val markerReceived = waitForMarker(receivedLines, marker, timeoutSec)
+        assertTrue("Did not receive marker for command '$command'", markerReceived)
+
+        val snapshot = synchronized(receivedLines) { receivedLines.toList() }
+        val markerIndex = snapshot.indexOfFirst { it.trim() == marker }
+        assertTrue("Could not locate marker line for '$command'", markerIndex >= startIndex)
+        if (markerIndex <= startIndex) {
+            return emptyList()
+        }
+        return snapshot.subList(startIndex, markerIndex)
+    }
+
+    private fun waitForMarker(
+        receivedLines: List<String>,
+        marker: String,
+        timeoutSec: Long
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutSec)
+        while (System.currentTimeMillis() < deadline) {
+            val found = synchronized(receivedLines) {
+                receivedLines.any { it.trim() == marker }
+            }
+            if (found) {
+                return true
+            }
+            Thread.sleep(100)
+        }
+        return false
+    }
+
+    private fun meaningfulOutput(lines: List<String>, command: String): List<String> {
+        return lines.map { it.trim() }
+            .filter { it.isNotBlank() }
+            .filterNot { it.contains("SUSHI_STEP") }
+            .filterNot { it == command }
+            .filterNot { it.endsWith("$") || it.endsWith("#") }
+    }
+
     private fun waitUntil(
         scenario: ActivityScenario<MainActivity>,
         timeoutMs: Long,
@@ -185,6 +433,26 @@ class LocalSshIntegrationTest {
         assertTrue("$timeoutMessage | $debugState", false)
     }
 
+    private fun <T : androidx.fragment.app.FragmentActivity> waitForCondition(
+        scenario: ActivityScenario<T>,
+        timeoutMs: Long,
+        timeoutMessage: String,
+        condition: (T) -> Boolean
+    ) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            var satisfied = false
+            scenario.onActivity { activity ->
+                satisfied = condition(activity)
+            }
+            if (satisfied) {
+                return
+            }
+            Thread.sleep(250)
+        }
+        assertTrue(timeoutMessage, false)
+    }
+
     private data class LocalSshCredentials(
         val host: String,
         val port: Int,
@@ -192,6 +460,12 @@ class LocalSshIntegrationTest {
         val password: String,
         val privateKey: String?
     )
+
+    private fun resetAppState(context: android.content.Context) {
+        SecurePrefs.get(context).edit().clear().commit()
+        ConsoleLogRepository(context).clear()
+        context.deleteDatabase("sushi_phrases.db")
+    }
 
     companion object {
         private const val DEFAULT_SSH_PORT = 22

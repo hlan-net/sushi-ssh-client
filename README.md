@@ -3,10 +3,18 @@
 An open source Android SSH client focused on fast connections, clean session management, and a modern UI.
 
 ## Status
-- Early scaffold with placeholder UI.
-- SSH engine and host management are planned.
+- Active development with working SSH session flow and host management.
 - Optional Gemini voice command mode (user-provided API key).
 - Optional Google Drive log uploads (Google sign-in required).
+
+## v0.1.3 highlights
+- Phrase management improvements:
+  - validation for empty and duplicate phrase names
+  - safer JSON import (upsert by phrase name instead of duplicate inserts)
+  - clearer delete confirmation for phrases
+- Key workflow now creates two managed phrases:
+  - `Install SSH Key`
+  - `Remove Sushi SSH Keys`
 
 ## Development
 Prerequisites:

@@ -58,38 +58,72 @@ class PhrasesActivity : AppCompatActivity() {
 
     private fun showEditPhraseDialog(phrase: Phrase?) {
         val dialogBinding = DialogEditPhraseBinding.inflate(LayoutInflater.from(this))
-        
+
         if (phrase != null) {
             dialogBinding.phraseNameInput.setText(phrase.name)
             dialogBinding.phraseCommandInput.setText(phrase.command)
         }
 
-        AlertDialog.Builder(this)
-            .setTitle(if (phrase == null) R.string.action_add_phrase else R.string.action_phrases)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(if (phrase == null) R.string.action_add_phrase else R.string.action_edit_phrase)
             .setView(dialogBinding.root)
-            .setPositiveButton(R.string.phrase_save) { _, _ ->
-                val name = dialogBinding.phraseNameInput.text.toString().trim()
-                val command = dialogBinding.phraseCommandInput.text.toString().trim()
-                
-                if (name.isNotBlank() && command.isNotBlank()) {
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        val newPhrase = phrase?.copy(name = name, command = command) 
-                            ?: Phrase(name = name, command = command)
-                        if (phrase == null) {
-                            db.insert(newPhrase)
-                        } else {
-                            db.update(newPhrase)
+            .setPositiveButton(R.string.phrase_save, null)
+            .setNegativeButton(R.string.phrase_cancel, null)
+            .create()
+
+        dialog.setOnShowListener {
+            val saveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            saveButton.setOnClickListener {
+                val name = dialogBinding.phraseNameInput.text?.toString()?.trim().orEmpty()
+                val command = dialogBinding.phraseCommandInput.text?.toString()?.trim().orEmpty()
+
+                dialogBinding.phraseNameLayout.error = null
+                dialogBinding.phraseCommandLayout.error = null
+
+                var hasError = false
+                if (name.isBlank()) {
+                    dialogBinding.phraseNameLayout.error = getString(R.string.phrase_name_required)
+                    hasError = true
+                }
+                if (command.isBlank()) {
+                    dialogBinding.phraseCommandLayout.error = getString(R.string.phrase_command_required)
+                    hasError = true
+                }
+                if (hasError) {
+                    return@setOnClickListener
+                }
+
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val existing = db.getPhraseByName(name)
+                    val isDuplicate = existing != null && existing.id != phrase?.id
+                    if (isDuplicate) {
+                        withContext(Dispatchers.Main) {
+                            dialogBinding.phraseNameLayout.error =
+                                getString(R.string.phrase_name_exists)
                         }
+                        return@launch
+                    }
+
+                    if (phrase == null) {
+                        db.insert(Phrase(name = name, command = command))
+                    } else {
+                        db.update(phrase.copy(name = name, command = command))
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        dialog.dismiss()
                     }
                 }
             }
-            .setNegativeButton(R.string.phrase_cancel, null)
-            .show()
+        }
+
+        dialog.show()
     }
 
     private fun deletePhrase(phrase: Phrase) {
         AlertDialog.Builder(this)
-            .setTitle(R.string.phrase_delete_confirm)
+            .setTitle(getString(R.string.phrase_delete_confirm_title, phrase.name))
+            .setMessage(R.string.phrase_delete_confirm_message)
             .setPositiveButton(R.string.action_delete) { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     db.delete(phrase)
@@ -126,12 +160,23 @@ class PhrasesActivity : AppCompatActivity() {
                         val adapter = moshi.adapter<List<Phrase>>(listType)
                         val phrases = adapter.fromJson(json)
                         if (phrases != null) {
+                            var inserted = 0
+                            var updated = 0
                             phrases.forEach { phrase ->
-                                // Reset ID to 0 to auto-generate new ones, avoiding conflicts
-                                db.insert(phrase.copy(id = 0))
+                                val result = db.upsertByName(phrase.name, phrase.command)
+                                inserted += result.inserted
+                                updated += result.updated
                             }
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(this@PhrasesActivity, resources.getQuantityString(R.plurals.import_success_toast, phrases.size, phrases.size), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    this@PhrasesActivity,
+                                    getString(R.string.import_success_toast_with_updates, inserted, updated),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        } else {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@PhrasesActivity, R.string.import_parse_error_toast, Toast.LENGTH_SHORT).show()
                             }
                         }
                     } catch (e: Exception) {

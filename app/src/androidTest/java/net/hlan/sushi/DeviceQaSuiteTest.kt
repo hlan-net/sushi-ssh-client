@@ -130,6 +130,63 @@ class DeviceQaSuiteTest {
         }
     }
 
+    @Test
+    fun keyGenerationCreatesManagedPhrasesAndPhraseCanBeSelectedInMainUi() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val sshSettings = SshSettings(context)
+        val db = PhraseDatabaseHelper.getInstance(context)
+
+        ActivityScenario.launch(KeysActivity::class.java).use { keysScenario ->
+            keysScenario.onActivity { activity ->
+                activity.findViewById<android.view.View>(R.id.generateKeyButton).performClick()
+            }
+
+            waitUntil(
+                timeoutMs = 20_000,
+                timeoutMessage = "Key generation did not create managed phrases"
+            ) {
+                sshSettings.getPrivateKey().orEmpty().isNotBlank() &&
+                    sshSettings.getPublicKey().orEmpty().isNotBlank() &&
+                    db.getPhraseByName(PHRASE_INSTALL_KEY) != null &&
+                    db.getPhraseByName(PHRASE_REMOVE_SUSHI_KEYS) != null
+            }
+        }
+
+        val removePhrase = db.getPhraseByName(PHRASE_REMOVE_SUSHI_KEYS)
+        assertTrue("Remove Sushi SSH Keys phrase should exist", removePhrase != null)
+        val removePhraseCommand = removePhrase?.command.orEmpty()
+        assertTrue("Remove Sushi SSH Keys command should not be blank", removePhraseCommand.isNotBlank())
+
+        ActivityScenario.launch(PhrasesActivity::class.java).use { phrasesScenario ->
+            waitForCondition(phrasesScenario) { activity ->
+                val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.phrasesRecyclerView)
+                recycler.adapter?.itemCount ?: 0 >= 2
+            }
+
+            var clicked = false
+            phrasesScenario.onActivity { activity ->
+                val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.phrasesRecyclerView)
+                val adapter = recycler.adapter
+                val itemCount = adapter?.itemCount ?: 0
+                for (position in 0 until itemCount) {
+                    recycler.scrollToPosition(position)
+                    val holder = recycler.findViewHolderForAdapterPosition(position) ?: continue
+                    val nameView = holder.itemView.findViewById<android.widget.TextView>(R.id.phraseNameText)
+                    val commandView = holder.itemView.findViewById<android.widget.TextView>(R.id.phraseCommandText)
+                    if (nameView.text?.toString() == PHRASE_REMOVE_SUSHI_KEYS &&
+                        commandView.text?.toString() == removePhraseCommand
+                    ) {
+                        holder.itemView.performClick()
+                        clicked = true
+                        break
+                    }
+                }
+            }
+
+            assertTrue("Remove Sushi SSH Keys phrase row should be selectable", clicked)
+        }
+    }
+
     private fun <T : androidx.fragment.app.FragmentActivity> waitForCondition(
         scenario: ActivityScenario<T>,
         timeoutMs: Long = 10_000,
@@ -147,5 +204,25 @@ class DeviceQaSuiteTest {
             Thread.sleep(250)
         }
         throw AssertionError("Timed out waiting for condition")
+    }
+
+    private fun waitUntil(
+        timeoutMs: Long,
+        timeoutMessage: String,
+        condition: () -> Boolean
+    ) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (condition()) {
+                return
+            }
+            Thread.sleep(250)
+        }
+        throw AssertionError(timeoutMessage)
+    }
+
+    companion object {
+        private const val PHRASE_INSTALL_KEY = "Install SSH Key"
+        private const val PHRASE_REMOVE_SUSHI_KEYS = "Remove Sushi SSH Keys"
     }
 }

@@ -102,6 +102,19 @@ class PhraseDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
         return id
     }
 
+    fun upsertByName(name: String, command: String): UpsertResult {
+        val normalizedName = name.trim()
+        val normalizedCommand = command.trim()
+        val existingPhrase = getPhraseByName(normalizedName)
+        return if (existingPhrase == null) {
+            insert(Phrase(name = normalizedName, command = normalizedCommand))
+            UpsertResult(inserted = 1, updated = 0)
+        } else {
+            update(existingPhrase.copy(command = normalizedCommand))
+            UpsertResult(inserted = 0, updated = 1)
+        }
+    }
+
     fun update(phrase: Phrase): Int {
         val db = this.writableDatabase
         val values = ContentValues().apply {
@@ -144,3 +157,8 @@ class PhraseDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
         }
     }
 }
+
+data class UpsertResult(
+    val inserted: Int,
+    val updated: Int
+)

@@ -4,15 +4,17 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.KeyPair
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.lifecycle.lifecycleScope
 import net.hlan.sushi.databinding.ActivityKeysBinding
 import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class KeysActivity : AppCompatActivity() {
     private lateinit var binding: ActivityKeysBinding
@@ -70,7 +72,9 @@ class KeysActivity : AppCompatActivity() {
                 val prvKeyStr = prvKeyOut.toString("UTF-8")
 
                 val pubKeyOut = ByteArrayOutputStream()
-                kpair.writePublicKey(pubKeyOut, "sushi-client")
+                val keyCreatedAt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
+                val keyComment = "Sushi - SSH client key $keyCreatedAt"
+                kpair.writePublicKey(pubKeyOut, keyComment)
                 val pubKeyStr = pubKeyOut.toString("UTF-8").trim()
 
                 kpair.dispose()
@@ -78,14 +82,11 @@ class KeysActivity : AppCompatActivity() {
                 sshSettings.setPrivateKey(prvKeyStr)
                 sshSettings.setPublicKey(pubKeyStr)
 
-                // Add or update the "Install SSH Key" phrase
-                val command = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$pubKeyStr' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-                val existingPhrase = db.getPhraseByName("Install SSH Key")
-                if (existingPhrase != null) {
-                    db.update(existingPhrase.copy(command = command))
-                } else {
-                    db.insert(Phrase(name = "Install SSH Key", command = command))
-                }
+                val installCommand = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$pubKeyStr' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+                val removeCommand = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys.sushi.bak && grep -v 'Sushi - SSH client key' ~/.ssh/authorized_keys.sushi.bak > ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+
+                db.upsertByName(PHRASE_INSTALL_KEY, installCommand)
+                db.upsertByName(PHRASE_REMOVE_SUSHI_KEYS, removeCommand)
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@KeysActivity, R.string.key_generated_success, Toast.LENGTH_SHORT).show()
@@ -106,5 +107,10 @@ class KeysActivity : AppCompatActivity() {
         sshSettings.setPublicKey(null)
         updateUi()
         Toast.makeText(this, R.string.key_deleted, Toast.LENGTH_SHORT).show()
+    }
+
+    companion object {
+        private const val PHRASE_INSTALL_KEY = "Install SSH Key"
+        private const val PHRASE_REMOVE_SUSHI_KEYS = "Remove Sushi SSH Keys"
     }
 }
