@@ -14,5 +14,14 @@
 -dontwarn org.apache.http.**
 
 # JSch loads crypto providers by reflection; keep these classes for release builds.
+-keep class com.jcraft.jsch.DHEC256 { *; }
+-keep class com.jcraft.jsch.DHEC384 { *; }
+-keep class com.jcraft.jsch.DHEC521 { *; }
+-keep class com.jcraft.jsch.DHECN { *; }
+-keep class com.jcraft.jsch.UserAuthNone { *; }
+-keep class com.jcraft.jsch.UserAuthPassword { *; }
+-keep class com.jcraft.jsch.UserAuthPublicKey { *; }
+-keep class com.jcraft.jsch.UserAuthKeyboardInteractive { *; }
+-keep class com.jcraft.jsch.UserAuthGSSAPIWithMIC { *; }
 -keep class com.jcraft.jsch.jce.** { *; }
 -keep class com.jcraft.jsch.jcraft.** { *; }

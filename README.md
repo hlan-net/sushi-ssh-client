@@ -22,6 +22,29 @@ Build a debug APK:
 ./gradlew assembleDebug
 ```
 
+Run the optional local SSH integration tests on a connected device (not for CI):
+```bash
+SSH_HOST=YOUR_HOST \
+SSH_PORT=22 \
+SSH_USERNAME=YOUR_USER \
+SSH_PASSWORD=YOUR_PASSWORD \
+./scripts/run-local-ssh-test.sh
+```
+
+This wrapper keeps secrets out of shell history better than inline Gradle args.
+
+If credentials are not set, `LocalSshIntegrationTest` is skipped (JUnit assumption), not failed.
+
+You can still run Gradle directly if needed:
+```bash
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=net.hlan.sushi.LocalSshIntegrationTest \
+  -Pandroid.testInstrumentationRunnerArguments.sshHost=YOUR_HOST \
+  -Pandroid.testInstrumentationRunnerArguments.sshPort=22 \
+  -Pandroid.testInstrumentationRunnerArguments.sshUsername=YOUR_USER \
+  -Pandroid.testInstrumentationRunnerArguments.sshPassword=YOUR_PASSWORD
+```
+
 Local checks before push:
 ```bash
 ./scripts/install-git-hooks.sh
