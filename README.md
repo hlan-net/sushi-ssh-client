@@ -38,6 +38,16 @@ This writes secrets to `.local/local-ssh-test.env` (chmod 600, git-ignored).
 
 You can still bypass the file and pass values as environment variables when needed.
 
+Run the comprehensive non-external device QA tap-through suite:
+```bash
+./scripts/run-device-qa-suite.sh
+```
+
+This suite runs instrumented coverage for:
+- app launch smoke checks
+- JSch runtime sanity
+- full non-external UI tap-through (settings, host management, keys, about, phrases)
+
 If credentials are not set, `LocalSshIntegrationTest` is skipped (JUnit assumption), not failed.
 
 You can still run Gradle directly if needed:
