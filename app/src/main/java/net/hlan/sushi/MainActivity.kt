@@ -466,7 +466,7 @@ class MainActivity : AppCompatActivity() {
     private fun buildDebugInfoBlock(): String {
         val androidVersion = Build.VERSION.RELEASE?.takeIf { it.isNotBlank() }
             ?: getString(R.string.debug_info_unknown)
-        val appVersion = getAppVersionInfo()
+        val appVersion = AppUtils.getAppVersionInfo(this)
         val buildType = if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
             "debug"
         } else {
@@ -496,26 +496,4 @@ class MainActivity : AppCompatActivity() {
     private fun formatTimestamp(timestampMs: Long): String {
         return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(timestampMs))
     }
-
-    private fun getAppVersionInfo(): AppVersionInfo {
-        return runCatching {
-            val packageInfo = packageManager.getPackageInfo(packageName, 0)
-            val versionName = packageInfo.versionName?.takeIf { it.isNotBlank() }
-                ?: getString(R.string.debug_info_unknown)
-            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                packageInfo.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                packageInfo.versionCode.toLong()
-            }
-            AppVersionInfo(versionName, versionCode.toString())
-        }.getOrElse {
-            AppVersionInfo(getString(R.string.debug_info_unknown), getString(R.string.debug_info_unknown))
-        }
-    }
-
-    private data class AppVersionInfo(
-        val name: String,
-        val code: String
-    )
 }
