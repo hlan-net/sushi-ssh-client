@@ -1,5 +1,6 @@
 package net.hlan.sushi
 
+import android.os.Bundle
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -9,6 +10,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.ArrayList
+import java.util.Base64
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -114,7 +116,7 @@ class LocalSshIntegrationTest {
         val host = args.getString(ARG_HOST).orEmpty().trim()
         val username = args.getString(ARG_USERNAME).orEmpty().trim()
         val password = args.getString(ARG_PASSWORD).orEmpty().trim()
-        val privateKeyRaw = args.getString(ARG_PRIVATE_KEY).orEmpty().trim()
+        val privateKeyRaw = decodePrivateKey(args)
         val port = parsePortOrNull(args.getString(ARG_PORT))
 
         assumeTrue(
@@ -135,6 +137,16 @@ class LocalSshIntegrationTest {
             password = password,
             privateKey = privateKeyRaw.ifBlank { null }
         )
+    }
+
+    private fun decodePrivateKey(args: Bundle): String {
+        val base64Key = args.getString(ARG_PRIVATE_KEY_B64).orEmpty().trim()
+        if (base64Key.isNotBlank()) {
+            return runCatching {
+                String(Base64.getDecoder().decode(base64Key), Charsets.UTF_8)
+            }.getOrElse { "" }
+        }
+        return args.getString(ARG_PRIVATE_KEY).orEmpty().trim()
     }
 
     private fun parsePortOrNull(rawPort: String?): Int? {
@@ -189,5 +201,6 @@ class LocalSshIntegrationTest {
         private const val ARG_USERNAME = "sshUsername"
         private const val ARG_PASSWORD = "sshPassword"
         private const val ARG_PRIVATE_KEY = "sshPrivateKey"
+        private const val ARG_PRIVATE_KEY_B64 = "sshPrivateKeyB64"
     }
 }

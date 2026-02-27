@@ -23,15 +23,20 @@ Build a debug APK:
 ```
 
 Run the optional local SSH integration tests on a connected device (not for CI):
+
+1) Create a local git-ignored config via interactive wizard:
 ```bash
-SSH_HOST=YOUR_HOST \
-SSH_PORT=22 \
-SSH_USERNAME=YOUR_USER \
-SSH_PASSWORD=YOUR_PASSWORD \
+./scripts/setup-local-ssh-test.sh
+```
+
+This writes secrets to `.local/local-ssh-test.env` (chmod 600, git-ignored).
+
+2) Run the tests:
+```bash
 ./scripts/run-local-ssh-test.sh
 ```
 
-This wrapper keeps secrets out of shell history better than inline Gradle args.
+You can still bypass the file and pass values as environment variables when needed.
 
 If credentials are not set, `LocalSshIntegrationTest` is skipped (JUnit assumption), not failed.
 
