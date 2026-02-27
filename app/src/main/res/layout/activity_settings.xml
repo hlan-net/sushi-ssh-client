@@ -287,13 +287,24 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/driveAlwaysSaveHelper" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/aboutButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/action_about"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/saveButton" />
+
         <View
             android:layout_width="0dp"
             android:layout_height="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/saveButton" />
+            app:layout_constraintTop_toBottomOf="@id/aboutButton" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>
