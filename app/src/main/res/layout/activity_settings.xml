@@ -95,73 +95,16 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/sshSectionTitle" />
 
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/sshHostLayout"
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/manageHostsButton"
+        style="@style/Widget.Sushi.PrimaryButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:hint="@string/ssh_host_hint"
+        android:text="@string/action_manage_hosts"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/sshSectionSubtitle">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/sshHostInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="textUri" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/sshPortLayout"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:hint="@string/ssh_port_hint"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/sshHostLayout">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/sshPortInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="number" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/sshUsernameLayout"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:hint="@string/ssh_username_hint"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/sshPortLayout">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/sshUsernameInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="text" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/sshPasswordLayout"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:hint="@string/ssh_password_hint"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/sshUsernameLayout">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/sshPasswordInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="textPassword" />
-    </com.google.android.material.textfield.TextInputLayout>
+        app:layout_constraintTop_toBottomOf="@id/sshSectionSubtitle" />
 
     <TextView
         android:id="@+id/sshHelperText"
@@ -172,7 +115,7 @@
         android:text="@string/ssh_helper"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/sshPasswordLayout" />
+        app:layout_constraintTop_toBottomOf="@id/manageHostsButton" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/manageKeysButton"

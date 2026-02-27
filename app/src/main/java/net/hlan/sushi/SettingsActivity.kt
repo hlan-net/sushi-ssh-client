@@ -56,10 +56,11 @@ class SettingsActivity : AppCompatActivity() {
         binding.apiKeyInput.setText(settings.getApiKey())
         binding.apiKeyLayout.isEnabled = enabled
 
-        binding.sshHostInput.setText(sshSettings.getHost())
-        binding.sshPortInput.setText(sshSettings.getPort().toString())
-        binding.sshUsernameInput.setText(sshSettings.getUsername())
-        binding.sshPasswordInput.setText(sshSettings.getPassword())
+        sshSettings.migrateOldSettingsIfNeeded()
+
+        binding.manageHostsButton.setOnClickListener {
+            startActivity(Intent(this, HostsActivity::class.java))
+        }
 
         binding.manageKeysButton.setOnClickListener {
             startActivity(Intent(this, KeysActivity::class.java))
@@ -90,22 +91,6 @@ class SettingsActivity : AppCompatActivity() {
             settings.setEnabled(binding.geminiEnabledSwitch.isChecked)
             settings.setApiKey(binding.apiKeyInput.text?.toString()?.trim().orEmpty())
             driveLogSettings.setAlwaysSaveEnabled(binding.driveAlwaysSaveSwitch.isChecked)
-
-            sshSettings.setHost(binding.sshHostInput.text?.toString().orEmpty())
-            val portInput = binding.sshPortInput.text?.toString()?.trim().orEmpty()
-            val parsedPort = portInput.toIntOrNull()
-            val port = if (parsedPort != null && parsedPort in 1..65535) {
-                parsedPort
-            } else {
-                DEFAULT_SSH_PORT
-            }
-            sshSettings.setPort(port)
-            sshSettings.setUsername(binding.sshUsernameInput.text?.toString().orEmpty())
-            sshSettings.setPassword(binding.sshPasswordInput.text?.toString().orEmpty())
-            if (portInput.isNotBlank() && parsedPort != port) {
-                binding.sshPortInput.setText(port.toString())
-                Toast.makeText(this, getString(R.string.ssh_invalid_port), Toast.LENGTH_SHORT).show()
-            }
 
             Toast.makeText(this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
         }
