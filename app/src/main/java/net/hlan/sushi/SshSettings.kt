@@ -1,34 +1,17 @@
 package net.hlan.sushi
 
 import android.content.Context
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 class SshSettings(context: Context) {
     private val prefs = SecurePrefs.get(context)
+    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    private val listType = Types.newParameterizedType(List::class.java, SshConnectionConfig::class.java)
+    private val hostListAdapter = moshi.adapter<List<SshConnectionConfig>>(listType)
 
-    fun getHost(): String = prefs.getString(KEY_HOST, "") ?: ""
-
-    fun setHost(host: String) {
-        prefs.edit().putString(KEY_HOST, host.trim()).apply()
-    }
-
-    fun getPort(): Int = prefs.getInt(KEY_PORT, DEFAULT_PORT)
-
-    fun setPort(port: Int) {
-        prefs.edit().putInt(KEY_PORT, port).apply()
-    }
-
-    fun getUsername(): String = prefs.getString(KEY_USERNAME, "") ?: ""
-
-    fun setUsername(username: String) {
-        prefs.edit().putString(KEY_USERNAME, username.trim()).apply()
-    }
-
-    fun getPassword(): String = prefs.getString(KEY_PASSWORD, "") ?: ""
-
-    fun setPassword(password: String) {
-        prefs.edit().putString(KEY_PASSWORD, password).apply()
-    }
-
+    // Global Key Pair
     fun getPrivateKey(): String? = prefs.getString(KEY_PRIVATE_KEY, null)
 
     fun setPrivateKey(privateKey: String?) {
@@ -49,32 +32,87 @@ class SshSettings(context: Context) {
         }
     }
 
-    fun isConfigured(): Boolean {
-        // Now it's either password OR private key that's needed
-        val hasCredentials = getPassword().isNotBlank() || !getPrivateKey().isNullOrBlank()
-        return getHost().isNotBlank() && getUsername().isNotBlank() && hasCredentials
+    // Host Management
+    fun getHosts(): List<SshConnectionConfig> {
+        val json = prefs.getString(KEY_HOSTS_JSON, null) ?: return emptyList()
+        return try {
+            hostListAdapter.fromJson(json) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveHost(config: SshConnectionConfig) {
+        val currentHosts = getHosts().toMutableList()
+        val index = currentHosts.indexOfFirst { it.id == config.id }
+        if (index != -1) {
+            currentHosts[index] = config
+        } else {
+            currentHosts.add(config)
+        }
+        prefs.edit().putString(KEY_HOSTS_JSON, hostListAdapter.toJson(currentHosts)).apply()
+    }
+
+    fun deleteHost(id: String) {
+        val currentHosts = getHosts().toMutableList()
+        val removed = currentHosts.removeAll { it.id == id }
+        if (removed) {
+            prefs.edit().putString(KEY_HOSTS_JSON, hostListAdapter.toJson(currentHosts)).apply()
+        }
+        if (getActiveHostId() == id) {
+            setActiveHostId(null)
+        }
+    }
+
+    fun getActiveHostId(): String? = prefs.getString(KEY_ACTIVE_HOST_ID, null)
+
+    fun setActiveHostId(id: String?) {
+        if (id == null) {
+            prefs.edit().remove(KEY_ACTIVE_HOST_ID).apply()
+        } else {
+            prefs.edit().putString(KEY_ACTIVE_HOST_ID, id).apply()
+        }
     }
 
     fun getConfigOrNull(): SshConnectionConfig? {
-        if (!isConfigured()) {
-            return null
+        val activeId = getActiveHostId() ?: return null
+        val host = getHosts().find { it.id == activeId } ?: return null
+        return host.copy(privateKey = getPrivateKey())
+    }
+
+    // Migration function for old settings
+    fun migrateOldSettingsIfNeeded() {
+        if (prefs.contains("ssh_host") && !prefs.contains(KEY_HOSTS_JSON)) {
+            val host = prefs.getString("ssh_host", "") ?: ""
+            val port = prefs.getInt("ssh_port", 22)
+            val username = prefs.getString("ssh_username", "") ?: ""
+            val password = prefs.getString("ssh_password", "") ?: ""
+            
+            if (host.isNotBlank() && username.isNotBlank()) {
+                val config = SshConnectionConfig(
+                    alias = "Default Host",
+                    host = host,
+                    port = port,
+                    username = username,
+                    password = password
+                )
+                saveHost(config)
+                setActiveHostId(config.id)
+            }
+            // Clear old keys
+            prefs.edit()
+                .remove("ssh_host")
+                .remove("ssh_port")
+                .remove("ssh_username")
+                .remove("ssh_password")
+                .apply()
         }
-        return SshConnectionConfig(
-            host = getHost(),
-            port = getPort(),
-            username = getUsername(),
-            password = getPassword(),
-            privateKey = getPrivateKey()
-        )
     }
 
     companion object {
-        private const val DEFAULT_PORT = 22
-        private const val KEY_HOST = "ssh_host"
-        private const val KEY_PORT = "ssh_port"
-        private const val KEY_USERNAME = "ssh_username"
-        private const val KEY_PASSWORD = "ssh_password"
         private const val KEY_PRIVATE_KEY = "ssh_private_key"
         private const val KEY_PUBLIC_KEY = "ssh_public_key"
+        private const val KEY_HOSTS_JSON = "ssh_hosts_json"
+        private const val KEY_ACTIVE_HOST_ID = "ssh_active_host_id"
     }
 }

@@ -8,13 +8,19 @@ import java.io.InputStreamReader
 import java.io.OutputStream
 
 data class SshConnectionConfig(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val alias: String = "",
     val host: String,
     val port: Int,
     val username: String,
     val password: String,
     val privateKey: String? = null
 ) {
-    fun displayTarget(): String = "$username@$host:$port"
+    fun displayTarget(): String = if (alias.isNotBlank()) {
+        "$alias ($username@$host:$port)"
+    } else {
+        "$username@$host:$port"
+    }
 }
 
 data class SshConnectResult(

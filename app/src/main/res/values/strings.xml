@@ -53,9 +53,19 @@
     <string name="ssh_port_hint">Port (default 22)</string>
     <string name="ssh_username_hint">Username</string>
     <string name="ssh_password_hint">Password</string>
-    <string name="ssh_helper">Stored securely on this device.</string>
+    <string name="ssh_helper">Leave password empty if using private key authentication.</string>
     <string name="ssh_missing_config">Add SSH details in Settings to connect.</string>
     <string name="ssh_invalid_port">Port must be a number. Using 22.</string>
+    
+    <string name="action_manage_hosts">Manage Hosts</string>
+    <string name="hosts_title">SSH Hosts</string>
+    <string name="add_host_title">Add Host</string>
+    <string name="edit_host_title">Edit Host</string>
+    <string name="host_alias_hint">Alias (Optional)</string>
+    <string name="hosts_empty">No hosts configured.</string>
+    <string name="action_add_host">Add Host</string>
+    <string name="action_save_host">Save Host</string>
+    
     <string name="status_helper_disconnected">Add SSH details in Settings to start a session.</string>
     <string name="status_helper_connecting">Attempting to connect to your host.</string>
     <string name="status_helper_connected">Session is active. Terminal output will appear below.</string>

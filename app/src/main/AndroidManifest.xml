@@ -44,6 +44,14 @@
             android:name=".PhrasesActivity"
             android:exported="false"
             android:label="@string/phrases_title" />
+        <activity
+            android:name=".HostsActivity"
+            android:exported="false"
+            android:label="@string/hosts_title" />
+        <activity
+            android:name=".HostEditActivity"
+            android:exported="false"
+            android:label="@string/hosts_title" />
     </application>
 
 </manifest>

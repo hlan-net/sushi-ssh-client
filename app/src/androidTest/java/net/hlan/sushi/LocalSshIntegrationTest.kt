@@ -58,10 +58,15 @@ class LocalSshIntegrationTest {
         val credentials = readCredentialsOrSkip()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val sshSettings = SshSettings(context)
-        sshSettings.setHost(credentials.host)
-        sshSettings.setPort(credentials.port)
-        sshSettings.setUsername(credentials.username)
-        sshSettings.setPassword(credentials.password)
+        val testHost = SshConnectionConfig(
+            alias = "Test Host",
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password
+        )
+        sshSettings.saveHost(testHost)
+        sshSettings.setActiveHostId(testHost.id)
         sshSettings.setPrivateKey(credentials.privateKey)
 
         val marker = "SUSHI_UI_TEST_OK_${System.currentTimeMillis()}"
