@@ -22,3 +22,7 @@
 # AndroidX test runner references Kotlin lazy helpers at runtime in minified builds.
 -keep class kotlin.LazyKt { *; }
 -keep class kotlin.LazyKt__* { *; }
+
+# Kotlin instrumentation tests in minifiedDebug rely on string helper runtime classes.
+-keep class kotlin.text.StringsKt { *; }
+-keep class kotlin.text.StringsKt__* { *; }
