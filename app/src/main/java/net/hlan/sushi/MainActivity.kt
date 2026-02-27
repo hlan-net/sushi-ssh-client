@@ -123,6 +123,9 @@ class MainActivity : AppCompatActivity() {
         updateGeminiState()
         refreshSessionLog()
         updateSessionUi()
+        
+        val appVersion = getAppVersionInfo()
+        binding.footerText.text = getString(R.string.placeholder_footer, appVersion.name)
     }
 
     override fun onResume() {
