@@ -124,7 +124,7 @@ class MainActivity : AppCompatActivity() {
         refreshSessionLog()
         updateSessionUi()
         
-        val appVersion = getAppVersionInfo()
+        val appVersion = AppUtils.getAppVersionInfo(this)
         binding.footerText.text = getString(R.string.placeholder_footer, appVersion.name)
     }
 
