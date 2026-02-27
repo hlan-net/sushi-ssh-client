@@ -118,6 +118,11 @@
     <string name="drive_upload_success">Log uploaded to Drive.</string>
     <string name="drive_upload_failed">Drive upload failed.</string>
     <string name="drive_upload_disabled">Enable Drive logging in settings.</string>
+    <string name="about_title">About sushi</string>
+    <string name="about_version">Version %1$s (%2$s)</string>
+    <string name="about_description">sushi is an open-source SSH client for Android, built with focus on clean design and modern tooling.</string>
+    <string name="action_github">Source Code (GitHub)</string>
+    <string name="action_about">About</string>
 
     <string name="keys_title">SSH Keys</string>
     <string name="keys_subtitle">Generate and manage the SSH key used for authentication.</string>

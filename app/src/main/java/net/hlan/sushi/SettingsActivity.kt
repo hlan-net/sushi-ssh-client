@@ -66,6 +66,10 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent(this, KeysActivity::class.java))
         }
 
+        binding.aboutButton.setOnClickListener {
+            startActivity(Intent(this, AboutActivity::class.java))
+        }
+
         binding.geminiEnabledSwitch.setOnCheckedChangeListener { _, isChecked ->
             binding.apiKeyLayout.isEnabled = isChecked
         }

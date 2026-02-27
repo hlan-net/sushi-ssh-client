@@ -52,6 +52,10 @@
             android:name=".HostEditActivity"
             android:exported="false"
             android:label="@string/hosts_title" />
+        <activity
+            android:name=".AboutActivity"
+            android:exported="false"
+            android:label="@string/about_title" />
     </application>
 
 </manifest>
