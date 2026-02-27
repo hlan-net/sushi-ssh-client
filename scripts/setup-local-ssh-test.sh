@@ -38,12 +38,12 @@ if [[ "${auth_choice}" == "1" ]]; then
   read -r -s -p "SSH password: " ssh_password
   echo
 else
-  key_path=""
-  while [[ -z "${key_path}" || ! -f "${key_path}" ]]; do
+  while true; do
     read -r -p "Path to private key file: " key_path
-    if [[ ! -f "${key_path}" ]]; then
-      echo "File not found: ${key_path}"
+    if [[ -f "${key_path}" ]]; then
+      break
     fi
+    echo "File not found: ${key_path}"
   done
   ssh_private_key_b64="$(base64 < "${key_path}" | tr -d '\n')"
 fi
