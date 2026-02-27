@@ -42,14 +42,12 @@ class LocalSshIntegrationTest {
         assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
 
         try {
+            assertTrue("SSH session disconnected before command run", client.isConnected())
             val commandResult = client.sendCommand("echo $marker")
             assertTrue("Failed to send command: ${commandResult.message}", commandResult.success)
 
             val markerReceived = markerLatch.await(15, TimeUnit.SECONDS)
-            assertTrue(
-                "Did not receive marker output within timeout. Received lines: ${tail(receivedLines, 20)}",
-                markerReceived
-            )
+            assertTrue("Did not receive marker output within timeout.", markerReceived)
         } finally {
             client.disconnect()
         }
@@ -110,9 +108,14 @@ class LocalSshIntegrationTest {
         val args = InstrumentationRegistry.getArguments()
         val host = args.getString(ARG_HOST).orEmpty().trim()
         val username = args.getString(ARG_USERNAME).orEmpty().trim()
-        val password = args.getString(ARG_PASSWORD).orEmpty()
-        val privateKeyRaw = args.getString(ARG_PRIVATE_KEY).orEmpty()
-        val port = parsePort(args.getString(ARG_PORT))
+        val password = args.getString(ARG_PASSWORD).orEmpty().trim()
+        val privateKeyRaw = args.getString(ARG_PRIVATE_KEY).orEmpty().trim()
+        val port = parsePortOrNull(args.getString(ARG_PORT))
+
+        assumeTrue(
+            "sshPort must be a valid integer between 1 and 65535 when provided.",
+            port != null
+        )
 
         assumeTrue(
             "Set sshHost, sshUsername and either sshPassword or sshPrivateKey to run this test.",
@@ -122,22 +125,20 @@ class LocalSshIntegrationTest {
 
         return LocalSshCredentials(
             host = host,
-            port = port,
+            port = port ?: DEFAULT_SSH_PORT,
             username = username,
             password = password,
             privateKey = privateKeyRaw.ifBlank { null }
         )
     }
 
-    private fun parsePort(rawPort: String?): Int {
-        return rawPort?.trim()?.toIntOrNull() ?: DEFAULT_SSH_PORT
-    }
-
-    private fun tail(lines: List<String>, maxItems: Int): List<String> {
-        if (lines.size <= maxItems) {
-            return lines
+    private fun parsePortOrNull(rawPort: String?): Int? {
+        val value = rawPort?.trim().orEmpty()
+        if (value.isEmpty()) {
+            return DEFAULT_SSH_PORT
         }
-        return lines.subList(lines.size - maxItems, lines.size)
+        val parsed = value.toIntOrNull() ?: return null
+        return if (parsed in 1..65535) parsed else null
     }
 
     private fun waitUntil(

@@ -1,4 +1,4 @@
-# Keep only Kotlin runtime helpers required by minified instrumentation tests.
+# Keep Kotlin helpers required by AndroidX instrumentation startup in minifiedDebug.
 -keep class kotlin.LazyKt { *; }
 -keep class kotlin.LazyKt__* { *; }
 -keep class kotlin.text.StringsKt { *; }

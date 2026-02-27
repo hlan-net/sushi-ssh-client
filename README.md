@@ -33,6 +33,8 @@ SSH_PASSWORD=YOUR_PASSWORD \
 
 This wrapper keeps secrets out of shell history better than inline Gradle args.
 
+If credentials are not set, `LocalSshIntegrationTest` is skipped (JUnit assumption), not failed.
+
 You can still run Gradle directly if needed:
 ```bash
 ./gradlew connectedDebugAndroidTest \

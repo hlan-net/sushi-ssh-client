@@ -64,7 +64,8 @@ android {
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
+                "minified-debug-proguard-rules.pro"
             )
             testProguardFiles("test-proguard-rules.pro")
         }
@@ -97,6 +98,7 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("com.google.android.material:material:1.13.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    // Use maintained JSch fork for modern host key/kex support (OpenSSH 9+/10+).
     implementation("com.github.mwiede:jsch:0.2.21")
     implementation("com.jcraft:jzlib:1.1.3")
     implementation("androidx.security:security-crypto:1.0.0")
