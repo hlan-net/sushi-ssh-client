@@ -42,7 +42,7 @@
     <string name="action_send_ctrl_c">Ctrl+C</string>
     <string name="action_send_ctrl_d">Ctrl+D</string>
     <string name="clipboard_session_log_label">SSH-istuntoloki</string>
-    <string name="placeholder_footer">Avoimen lähdekoodin SSH-asiakas Androidille.</string>
+    <string name="placeholder_footer">sushi v%1$s - Avoimen lähdekoodin SSH-asiakas</string>
     <string name="action_start_session">Aloita istunto</string>
     <string name="action_end_session">Lopeta istunto</string>
     <string name="action_copy_log">Kopioi loki</string>

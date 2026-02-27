@@ -42,7 +42,7 @@
     <string name="action_send_ctrl_c">Ctrl+C</string>
     <string name="action_send_ctrl_d">Ctrl+D</string>
     <string name="clipboard_session_log_label">SSH Session Log</string>
-    <string name="placeholder_footer">Open source SSH client for Android.</string>
+    <string name="placeholder_footer">sushi v%1$s - Open source SSH client</string>
     <string name="action_start_session">Start session</string>
     <string name="action_end_session">End session</string>
     <string name="action_copy_log">Copy log</string>
