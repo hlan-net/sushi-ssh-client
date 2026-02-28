@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/geminiDialogTitle"
+        style="@style/TextAppearance.Sushi.Body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/gemini_dialog_title"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/geminiDialogStatusText"
+        style="@style/TextAppearance.Sushi.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/gemini_status_disabled" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/geminiDialogVoiceButton"
+        style="@style/Widget.Sushi.PrimaryButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="@string/action_gemini_voice" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/geminiDialogSettingsButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="@string/action_gemini_settings" />
+
+    <TextView
+        android:id="@+id/geminiDialogPromptLabel"
+        style="@style/TextAppearance.Sushi.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/gemini_prompt_label" />
+
+    <TextView
+        android:id="@+id/geminiDialogPromptText"
+        style="@style/TextAppearance.Sushi.Body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/gemini_prompt_placeholder" />
+
+    <TextView
+        android:id="@+id/geminiDialogOutputLabel"
+        style="@style/TextAppearance.Sushi.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/gemini_output_label" />
+
+    <TextView
+        android:id="@+id/geminiDialogOutputText"
+        style="@style/TextAppearance.Sushi.Body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/gemini_output_placeholder" />
+
+    <ProgressBar
+        android:id="@+id/geminiDialogProgressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:visibility="gone" />
+
+</LinearLayout>

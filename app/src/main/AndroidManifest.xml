@@ -45,6 +45,10 @@
             android:exported="false"
             android:label="@string/phrases_title" />
         <activity
+            android:name=".PlaysActivity"
+            android:exported="false"
+            android:label="@string/plays_title" />
+        <activity
             android:name=".HostsActivity"
             android:exported="false"
             android:label="@string/hosts_title" />
@@ -56,6 +60,10 @@
             android:name=".AboutActivity"
             android:exported="false"
             android:label="@string/about_title" />
+        <activity
+            android:name=".TerminalActivity"
+            android:exported="false"
+            android:label="@string/terminal_title" />
     </application>
 
 </manifest>

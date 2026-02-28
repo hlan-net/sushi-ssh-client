@@ -128,6 +128,27 @@ class SshClient(private val config: SshConnectionConfig) {
         }
     }
 
+    fun sendText(text: String): SshCommandResult {
+        val activeChannel = shellChannel
+        val output = shellInput
+        if (activeChannel == null || !activeChannel.isConnected || output == null) {
+            return SshCommandResult(false, null, "Not connected")
+        }
+
+        if (text.isEmpty()) {
+            return SshCommandResult(true, null, "No input")
+        }
+
+        return runCatching {
+            output.write(text.toByteArray())
+            output.flush()
+            SshCommandResult(true, null, "Input sent")
+        }.getOrElse { error ->
+            val message = error.message?.takeIf { it.isNotBlank() } ?: "Input failed"
+            SshCommandResult(false, null, message)
+        }
+    }
+
     fun sendCtrlC() {
         runCatching {
             shellInput?.apply {

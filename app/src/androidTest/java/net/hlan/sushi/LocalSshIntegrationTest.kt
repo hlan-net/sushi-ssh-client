@@ -292,6 +292,110 @@ class LocalSshIntegrationTest {
         }
     }
 
+    @Test
+    fun nanoEditFlowFindsSuccessAndLogsOkTwice() {
+        val credentials = readCredentialsOrSkip(requirePassword = true)
+        val receivedLines = Collections.synchronizedList(ArrayList<String>())
+
+        val config = SshConnectionConfig(
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password,
+            privateKey = credentials.privateKey
+        )
+        val client = SshClient(config)
+
+        val connectResult = client.connect { line ->
+            receivedLines.add(line)
+        }
+
+        assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
+
+        try {
+            runCommandCaptureOutput(
+                client = client,
+                receivedLines = receivedLines,
+                command = "rm -f newfile",
+                marker = "SUSHI_NANO_CLEAN_START_${System.currentTimeMillis()}"
+            )
+
+            val nanoCheckOutput = runCommandCaptureOutput(
+                client = client,
+                receivedLines = receivedLines,
+                command = "command -v nano >/dev/null && echo SUSHI_NANO_AVAILABLE || echo SUSHI_NANO_MISSING",
+                marker = "SUSHI_NANO_CHECK_DONE_${System.currentTimeMillis()}"
+            )
+            val nanoCheckLines = meaningfulOutput(
+                nanoCheckOutput,
+                command = "command -v nano >/dev/null && echo SUSHI_NANO_AVAILABLE || echo SUSHI_NANO_MISSING"
+            )
+            assertTrue("nano is not available on target host", nanoCheckLines.any { it.contains("SUSHI_NANO_AVAILABLE") })
+
+            runCommandCaptureOutput(
+                client = client,
+                receivedLines = receivedLines,
+                command = "touch newfile",
+                marker = "SUSHI_NANO_TOUCH_DONE_${System.currentTimeMillis()}"
+            )
+
+            val openNanoResult = client.sendCommand("nano newfile")
+            assertTrue("Failed to open nano: ${openNanoResult.message}", openNanoResult.success)
+            Thread.sleep(1200)
+
+            assertTrue("Failed to type nano content", client.sendText("ready\nfor\nsuccess").success)
+            Thread.sleep(300)
+
+            assertTrue("Failed to send Ctrl+O in nano", client.sendText("\u000f").success)
+            Thread.sleep(300)
+            assertTrue("Failed to confirm nano write", client.sendText("\n").success)
+            Thread.sleep(500)
+            assertTrue("Failed to send Ctrl+X in nano", client.sendText("\u0018").success)
+            Thread.sleep(1000)
+
+            // Extra escape sequence to get back to shell reliably from any nano prompt state.
+            client.sendText("\u0018") // Ctrl+X
+            Thread.sleep(250)
+            client.sendText("Y\n")
+            Thread.sleep(250)
+            client.sendText("\n")
+            Thread.sleep(400)
+
+            val startIndex = synchronized(receivedLines) { receivedLines.size }
+            assertTrue(
+                "Failed to run grep step",
+                client.sendText("grep -l success * && echo \"OK\"\n").success
+            )
+
+            val sawNewfile = waitForLineContains(receivedLines, "newfile", timeoutSec = 20)
+            val sawOk = waitForLineContains(receivedLines, "OK", timeoutSec = 20)
+            assertTrue("Expected grep output to include newfile", sawNewfile)
+            assertTrue("Expected grep step to output OK", sawOk)
+
+            assertTrue(
+                "Failed to run second grep verification step",
+                client.sendText("grep -l success * && echo \"OK\"\n").success
+            )
+            val sawSecondOk = waitForNthLineContains(receivedLines, "OK", startIndex, targetCount = 2, timeoutSec = 20)
+            assertTrue("Expected two OK lines after grep checks", sawSecondOk)
+
+            val okCount = synchronized(receivedLines) {
+                receivedLines.drop(startIndex).count { it.contains("OK") }
+            }
+            assertTrue("Expected session log to contain OK at least two times, got $okCount", okCount >= 2)
+        } finally {
+            runCatching {
+                runCommandCaptureOutput(
+                    client = client,
+                    receivedLines = receivedLines,
+                    command = "rm -f newfile",
+                    marker = "SUSHI_NANO_CLEAN_END_${System.currentTimeMillis()}"
+                )
+            }
+            client.disconnect()
+        }
+    }
+
     @Ignore("Enable after custom phrases are supported in automation.")
     @Test
     fun removesSushiKeysViaPhraseThenFailsReconnect() {
@@ -365,7 +469,7 @@ class LocalSshIntegrationTest {
         timeoutSec: Long = 25
     ): List<String> {
         val startIndex = synchronized(receivedLines) { receivedLines.size }
-        val result = client.sendCommand("$command; echo $marker")
+        val result = client.sendCommand("$command; printf '\\n$marker\\n'")
         assertTrue("Failed to send command '$command': ${result.message}", result.success)
 
         val markerReceived = waitForMarker(receivedLines, marker, timeoutSec)
@@ -404,6 +508,44 @@ class LocalSshIntegrationTest {
             .filterNot { it.contains("SUSHI_STEP") }
             .filterNot { it == command }
             .filterNot { it.endsWith("$") || it.endsWith("#") }
+    }
+
+    private fun waitForLineContains(
+        receivedLines: List<String>,
+        marker: String,
+        timeoutSec: Long
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutSec)
+        while (System.currentTimeMillis() < deadline) {
+            val found = synchronized(receivedLines) {
+                receivedLines.any { it.contains(marker) }
+            }
+            if (found) {
+                return true
+            }
+            Thread.sleep(100)
+        }
+        return false
+    }
+
+    private fun waitForNthLineContains(
+        receivedLines: List<String>,
+        marker: String,
+        startIndex: Int,
+        targetCount: Int,
+        timeoutSec: Long
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutSec)
+        while (System.currentTimeMillis() < deadline) {
+            val count = synchronized(receivedLines) {
+                receivedLines.drop(startIndex).count { it.contains(marker) }
+            }
+            if (count >= targetCount) {
+                return true
+            }
+            Thread.sleep(100)
+        }
+        return false
     }
 
     private fun waitUntil(
@@ -465,6 +607,7 @@ class LocalSshIntegrationTest {
         SecurePrefs.get(context).edit().clear().commit()
         ConsoleLogRepository(context).clear()
         context.deleteDatabase("sushi_phrases.db")
+        context.deleteDatabase("sushi_plays.db")
     }
 
     companion object {

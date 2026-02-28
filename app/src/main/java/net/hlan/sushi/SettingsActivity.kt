@@ -3,6 +3,7 @@ package net.hlan.sushi
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,6 +29,7 @@ class SettingsActivity : AppCompatActivity() {
             LanguageOption("es", getString(R.string.language_spanish))
         )
     }
+    private var selectedSettingsTab = SettingsTab.GENERAL
 
     private val driveSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -50,6 +52,7 @@ class SettingsActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupLanguagePicker()
+        setupTabButtons()
 
         val enabled = settings.isEnabled()
         binding.geminiEnabledSwitch.isChecked = enabled
@@ -64,6 +67,14 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.manageKeysButton.setOnClickListener {
             startActivity(Intent(this, KeysActivity::class.java))
+        }
+
+        binding.managePlaysButton.setOnClickListener {
+            startActivity(Intent(this, PlaysActivity::class.java))
+        }
+
+        binding.managePhrasesButton.setOnClickListener {
+            startActivity(Intent(this, PhrasesActivity::class.java))
         }
 
         binding.aboutButton.setOnClickListener {
@@ -100,6 +111,34 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         refreshDriveState()
+    }
+
+    private fun setupTabButtons() {
+        binding.settingsTabGeneral.setOnClickListener {
+            switchToTab(SettingsTab.GENERAL)
+        }
+        binding.settingsTabGemini.setOnClickListener {
+            switchToTab(SettingsTab.GEMINI)
+        }
+        binding.settingsTabDrive.setOnClickListener {
+            switchToTab(SettingsTab.DRIVE)
+        }
+        switchToTab(SettingsTab.GENERAL)
+    }
+
+    private fun switchToTab(tab: SettingsTab) {
+        selectedSettingsTab = tab
+        binding.settingsGeneralSection.visibility = if (tab == SettingsTab.GENERAL) View.VISIBLE else View.GONE
+        binding.settingsGeminiSection.visibility = if (tab == SettingsTab.GEMINI) View.VISIBLE else View.GONE
+        binding.settingsDriveSection.visibility = if (tab == SettingsTab.DRIVE) View.VISIBLE else View.GONE
+
+        styleTabButton(binding.settingsTabGeneral, tab == SettingsTab.GENERAL)
+        styleTabButton(binding.settingsTabGemini, tab == SettingsTab.GEMINI)
+        styleTabButton(binding.settingsTabDrive, tab == SettingsTab.DRIVE)
+    }
+
+    private fun styleTabButton(button: com.google.android.material.button.MaterialButton, selected: Boolean) {
+        button.alpha = if (selected) 1f else 0.6f
     }
 
     private fun setupLanguagePicker() {
@@ -151,6 +190,12 @@ class SettingsActivity : AppCompatActivity() {
 
     companion object {
         private const val DEFAULT_SSH_PORT = 22
+    }
+
+    private enum class SettingsTab {
+        GENERAL,
+        GEMINI,
+        DRIVE
     }
 
     private data class LanguageOption(

@@ -17,6 +17,7 @@ class DeviceQaSuiteTest {
         SecurePrefs.get(context).edit().clear().commit()
         ConsoleLogRepository(context).clear()
         context.deleteDatabase("sushi_phrases.db")
+        context.deleteDatabase("sushi_plays.db")
     }
 
     @Test
@@ -135,6 +136,7 @@ class DeviceQaSuiteTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val sshSettings = SshSettings(context)
         val db = PhraseDatabaseHelper.getInstance(context)
+        val playDb = PlayDatabaseHelper.getInstance(context)
 
         ActivityScenario.launch(KeysActivity::class.java).use { keysScenario ->
             keysScenario.onActivity { activity ->
@@ -148,7 +150,9 @@ class DeviceQaSuiteTest {
                 sshSettings.getPrivateKey().orEmpty().isNotBlank() &&
                     sshSettings.getPublicKey().orEmpty().isNotBlank() &&
                     db.getPhraseByName(PHRASE_INSTALL_KEY) != null &&
-                    db.getPhraseByName(PHRASE_REMOVE_SUSHI_KEYS) != null
+                    db.getPhraseByName(PHRASE_REMOVE_SUSHI_KEYS) != null &&
+                    playDb.getPlayByName("Install SSH Key") != null &&
+                    playDb.getPlayByName("Reboot Host") != null
             }
         }
 
@@ -156,6 +160,17 @@ class DeviceQaSuiteTest {
         assertTrue("Remove Sushi SSH Keys phrase should exist", removePhrase != null)
         val removePhraseCommand = removePhrase?.command.orEmpty()
         assertTrue("Remove Sushi SSH Keys command should not be blank", removePhraseCommand.isNotBlank())
+
+        val installPlay = playDb.getPlayByName("Install SSH Key")
+        assertTrue("Install SSH Key play should exist", installPlay != null)
+        assertTrue(
+            "Install SSH Key play should avoid duplicates",
+            installPlay?.scriptTemplate.orEmpty().contains("grep -Fqx")
+        )
+
+        val rebootPlay = playDb.getPlayByName("Reboot Host")
+        assertTrue("Reboot Host play should exist", rebootPlay != null)
+        assertTrue("Reboot Host play should use logout placeholder", rebootPlay?.scriptTemplate == "logout")
 
         ActivityScenario.launch(PhrasesActivity::class.java).use { phrasesScenario ->
             waitForCondition(phrasesScenario) { activity ->

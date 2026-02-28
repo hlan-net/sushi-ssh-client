@@ -6,8 +6,15 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [0.2.0] - Unreleased
 
-### Planned
-- Simplify the main UI layout to reduce visual density and improve focus on core SSH actions.
+### Added
+- Added a collapsible session tools section in the main screen to keep secondary actions hidden by default.
+- Added a Gemini control modal so voice interaction and Gemini output no longer occupy permanent space on the main screen.
+- Added tabbed sections in Settings (General, Gemini, Drive) to reduce vertical clutter.
+- Added a dedicated Terminal mode screen for direct shell interaction with live input, Enter/Tab/Backspace, and Ctrl+C/Ctrl+D controls.
+
+### Changed
+- Simplified the main UI by replacing inline Gemini details with a compact status and modal entrypoint.
+- Bumped development version to `0.2.0-dev` (`versionCode` 8).
 
 ## [0.1.3] - 2026-02-27
 

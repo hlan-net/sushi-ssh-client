@@ -11,6 +11,8 @@ import android.os.Bundle
 import android.os.Looper
 import android.speech.RecognizerIntent
 import android.view.View
+import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -20,6 +22,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivityMainBinding
+import net.hlan.sushi.databinding.DialogGeminiControlsBinding
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -34,13 +39,17 @@ class MainActivity : AppCompatActivity() {
     private val driveLogUploader by lazy { DriveLogUploader(this) }
     private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
     private val sshSettings by lazy { SshSettings(this) }
-    private val db by lazy { PhraseDatabaseHelper.getInstance(this) }
+    private val playDb by lazy { PlayDatabaseHelper.getInstance(this) }
 
     private var sshClient: SshClient? = null
     private var isConnecting = false
     private var activeConfig: SshConnectionConfig? = null
     private var lastConnectFailed = false
-    private var isCommandRunning = false
+    private var geminiDialog: AlertDialog? = null
+    private var geminiDialogBinding: DialogGeminiControlsBinding? = null
+    private var lastGeminiPrompt = ""
+    private var lastGeminiOutput = ""
+    private var isGeminiRequestRunning = false
 
     private val voiceResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -59,7 +68,8 @@ class MainActivity : AppCompatActivity() {
             return@registerForActivityResult
         }
 
-        binding.geminiPromptText.text = voiceText
+        lastGeminiPrompt = voiceText
+        updateGeminiDialogState()
         requestGeminiCommand(voiceText)
     }
 
@@ -79,48 +89,23 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.startSessionButton.setOnClickListener {
-            handleSessionAction()
+            startActivity(TerminalActivity.createIntent(this, autoConnect = true))
         }
 
-        binding.runCommandButton.setOnClickListener {
-            handleRunCommand()
-        }
-
-        binding.ctrlCButton.setOnClickListener {
-            sshClient?.sendCtrlC()
-            appendSessionLog("^C")
-        }
-
-        binding.ctrlDButton.setOnClickListener {
-            sshClient?.sendCtrlD()
-            appendSessionLog("^D")
-        }
-
-        binding.phrasesButton.setOnClickListener {
-            showPhrasesDialog()
-        }
-
-        binding.clearLogButton.setOnClickListener {
-            clearSessionLog()
-        }
-
-        binding.copyLogButton.setOnClickListener {
-            copySessionLog()
+        binding.playsButton.setOnClickListener {
+            showPlayHostDialog()
         }
 
         binding.geminiVoiceButton.setOnClickListener {
-            handleGeminiVoice()
+            showGeminiDialog()
         }
 
         binding.geminiSettingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        binding.sessionLogText.onSizeChangedListener = { col, row, wp, hp ->
-            sshClient?.resizePty(col, row, wp, hp)
-        }
-
         updateGeminiState()
+        ManagedPlays.ensure(this, sshSettings.getPublicKey())
         refreshSessionLog()
         updateSessionUi()
         
@@ -136,16 +121,21 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        geminiDialog?.dismiss()
+        geminiDialog = null
+        geminiDialogBinding = null
         sshClient?.disconnect()
         sshClient = null
     }
 
     private fun updateGeminiState() {
-        binding.geminiStatusText.text = when {
+        val status = when {
             !geminiSettings.isEnabled() -> getString(R.string.gemini_status_disabled)
             geminiSettings.getApiKey().isBlank() -> getString(R.string.gemini_status_missing_key)
             else -> getString(R.string.gemini_status_ready)
         }
+        binding.geminiStatusText.text = status
+        geminiDialogBinding?.geminiDialogStatusText?.text = status
     }
 
     private fun handleGeminiVoice() {
@@ -166,83 +156,222 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestGeminiCommand(voiceText: String) {
-        binding.geminiProgressBar.visibility = View.VISIBLE
-        binding.geminiOutputText.text = getString(R.string.gemini_output_waiting)
+        isGeminiRequestRunning = true
+        lastGeminiOutput = getString(R.string.gemini_output_waiting)
+        updateGeminiDialogState()
 
         Thread {
             val result = geminiClient.generateCommand(voiceText)
             runOnUiThread {
-                binding.geminiProgressBar.visibility = View.GONE
-                binding.geminiOutputText.text = result.message
+                isGeminiRequestRunning = false
+                lastGeminiOutput = result.message
+                updateGeminiDialogState()
             }
         }.start()
     }
 
-    private fun handleRunCommand() {
+    private fun showGeminiDialog() {
+        if (geminiDialog?.isShowing == true) {
+            return
+        }
+
+        val dialogBinding = DialogGeminiControlsBinding.inflate(layoutInflater)
+        geminiDialogBinding = dialogBinding
+
+        dialogBinding.geminiDialogVoiceButton.setOnClickListener {
+            handleGeminiVoice()
+        }
+        dialogBinding.geminiDialogSettingsButton.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .setNegativeButton(R.string.phrase_cancel, null)
+            .create()
+        dialog.setOnDismissListener {
+            geminiDialog = null
+            geminiDialogBinding = null
+        }
+        geminiDialog = dialog
+        updateGeminiState()
+        updateGeminiDialogState()
+        dialog.show()
+    }
+
+    private fun updateGeminiDialogState() {
+        val dialogBinding = geminiDialogBinding ?: return
+        dialogBinding.geminiDialogPromptText.text = if (lastGeminiPrompt.isBlank()) {
+            getString(R.string.gemini_prompt_placeholder)
+        } else {
+            lastGeminiPrompt
+        }
+        dialogBinding.geminiDialogOutputText.text = if (lastGeminiOutput.isBlank()) {
+            getString(R.string.gemini_output_placeholder)
+        } else {
+            lastGeminiOutput
+        }
+        dialogBinding.geminiDialogProgressBar.visibility = if (isGeminiRequestRunning) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+    }
+
+    private fun showPlayHostDialog() {
         if (isConnecting) {
             Toast.makeText(this, getString(R.string.session_status_connecting), Toast.LENGTH_SHORT).show()
             return
         }
 
-        if (sshClient?.isConnected() != true) {
-            Toast.makeText(this, getString(R.string.session_command_not_connected), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val command = binding.commandInput.text?.toString()?.trim().orEmpty()
-        if (command.isBlank()) {
-            Toast.makeText(this, getString(R.string.session_command_empty), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val client = sshClient
-        if (client == null) {
-            Toast.makeText(this, getString(R.string.session_command_not_connected), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        isCommandRunning = true
-        binding.commandInput.setText("")
-        appendSessionLog(getString(R.string.session_command_prefix, command))
-        updateSessionUi()
-
-        Thread {
-            val result = client.sendCommand(command)
-
-            runOnUiThread {
-                isCommandRunning = false
-                if (!result.success) {
-                    appendSessionLog(getString(R.string.session_command_failed, result.message))
-                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
-                }
-                updateSessionUi()
-            }
-        }.start()
-    }
-
-    private fun showPhrasesDialog() {
         lifecycleScope.launch(Dispatchers.IO) {
-            val phrases = db.getAllPhrases()
+            val plays = playDb.getAllPlays()
+            val hosts = sshSettings.getHosts()
+            val activeHostId = sshSettings.getActiveHostId()
+
             withContext(Dispatchers.Main) {
-                if (phrases.isEmpty()) {
-                    Toast.makeText(this@MainActivity, R.string.phrases_empty_toast, Toast.LENGTH_SHORT).show()
-                    startActivity(Intent(this@MainActivity, PhrasesActivity::class.java))
+                if (plays.isEmpty()) {
+                    Toast.makeText(this@MainActivity, R.string.plays_empty_toast, Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(this@MainActivity, PlaysActivity::class.java))
+                    return@withContext
+                }
+                if (hosts.isEmpty()) {
+                    Toast.makeText(this@MainActivity, R.string.play_missing_hosts, Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
                     return@withContext
                 }
 
-                val names = phrases.map { it.name }.toTypedArray()
-                AlertDialog.Builder(this@MainActivity)
-                    .setTitle(R.string.phrases_title)
-                    .setItems(names) { _, which ->
-                        binding.commandInput.setText(phrases[which].command)
+                val hostLabels = hosts.map { host ->
+                    if (host.id == activeHostId) {
+                        getString(R.string.play_host_item_active, host.displayTarget())
+                    } else {
+                        getString(R.string.play_host_item, host.displayTarget())
                     }
-                    .setPositiveButton(R.string.action_manage) { _, _ ->
-                        startActivity(Intent(this@MainActivity, PhrasesActivity::class.java))
+                }.toTypedArray()
+
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle(R.string.play_select_host_title)
+                    .setItems(hostLabels) { _, which ->
+                        showPlaySelectionDialog(plays, hosts[which])
                     }
                     .setNegativeButton(R.string.phrase_cancel, null)
                     .show()
             }
         }
+    }
+
+    private fun showPlaySelectionDialog(plays: List<Play>, host: SshConnectionConfig) {
+        val playNames = plays.map { it.name }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.plays_title)
+            .setItems(playNames) { _, which ->
+                val play = plays[which]
+                promptPlayParametersAndRun(play, host)
+            }
+            .setPositiveButton(R.string.action_manage) { _, _ ->
+                startActivity(Intent(this, PlaysActivity::class.java))
+            }
+            .setNegativeButton(R.string.phrase_cancel, null)
+            .show()
+    }
+
+    private fun promptPlayParametersAndRun(play: Play, host: SshConnectionConfig) {
+        val parameters = PlayParameters.decode(play.parametersJson).ifEmpty {
+            PlayParameters.inferFromTemplate(play.scriptTemplate)
+        }
+
+        if (parameters.isEmpty()) {
+            runPlay(play, host, emptyMap())
+            return
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 16, 32, 0)
+        }
+        val fields = linkedMapOf<PlayParameter, TextInputEditText>()
+
+        parameters.forEachIndexed { index, parameter ->
+            val layout = TextInputLayout(this).apply {
+                hint = parameter.label
+            }
+            val input = TextInputEditText(this).apply {
+                inputType = if (parameter.secret) {
+                    android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                } else {
+                    android.text.InputType.TYPE_CLASS_TEXT
+                }
+            }
+            layout.addView(input)
+            if (index > 0) {
+                val params = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                params.topMargin = 12
+                container.addView(layout, params)
+            } else {
+                container.addView(layout)
+            }
+            fields[parameter] = input
+        }
+
+        val content = ScrollView(this).apply { addView(container) }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.play_prompt_title, play.name))
+            .setView(content)
+            .setPositiveButton(R.string.action_run_play, null)
+            .setNegativeButton(R.string.phrase_cancel, null)
+            .create()
+
+        dialog.setOnShowListener {
+            val runButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            runButton.setOnClickListener {
+                val values = mutableMapOf<String, String>()
+                var hasError = false
+                fields.forEach { (parameter, input) ->
+                    val value = input.text?.toString().orEmpty()
+                    val layout = input.parent.parent as? TextInputLayout
+                    layout?.error = null
+                    if (parameter.required && value.isBlank()) {
+                        layout?.error = getString(R.string.play_parameter_required)
+                        hasError = true
+                    } else {
+                        values[parameter.key] = value
+                    }
+                }
+                if (hasError) {
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                runPlay(play, host, values)
+            }
+        }
+        dialog.show()
+    }
+
+    private fun runPlay(play: Play, host: SshConnectionConfig, values: Map<String, String>) {
+        val config = host.copy(privateKey = sshSettings.getPrivateKey())
+        appendSessionLog(getString(R.string.play_run_started, play.name, config.displayTarget()))
+
+        Thread {
+            val result = PlayRunner.execute(
+                play = play,
+                hostConfig = config,
+                values = values,
+                onLine = { line -> appendSessionLog("[Play] $line") }
+            )
+
+            runOnUiThread {
+                if (result.success) {
+                    appendSessionLog(getString(R.string.play_run_finished, play.name))
+                } else {
+                    appendSessionLog(getString(R.string.play_run_failed, play.name, result.message))
+                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
     }
 
     private fun handleSessionAction() {
@@ -333,6 +462,13 @@ class MainActivity : AppCompatActivity() {
 
         consoleLogRepository.appendLine(message)
         binding.sessionLogText.appendLog(message)
+        scrollToSessionLog()
+    }
+
+    private fun scrollToSessionLog() {
+        binding.mainScrollView.post {
+            binding.mainScrollView.smoothScrollTo(0, binding.sessionCard.bottom)
+        }
     }
 
     private fun refreshSessionLog() {
@@ -397,20 +533,10 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.session_target, displayTarget)
         }
 
-        binding.startSessionButton.isEnabled = !isConnecting
-        binding.startSessionButton.text = when {
-            isConnecting -> getString(R.string.session_status_connecting)
-            isConnected -> getString(R.string.action_end_session)
-            else -> getString(R.string.action_start_session)
-        }
+        binding.startSessionButton.isEnabled = true
+        binding.startSessionButton.text = getString(R.string.action_start_session)
 
-        binding.commandInputLayout.isEnabled = isConnected && !isConnecting
-        binding.runCommandButton.isEnabled = isConnected && !isConnecting && !isCommandRunning
-        binding.runCommandButton.text = if (isCommandRunning) {
-            getString(R.string.action_run_command_running)
-        } else {
-            getString(R.string.action_run_command)
-        }
+        binding.playsButton.isEnabled = !isConnecting
     }
 
     private fun attemptDriveLogUpload() {

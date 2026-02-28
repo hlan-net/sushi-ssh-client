@@ -82,11 +82,12 @@ class KeysActivity : AppCompatActivity() {
                 sshSettings.setPrivateKey(prvKeyStr)
                 sshSettings.setPublicKey(pubKeyStr)
 
-                val installCommand = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$pubKeyStr' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+                val installCommand = ManagedPlays.buildInstallAuthorizedKeyCommand(pubKeyStr)
                 val removeCommand = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys.sushi.bak && grep -v 'Sushi - SSH client key' ~/.ssh/authorized_keys.sushi.bak > ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 
                 db.upsertByName(PHRASE_INSTALL_KEY, installCommand)
                 db.upsertByName(PHRASE_REMOVE_SUSHI_KEYS, removeCommand)
+                ManagedPlays.ensure(this@KeysActivity, pubKeyStr)
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@KeysActivity, R.string.key_generated_success, Toast.LENGTH_SHORT).show()

@@ -3,6 +3,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mainScrollView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/sushi_mist"
@@ -89,96 +90,15 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="10dp"
                     android:orientation="horizontal">
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/copyLogButton"
+                        android:id="@+id/playsButton"
                         style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/action_copy_log" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/clearLogButton"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:layout_weight="1"
-                        android:text="@string/action_clear_log" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/commandLabel"
-                    style="@style/TextAppearance.Sushi.Caption"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/session_command_label" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/commandInputLayout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:hint="@string/session_command_hint">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/commandInput"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="text" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/runCommandButton"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/action_run_command" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/phrasesButton"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:layout_weight="1"
-                        android:text="@string/action_phrases" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/ctrlCButton"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textColor="?attr/colorError"
-                        android:text="@string/action_send_ctrl_c" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/ctrlDButton"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:layout_weight="1"
-                        android:text="@string/action_send_ctrl_d" />
+                        android:text="@string/action_plays" />
                 </LinearLayout>
 
                 <TextView
@@ -232,7 +152,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/action_gemini_voice"
+            android:text="@string/action_open_gemini"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/geminiStatusText" />
@@ -249,60 +169,6 @@
             app:layout_constraintTop_toBottomOf="@id/geminiVoiceButton" />
 
         <TextView
-            android:id="@+id/geminiPromptLabel"
-            style="@style/TextAppearance.Sushi.Caption"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="@string/gemini_prompt_label"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/geminiSettingsButton" />
-
-        <TextView
-            android:id="@+id/geminiPromptText"
-            style="@style/TextAppearance.Sushi.Body"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/gemini_prompt_placeholder"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/geminiPromptLabel" />
-
-        <TextView
-            android:id="@+id/geminiOutputLabel"
-            style="@style/TextAppearance.Sushi.Caption"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/gemini_output_label"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/geminiPromptText" />
-
-        <TextView
-            android:id="@+id/geminiOutputText"
-            style="@style/TextAppearance.Sushi.Body"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/gemini_output_placeholder"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/geminiOutputLabel" />
-
-        <ProgressBar
-            android:id="@+id/geminiProgressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:visibility="gone"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/geminiOutputText" />
-
-        <TextView
             android:id="@+id/footerText"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
@@ -311,7 +177,7 @@
             android:text="@string/placeholder_footer"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/geminiProgressBar" />
+            app:layout_constraintTop_toBottomOf="@id/geminiSettingsButton" />
 
         <View
             android:layout_width="0dp"
