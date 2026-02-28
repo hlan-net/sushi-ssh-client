@@ -26,6 +26,8 @@ if [[ -z "${SSH_PASSWORD:-}" && -z "${SSH_PRIVATE_KEY_B64:-}" && -z "${SSH_PRIVA
 fi
 
 SSH_PORT="${SSH_PORT:-22}"
+SSH_JUMP_ENABLED="${SSH_JUMP_ENABLED:-false}"
+SSH_JUMP_PORT="${SSH_JUMP_PORT:-22}"
 TEST_CLASS="${TEST_CLASS:-net.hlan.sushi.LocalSshIntegrationTest}"
 
 args=(
@@ -33,6 +35,7 @@ args=(
   "-Pandroid.testInstrumentationRunnerArguments.sshHost=${SSH_HOST}"
   "-Pandroid.testInstrumentationRunnerArguments.sshPort=${SSH_PORT}"
   "-Pandroid.testInstrumentationRunnerArguments.sshUsername=${SSH_USERNAME}"
+  "-Pandroid.testInstrumentationRunnerArguments.sshJumpEnabled=${SSH_JUMP_ENABLED}"
 )
 
 if [[ -n "${SSH_PASSWORD:-}" ]]; then
@@ -45,6 +48,19 @@ fi
 
 if [[ -n "${SSH_PRIVATE_KEY_B64:-}" ]]; then
   args+=("-Pandroid.testInstrumentationRunnerArguments.sshPrivateKeyB64=${SSH_PRIVATE_KEY_B64}")
+fi
+
+if [[ "${SSH_JUMP_ENABLED}" == "true" || "${SSH_JUMP_ENABLED}" == "1" ]]; then
+  if [[ -z "${SSH_JUMP_HOST:-}" || -z "${SSH_JUMP_USERNAME:-}" ]]; then
+    echo "SSH_JUMP_ENABLED is true but SSH_JUMP_HOST or SSH_JUMP_USERNAME is missing."
+    exit 1
+  fi
+  args+=("-Pandroid.testInstrumentationRunnerArguments.sshJumpHost=${SSH_JUMP_HOST}")
+  args+=("-Pandroid.testInstrumentationRunnerArguments.sshJumpPort=${SSH_JUMP_PORT}")
+  args+=("-Pandroid.testInstrumentationRunnerArguments.sshJumpUsername=${SSH_JUMP_USERNAME}")
+  if [[ -n "${SSH_JUMP_PASSWORD:-}" ]]; then
+    args+=("-Pandroid.testInstrumentationRunnerArguments.sshJumpPassword=${SSH_JUMP_PASSWORD}")
+  fi
 fi
 
 ./gradlew connectedDebugAndroidTest --no-daemon "${args[@]}"

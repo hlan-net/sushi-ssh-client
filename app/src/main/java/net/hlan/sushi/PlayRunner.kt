@@ -42,13 +42,13 @@ object PlayRunner {
         val markerLatch = CountDownLatch(1)
         val client = SshClient(hostConfig)
 
-        val connectResult = client.connect { line ->
+        val connectResult = client.connect(onLine = { line ->
             lines.add(line)
             onLine(line)
             if (line.trim() == marker) {
                 markerLatch.countDown()
             }
-        }
+        })
         if (!connectResult.success) {
             return PlayRunResult(false, connectResult.message, renderedCommand = rendered)
         }

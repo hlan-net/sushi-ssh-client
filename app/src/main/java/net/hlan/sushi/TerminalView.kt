@@ -2,11 +2,17 @@ package net.hlan.sushi
 
 import android.content.Context
 import android.graphics.Color
+import android.text.InputType
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 import android.util.AttributeSet
+import android.view.KeyEvent
+import android.view.inputmethod.BaseInputConnection
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputConnection
+import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.widget.AppCompatTextView
 import java.util.LinkedList
 import java.util.regex.Pattern
@@ -18,6 +24,7 @@ class TerminalView @JvmOverloads constructor(
     private var currentFgColor: Int? = null
     private var currentBgColor: Int? = null
     private val lineBuffer = LinkedList<CharSequence>()
+    var onInputText: ((String) -> Unit)? = null
 
     var onSizeChangedListener: ((col: Int, row: Int, wp: Int, hp: Int) -> Unit)? = null
 
@@ -30,6 +37,59 @@ class TerminalView @JvmOverloads constructor(
     init {
         typeface = android.graphics.Typeface.MONOSPACE
         movementMethod = android.text.method.ScrollingMovementMethod.getInstance()
+        isFocusable = true
+        isFocusableInTouchMode = true
+        setTextIsSelectable(true)
+        setOnClickListener {
+            requestFocus()
+            val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
+    override fun onCheckIsTextEditor(): Boolean = true
+
+    override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
+        outAttrs.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        outAttrs.imeOptions = EditorInfo.IME_ACTION_NONE
+        return object : BaseInputConnection(this, false) {
+            override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
+                val value = text?.toString().orEmpty()
+                if (value.isNotEmpty()) {
+                    val normalized = when (value) {
+                        "\n", "\r\n" -> "\n"
+                        else -> value.replace("\r", "").replace("\n", "")
+                    }
+                    if (normalized.isNotEmpty()) {
+                        onInputText?.invoke(normalized)
+                    }
+                }
+                return true
+            }
+
+            override fun sendKeyEvent(event: KeyEvent): Boolean {
+                if (event.action != KeyEvent.ACTION_DOWN) {
+                    return true
+                }
+                when (event.keyCode) {
+                    KeyEvent.KEYCODE_ENTER -> onInputText?.invoke("\n")
+                    KeyEvent.KEYCODE_TAB -> onInputText?.invoke("\t")
+                    KeyEvent.KEYCODE_DEL -> onInputText?.invoke("\b")
+                    else -> Unit
+                }
+                return true
+            }
+
+            override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
+                if (beforeLength > 0) {
+                    repeat(beforeLength) {
+                        onInputText?.invoke("\b")
+                    }
+                    return true
+                }
+                return super.deleteSurroundingText(beforeLength, afterLength)
+            }
+        }
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -52,17 +112,11 @@ class TerminalView @JvmOverloads constructor(
     fun appendLog(text: String) {
         // Prevent DoS from extremely large input strings by truncating
         val safeText = if (text.length > 50000) text.substring(text.length - 50000) else text
-        val lines = safeText.split('\n')
-        
-        // Process at most MAX_LINES to avoid memory exhaustion
-        val linesToProcess = if (lines.size > MAX_LINES) lines.takeLast(MAX_LINES) else lines
-
-        for (line in linesToProcess) {
-            val parsed = parseAnsi(line)
-            lineBuffer.add(parsed)
-            if (lineBuffer.size > MAX_LINES) {
-                lineBuffer.removeFirst()
-            }
+        val normalizedText = safeText.replace("\r\n", "\n").replace('\r', '\n')
+        val parsed = parseAnsi(normalizedText)
+        lineBuffer.add(parsed)
+        if (lineBuffer.size > MAX_LINES) {
+            lineBuffer.removeFirst()
         }
         updateText()
     }
@@ -76,11 +130,8 @@ class TerminalView @JvmOverloads constructor(
     private fun updateText() {
         val builder = SpannableStringBuilder()
         for (i in 0 until lineBuffer.size) {
-            val line = lineBuffer[i]
-            builder.append(line, 0, line.length)
-            if (i < lineBuffer.size - 1) {
-                builder.append("\n")
-            }
+            val chunk = lineBuffer[i]
+            builder.append(chunk, 0, chunk.length)
         }
         text = builder
         post {

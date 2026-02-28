@@ -6,4 +6,7 @@
     <color name="sushi_white">#FFFFFF</color>
     <color name="sushi_card_stroke">#1A3B4A44</color>
     <color name="sushi_terminal_bg">#E7ECE9</color>
+    <color name="sushi_terminal_bg_dark">#0F1514</color>
+    <color name="sushi_terminal_panel_dark">#131C1A</color>
+    <color name="sushi_terminal_text">#E6F1ED</color>
 </resources>

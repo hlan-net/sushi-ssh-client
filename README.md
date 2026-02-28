@@ -37,6 +37,9 @@ Run the optional local SSH integration tests on a connected device (not for CI):
 ./scripts/setup-local-ssh-test.sh
 ```
 
+The wizard is iterative: it reuses values from `.local/local-ssh-test.env` as defaults,
+including optional jump-server fields.
+
 This writes secrets to `.local/local-ssh-test.env` (chmod 600, git-ignored).
 
 2) Run the tests:
@@ -65,7 +68,11 @@ You can still run Gradle directly if needed:
   -Pandroid.testInstrumentationRunnerArguments.sshHost=YOUR_HOST \
   -Pandroid.testInstrumentationRunnerArguments.sshPort=22 \
   -Pandroid.testInstrumentationRunnerArguments.sshUsername=YOUR_USER \
-  -Pandroid.testInstrumentationRunnerArguments.sshPassword=YOUR_PASSWORD
+  -Pandroid.testInstrumentationRunnerArguments.sshPassword=YOUR_PASSWORD \
+  -Pandroid.testInstrumentationRunnerArguments.sshJumpEnabled=true \
+  -Pandroid.testInstrumentationRunnerArguments.sshJumpHost=YOUR_JUMP_HOST \
+  -Pandroid.testInstrumentationRunnerArguments.sshJumpPort=22 \
+  -Pandroid.testInstrumentationRunnerArguments.sshJumpUsername=YOUR_JUMP_USER
 ```
 
 Local checks before push:
