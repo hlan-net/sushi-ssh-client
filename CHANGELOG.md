@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
+## [0.3.0] - Unreleased
+
+### Changed
+- Bumped development version target to `0.3.0-dev` (`versionCode` 11).
+
+## [0.2.1] - 2026-03-01
+
+### Fixed
+- Fixed startup crash on some devices (including Pixel) caused by legacy host configs with missing `authPreference`.
+- Hardened terminal text rendering fallback to avoid startup failures from malformed cached output.
+- Improved terminal output line-ending behavior to avoid extra/missing newlines in interactive command output.
+
+### Changed
+- Bumped app version to `0.2.1` (`versionCode` 10).
+
 ## [0.2.0] - 2026-03-01
 
 ### Added
@@ -22,11 +37,6 @@ The format is based on Keep a Changelog and follows semantic versioning.
 - Switched main flow to terminal-first session startup.
 - Improved terminal rendering/input behavior and reconnect handling.
 - Bumped app version to `0.2.0` (`versionCode` 8).
-
-## [0.3.0] - Unreleased
-
-### Changed
-- Bumped development version target to `0.3.0-dev` (`versionCode` 9).
 
 ## [0.1.3] - 2026-02-27
 
