@@ -3,6 +3,7 @@ package net.hlan.sushi
 import android.os.Bundle
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertNotNull
@@ -32,16 +33,21 @@ class LocalSshIntegrationTest {
             port = credentials.port,
             username = credentials.username,
             password = credentials.password,
-            privateKey = credentials.privateKey
+            privateKey = credentials.privateKey,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
         )
         val client = SshClient(config)
 
-        val connectResult = client.connect { line ->
+        val connectResult = client.connect(onLine = { line ->
             receivedLines.add(line)
             if (line.contains(marker)) {
                 markerLatch.countDown()
             }
-        }
+        })
 
         assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
 
@@ -58,7 +64,7 @@ class LocalSshIntegrationTest {
     }
 
     @Test
-    fun connectsToConfiguredHostViaMainUi() {
+    fun connectsToConfiguredHostViaTerminalUi() {
         val credentials = readCredentialsOrSkip()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val sshSettings = SshSettings(context)
@@ -67,7 +73,12 @@ class LocalSshIntegrationTest {
             host = credentials.host,
             port = credentials.port,
             username = credentials.username,
-            password = credentials.password
+            password = credentials.password,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
         )
         sshSettings.saveHost(testHost)
         sshSettings.setActiveHostId(testHost.id)
@@ -75,40 +86,105 @@ class LocalSshIntegrationTest {
 
         val marker = "SUSHI_UI_TEST_OK_${System.currentTimeMillis()}"
 
-        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+        ActivityScenario.launch(TerminalActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
-                activity.findViewById<android.view.View>(R.id.startSessionButton).performClick()
+                activity.findViewById<android.view.View>(R.id.terminalConnectButton).performClick()
             }
 
-            waitUntil(
+            waitForCondition(
                 scenario = scenario,
                 timeoutMs = 20_000,
-                timeoutMessage = "Session did not reach connected state from UI"
+                timeoutMessage = "Session did not reach connected state from terminal UI"
             ) { activity ->
-                val statusView = activity.findViewById<TextView>(R.id.sessionStatusText)
-                activity.getString(R.string.session_status_connected) == statusView.text.toString()
+                val statusView = activity.findViewById<TextView>(R.id.terminalStatusText)
+                activity.getString(R.string.terminal_status_connected) == statusView.text.toString()
             }
 
             scenario.onActivity { activity ->
-                val commandInput = activity.findViewById<TextView>(R.id.commandInput)
-                commandInput.text = "echo $marker"
-                activity.findViewById<android.view.View>(R.id.runCommandButton).performClick()
+                val sendRawMethod = TerminalActivity::class.java.getDeclaredMethod("sendRaw", String::class.java)
+                sendRawMethod.isAccessible = true
+                sendRawMethod.invoke(activity, "echo $marker\n")
             }
 
-            waitUntil(
+            waitForCondition(
                 scenario = scenario,
                 timeoutMs = 20_000,
                 timeoutMessage = "Command output marker not found in terminal log"
             ) { activity ->
-                val logView = activity.findViewById<TextView>(R.id.sessionLogText)
+                val logView = activity.findViewById<TextView>(R.id.terminalOutputText)
                 logView.text?.toString()?.contains(marker) == true
             }
 
             scenario.onActivity { activity ->
-                val statusView = activity.findViewById<TextView>(R.id.sessionStatusText)
-                if (activity.getString(R.string.session_status_connected) == statusView.text.toString()) {
-                    activity.findViewById<android.view.View>(R.id.startSessionButton).performClick()
+                val statusView = activity.findViewById<TextView>(R.id.terminalStatusText)
+                if (activity.getString(R.string.terminal_status_connected) == statusView.text.toString()) {
+                    activity.findViewById<android.view.View>(R.id.terminalConnectButton).performClick()
                 }
+            }
+        }
+    }
+
+    @Test
+    fun terminalLsOutputPreservesExpectedLineBreaks() {
+        val credentials = readCredentialsOrSkip()
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        resetAppState(context)
+
+        val sshSettings = SshSettings(context)
+        val host = SshConnectionConfig(
+            alias = "Line Check Host",
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password,
+            privateKey = credentials.privateKey,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
+        )
+        sshSettings.saveHost(host)
+        sshSettings.setActiveHostId(host.id)
+
+        ActivityScenario.launch(TerminalActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                activity.findViewById<android.view.View>(R.id.terminalConnectButton).performClick()
+            }
+
+            waitForCondition(
+                scenario = scenario,
+                timeoutMs = 20_000,
+                timeoutMessage = "Session did not reach connected state"
+            ) { activity ->
+                val statusView = activity.findViewById<TextView>(R.id.terminalStatusText)
+                activity.getString(R.string.terminal_status_connected) == statusView.text.toString()
+            }
+
+            val doneMarker = "SUSHI_LS_LINES_DONE_${System.currentTimeMillis()}"
+
+            scenario.onActivity { activity ->
+                val sendRawMethod = TerminalActivity::class.java.getDeclaredMethod("sendRaw", String::class.java)
+                sendRawMethod.isAccessible = true
+                sendRawMethod.invoke(
+                    activity,
+                    "rm -rf sushi_linecheck && mkdir sushi_linecheck && cd sushi_linecheck && touch file01 file02 file03 file04 file05 file06 file07 file08 file09 file10 && ls -1 && echo $doneMarker\\n"
+                )
+            }
+
+            waitForCondition(
+                scenario = scenario,
+                timeoutMs = 20_000,
+                timeoutMessage = "ls output did not finish in terminal"
+            ) { activity ->
+                val output = activity.findViewById<TextView>(R.id.terminalOutputText).text?.toString().orEmpty()
+                output.contains(doneMarker)
+            }
+
+            scenario.onActivity { activity ->
+                val output = activity.findViewById<TextView>(R.id.terminalOutputText).text?.toString().orEmpty()
+                val fileLines = output.lineSequence().count { it.matches(Regex(".*file[0-9]{2}\\s*")) }
+                assertTrue("Expected at least 10 file lines from ls -l, got $fileLines", fileLines >= 10)
             }
         }
     }
@@ -127,7 +203,12 @@ class LocalSshIntegrationTest {
             host = credentials.host,
             port = credentials.port,
             username = credentials.username,
-            password = credentials.password
+            password = credentials.password,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
         )
         sshSettings.saveHost(passwordHost)
         sshSettings.setActiveHostId(passwordHost.id)
@@ -137,11 +218,11 @@ class LocalSshIntegrationTest {
         val installMarkerLatch = CountDownLatch(1)
         val passwordClient = SshClient(passwordHost)
 
-        val passwordConnectResult = passwordClient.connect { line ->
+        val passwordConnectResult = passwordClient.connect(onLine = { line ->
             if (line.contains(installMarker)) {
                 installMarkerLatch.countDown()
             }
-        }
+        })
         assertTrue(
             "Password SSH connect failed: ${passwordConnectResult.message}",
             passwordConnectResult.success
@@ -188,11 +269,11 @@ class LocalSshIntegrationTest {
         val reconnectMarkerLatch = CountDownLatch(1)
         val keyClient = SshClient(keyOnlyHost)
 
-        val keyConnectResult = keyClient.connect { line ->
+        val keyConnectResult = keyClient.connect(onLine = { line ->
             if (line.contains(reconnectMarker)) {
                 reconnectMarkerLatch.countDown()
             }
-        }
+        })
         assertTrue(
             "Key-based SSH reconnect failed: ${keyConnectResult.message}",
             keyConnectResult.success
@@ -222,13 +303,18 @@ class LocalSshIntegrationTest {
             port = credentials.port,
             username = credentials.username,
             password = credentials.password,
-            privateKey = credentials.privateKey
+            privateKey = credentials.privateKey,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
         )
         val client = SshClient(config)
 
-        val connectResult = client.connect { line ->
+        val connectResult = client.connect(onLine = { line ->
             receivedLines.add(line)
-        }
+        })
 
         assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
 
@@ -302,13 +388,18 @@ class LocalSshIntegrationTest {
             port = credentials.port,
             username = credentials.username,
             password = credentials.password,
-            privateKey = credentials.privateKey
+            privateKey = credentials.privateKey,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
         )
         val client = SshClient(config)
 
-        val connectResult = client.connect { line ->
+        val connectResult = client.connect(onLine = { line ->
             receivedLines.add(line)
-        }
+        })
 
         assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
 
@@ -339,27 +430,40 @@ class LocalSshIntegrationTest {
                 marker = "SUSHI_NANO_TOUCH_DONE_${System.currentTimeMillis()}"
             )
 
+            val nanoStartIndex = synchronized(receivedLines) { receivedLines.size }
             val openNanoResult = client.sendCommand("nano newfile")
             assertTrue("Failed to open nano: ${openNanoResult.message}", openNanoResult.success)
-            Thread.sleep(1200)
+            assertTrue(
+                "nano screen did not render after open",
+                waitForOutputGrowth(receivedLines, nanoStartIndex, minAdded = 1, timeoutSec = 8)
+            )
 
+            val textInputIndex = synchronized(receivedLines) { receivedLines.size }
             assertTrue("Failed to type nano content", client.sendText("ready\nfor\nsuccess").success)
-            Thread.sleep(300)
+            assertTrue(
+                "No output change after typing nano content",
+                waitForOutputGrowth(receivedLines, textInputIndex, minAdded = 1, timeoutSec = 8)
+            )
 
+            val writeOutIndex = synchronized(receivedLines) { receivedLines.size }
             assertTrue("Failed to send Ctrl+O in nano", client.sendText("\u000f").success)
-            Thread.sleep(300)
-            assertTrue("Failed to confirm nano write", client.sendText("\n").success)
-            Thread.sleep(500)
-            assertTrue("Failed to send Ctrl+X in nano", client.sendText("\u0018").success)
-            Thread.sleep(1000)
+            assertTrue(
+                "No output change after Ctrl+O",
+                waitForOutputGrowth(receivedLines, writeOutIndex, minAdded = 1, timeoutSec = 8)
+            )
 
-            // Extra escape sequence to get back to shell reliably from any nano prompt state.
-            client.sendText("\u0018") // Ctrl+X
-            Thread.sleep(250)
-            client.sendText("Y\n")
-            Thread.sleep(250)
-            client.sendText("\n")
-            Thread.sleep(400)
+            val confirmWriteIndex = synchronized(receivedLines) { receivedLines.size }
+            assertTrue("Failed to confirm nano write", client.sendText("\n").success)
+            assertTrue(
+                "No output change after confirming write",
+                waitForOutputGrowth(receivedLines, confirmWriteIndex, minAdded = 1, timeoutSec = 8)
+            )
+
+            assertTrue("Failed to send Ctrl+X in nano", client.sendText("\u0018").success)
+            assertTrue(
+                "Did not return to shell prompt after nano exit sequence",
+                waitForShellReadyAfterNano(client, receivedLines, timeoutSec = 20)
+            )
 
             val startIndex = synchronized(receivedLines) { receivedLines.size }
             assertTrue(
@@ -414,10 +518,20 @@ class LocalSshIntegrationTest {
         val password = args.getString(ARG_PASSWORD).orEmpty().trim()
         val privateKeyRaw = decodePrivateKey(args)
         val port = parsePortOrNull(args.getString(ARG_PORT))
+        val jumpEnabled = parseBooleanArg(args.getString(ARG_JUMP_ENABLED))
+        val jumpHost = args.getString(ARG_JUMP_HOST).orEmpty().trim()
+        val jumpUsername = args.getString(ARG_JUMP_USERNAME).orEmpty().trim()
+        val jumpPassword = args.getString(ARG_JUMP_PASSWORD).orEmpty().trim()
+        val jumpPort = parsePortOrNull(args.getString(ARG_JUMP_PORT))
 
         assumeTrue(
             "sshPort must be a valid integer between 1 and 65535 when provided.",
             port != null
+        )
+
+        assumeTrue(
+            "sshJumpPort must be a valid integer between 1 and 65535 when provided.",
+            jumpPort != null
         )
 
         assumeTrue(
@@ -433,13 +547,32 @@ class LocalSshIntegrationTest {
             )
         }
 
+        if (jumpEnabled) {
+            assumeTrue(
+                "Set sshJumpHost and sshJumpUsername when sshJumpEnabled=true.",
+                jumpHost.isNotBlank() && jumpUsername.isNotBlank()
+            )
+        }
+
         return LocalSshCredentials(
             host = host,
             port = port ?: DEFAULT_SSH_PORT,
             username = username,
             password = password,
-            privateKey = privateKeyRaw.ifBlank { null }
+            privateKey = privateKeyRaw.ifBlank { null },
+            jumpEnabled = jumpEnabled,
+            jumpHost = jumpHost,
+            jumpPort = jumpPort ?: DEFAULT_SSH_PORT,
+            jumpUsername = jumpUsername,
+            jumpPassword = jumpPassword
         )
+    }
+
+    private fun parseBooleanArg(value: String?): Boolean {
+        return when (value?.trim()?.lowercase()) {
+            "1", "true", "yes", "y", "on" -> true
+            else -> false
+        }
     }
 
     private fun decodePrivateKey(args: Bundle): String {
@@ -548,6 +681,64 @@ class LocalSshIntegrationTest {
         return false
     }
 
+    private fun waitForOutputGrowth(
+        receivedLines: List<String>,
+        startIndex: Int,
+        minAdded: Int,
+        timeoutSec: Long
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutSec)
+        while (System.currentTimeMillis() < deadline) {
+            val currentSize = synchronized(receivedLines) { receivedLines.size }
+            if ((currentSize - startIndex) >= minAdded) {
+                return true
+            }
+            Thread.sleep(100)
+        }
+        return false
+    }
+
+    private fun waitForLineContainsAfterIndex(
+        receivedLines: List<String>,
+        marker: String,
+        startIndex: Int,
+        timeoutSec: Long
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutSec)
+        while (System.currentTimeMillis() < deadline) {
+            val found = synchronized(receivedLines) {
+                receivedLines.drop(startIndex).any { it.contains(marker) }
+            }
+            if (found) {
+                return true
+            }
+            Thread.sleep(100)
+        }
+        return false
+    }
+
+    private fun waitForShellReadyAfterNano(
+        client: SshClient,
+        receivedLines: MutableList<String>,
+        timeoutSec: Long
+    ): Boolean {
+        repeat(4) {
+            val readyMarker = "SUSHI_AFTER_NANO_READY_${System.currentTimeMillis()}_$it"
+            val startIndex = synchronized(receivedLines) { receivedLines.size }
+            val markerCommandSent = client.sendText("printf '$readyMarker\\n'\n").success
+            if (markerCommandSent && waitForLineContainsAfterIndex(receivedLines, readyMarker, startIndex, timeoutSec = 4)) {
+                return true
+            }
+
+            // If still inside nano prompt states, force close + save sequence and retry marker.
+            client.sendText("\u0018")
+            client.sendText("Y\n")
+            client.sendText("\n")
+            waitForOutputGrowth(receivedLines, startIndex, minAdded = 1, timeoutSec = 4)
+        }
+        return false
+    }
+
     private fun waitUntil(
         scenario: ActivityScenario<MainActivity>,
         timeoutMs: Long,
@@ -600,12 +791,20 @@ class LocalSshIntegrationTest {
         val port: Int,
         val username: String,
         val password: String,
-        val privateKey: String?
+        val privateKey: String?,
+        val jumpEnabled: Boolean,
+        val jumpHost: String,
+        val jumpPort: Int,
+        val jumpUsername: String,
+        val jumpPassword: String
     )
 
     private fun resetAppState(context: android.content.Context) {
         SecurePrefs.get(context).edit().clear().commit()
-        ConsoleLogRepository(context).clear()
+        context.getSharedPreferences("sushi_console_logs", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .remove("latest_log")
+            .commit()
         context.deleteDatabase("sushi_phrases.db")
         context.deleteDatabase("sushi_plays.db")
     }
@@ -619,5 +818,10 @@ class LocalSshIntegrationTest {
         private const val ARG_PASSWORD = "sshPassword"
         private const val ARG_PRIVATE_KEY = "sshPrivateKey"
         private const val ARG_PRIVATE_KEY_B64 = "sshPrivateKeyB64"
+        private const val ARG_JUMP_ENABLED = "sshJumpEnabled"
+        private const val ARG_JUMP_HOST = "sshJumpHost"
+        private const val ARG_JUMP_PORT = "sshJumpPort"
+        private const val ARG_JUMP_USERNAME = "sshJumpUsername"
+        private const val ARG_JUMP_PASSWORD = "sshJumpPassword"
     }
 }

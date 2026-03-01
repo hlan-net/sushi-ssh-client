@@ -36,7 +36,16 @@ class HostAdapter(
 
         fun bind(host: SshConnectionConfig, activeHostId: String?) {
             aliasText.text = host.alias.ifBlank { host.host }
-            targetText.text = "${host.username}@${host.host}:${host.port}"
+            targetText.text = if (host.hasJumpServer()) {
+                itemView.context.getString(
+                    R.string.host_target_with_jump,
+                    host.username,
+                    host.host,
+                    host.port
+                )
+            } else {
+                "${host.username}@${host.host}:${host.port}"
+            }
 
             if (host.id == activeHostId) {
                 aliasText.setCompoundDrawablesWithIntrinsicBounds(android.R.drawable.presence_online, 0, 0, 0)

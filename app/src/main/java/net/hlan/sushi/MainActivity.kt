@@ -2,11 +2,7 @@ package net.hlan.sushi
 
 import android.Manifest
 import android.app.Activity
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Intent
-import android.content.pm.ApplicationInfo
-import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.speech.RecognizerIntent
@@ -25,26 +21,16 @@ import net.hlan.sushi.databinding.ActivityMainBinding
 import net.hlan.sushi.databinding.DialogGeminiControlsBinding
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val geminiSettings by lazy { GeminiSettings(this) }
     private val geminiClient by lazy { GeminiClient(this, geminiSettings) }
-    private val driveLogSettings by lazy { DriveLogSettings(this) }
-    private val driveAuthManager by lazy { DriveAuthManager(this) }
-    private val driveLogUploader by lazy { DriveLogUploader(this) }
     private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
     private val sshSettings by lazy { SshSettings(this) }
     private val playDb by lazy { PlayDatabaseHelper.getInstance(this) }
 
-    private var sshClient: SshClient? = null
-    private var isConnecting = false
-    private var activeConfig: SshConnectionConfig? = null
-    private var lastConnectFailed = false
+    private var isPlayRunning = false
     private var geminiDialog: AlertDialog? = null
     private var geminiDialogBinding: DialogGeminiControlsBinding? = null
     private var lastGeminiPrompt = ""
@@ -92,6 +78,15 @@ class MainActivity : AppCompatActivity() {
             startActivity(TerminalActivity.createIntent(this, autoConnect = true))
         }
 
+        binding.configureHostButton.setOnClickListener {
+            val hosts = sshSettings.getHosts()
+            if (hosts.isEmpty()) {
+                startActivity(Intent(this, HostEditActivity::class.java))
+            } else {
+                startActivity(Intent(this, HostsActivity::class.java))
+            }
+        }
+
         binding.playsButton.setOnClickListener {
             showPlayHostDialog()
         }
@@ -124,8 +119,6 @@ class MainActivity : AppCompatActivity() {
         geminiDialog?.dismiss()
         geminiDialog = null
         geminiDialogBinding = null
-        sshClient?.disconnect()
-        sshClient = null
     }
 
     private fun updateGeminiState() {
@@ -219,8 +212,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showPlayHostDialog() {
-        if (isConnecting) {
-            Toast.makeText(this, getString(R.string.session_status_connecting), Toast.LENGTH_SHORT).show()
+        if (isPlayRunning) {
+            Toast.makeText(this, getString(R.string.play_status_running_toast), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -292,28 +285,7 @@ class MainActivity : AppCompatActivity() {
         val fields = linkedMapOf<PlayParameter, TextInputEditText>()
 
         parameters.forEachIndexed { index, parameter ->
-            val layout = TextInputLayout(this).apply {
-                hint = parameter.label
-            }
-            val input = TextInputEditText(this).apply {
-                inputType = if (parameter.secret) {
-                    android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-                } else {
-                    android.text.InputType.TYPE_CLASS_TEXT
-                }
-            }
-            layout.addView(input)
-            if (index > 0) {
-                val params = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                params.topMargin = 12
-                container.addView(layout, params)
-            } else {
-                container.addView(layout)
-            }
-            fields[parameter] = input
+            addParameterField(container, fields, parameter, index > 0)
         }
 
         val content = ScrollView(this).apply { addView(container) }
@@ -328,22 +300,7 @@ class MainActivity : AppCompatActivity() {
         dialog.setOnShowListener {
             val runButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
             runButton.setOnClickListener {
-                val values = mutableMapOf<String, String>()
-                var hasError = false
-                fields.forEach { (parameter, input) ->
-                    val value = input.text?.toString().orEmpty()
-                    val layout = input.parent.parent as? TextInputLayout
-                    layout?.error = null
-                    if (parameter.required && value.isBlank()) {
-                        layout?.error = getString(R.string.play_parameter_required)
-                        hasError = true
-                    } else {
-                        values[parameter.key] = value
-                    }
-                }
-                if (hasError) {
-                    return@setOnClickListener
-                }
+                val values = collectAndValidatePlayValues(fields) ?: return@setOnClickListener
                 dialog.dismiss()
                 runPlay(play, host, values)
             }
@@ -351,107 +308,80 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private fun addParameterField(
+        container: LinearLayout,
+        fields: MutableMap<PlayParameter, TextInputEditText>,
+        parameter: PlayParameter,
+        withTopMargin: Boolean
+    ) {
+        val layout = TextInputLayout(this).apply {
+            hint = parameter.label
+        }
+        val input = TextInputEditText(this).apply {
+            inputType = if (parameter.secret) {
+                android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            } else {
+                android.text.InputType.TYPE_CLASS_TEXT
+            }
+        }
+        layout.addView(input)
+        if (withTopMargin) {
+            val params = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            params.topMargin = 12
+            container.addView(layout, params)
+        } else {
+            container.addView(layout)
+        }
+        fields[parameter] = input
+    }
+
+    private fun collectAndValidatePlayValues(
+        fields: Map<PlayParameter, TextInputEditText>
+    ): Map<String, String>? {
+        val values = mutableMapOf<String, String>()
+        var hasError = false
+        fields.forEach { (parameter, input) ->
+            val value = input.text?.toString().orEmpty()
+            val layout = input.parent.parent as? TextInputLayout
+            layout?.error = null
+            if (parameter.required && value.isBlank()) {
+                layout?.error = getString(R.string.play_parameter_required)
+                hasError = true
+            } else {
+                values[parameter.key] = value
+            }
+        }
+        return if (hasError) null else values
+    }
+
     private fun runPlay(play: Play, host: SshConnectionConfig, values: Map<String, String>) {
-        val config = host.copy(privateKey = sshSettings.getPrivateKey())
+        val config = sshSettings.resolveJumpServer(host.copy(privateKey = sshSettings.getPrivateKey()))
+        isPlayRunning = true
+        updateSessionUi()
         appendSessionLog(getString(R.string.play_run_started, play.name, config.displayTarget()))
 
-        Thread {
+        lifecycleScope.launch(Dispatchers.IO) {
             val result = PlayRunner.execute(
                 play = play,
                 hostConfig = config,
                 values = values,
-                onLine = { line -> appendSessionLog("[Play] $line") }
+                onLine = { line -> appendSessionLog("[Play] ${line.trimEnd()}") }
             )
 
-            runOnUiThread {
+            withContext(Dispatchers.Main) {
+                isPlayRunning = false
                 if (result.success) {
                     appendSessionLog(getString(R.string.play_run_finished, play.name))
                 } else {
                     appendSessionLog(getString(R.string.play_run_failed, play.name, result.message))
-                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
-                }
-            }
-        }.start()
-    }
-
-    private fun handleSessionAction() {
-        if (isConnecting) {
-            return
-        }
-
-        if (sshClient?.isConnected() == true) {
-            disconnectSession()
-            return
-        }
-
-        val config = sshSettings.getConfigOrNull()
-        if (config == null) {
-            Toast.makeText(this, getString(R.string.ssh_missing_config), Toast.LENGTH_SHORT).show()
-            startActivity(Intent(this, SettingsActivity::class.java))
-            return
-        }
-
-        activeConfig = config
-        isConnecting = true
-        lastConnectFailed = false
-        updateSessionUi()
-        val connectStartedAt = System.currentTimeMillis()
-        appendSessionLog(
-            getString(
-                R.string.session_connect_attempt_start,
-                config.displayTarget(),
-                formatTimestamp(connectStartedAt)
-            )
-        )
-
-        Thread {
-            val client = SshClient(config)
-            val result = client.connect { line ->
-                appendSessionLog(line)
-            }
-            val elapsedMs = System.currentTimeMillis() - connectStartedAt
-            runOnUiThread {
-                isConnecting = false
-                if (result.success) {
-                    sshClient = client
-                    lastConnectFailed = false
-                    appendSessionLog(getString(R.string.session_connect_attempt_success, elapsedMs))
-                    appendSessionLog(
-                        getString(
-                            R.string.session_started_at,
-                            formatTimestamp(System.currentTimeMillis())
-                        )
-                    )
-                    appendSessionLog(getString(R.string.session_connected_to, config.displayTarget()))
-                } else {
-                    sshClient = null
-                    lastConnectFailed = true
-                    appendSessionLog(
-                        getString(R.string.session_connect_attempt_failed, elapsedMs, result.message)
-                    )
-                    appendDebugInfoIfMissing()
-                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_SHORT).show()
                 }
                 updateSessionUi()
             }
-        }.start()
-    }
-
-    private fun disconnectSession() {
-        val target = activeConfig?.displayTarget()
-        sshClient?.disconnect()
-        sshClient = null
-        lastConnectFailed = false
-        activeConfig = null
-        appendSessionLog(
-            if (target.isNullOrBlank()) {
-                getString(R.string.session_disconnected)
-            } else {
-                getString(R.string.session_disconnected_from, target)
-            }
-        )
-        updateSessionUi()
-        attemptDriveLogUpload()
+        }
     }
 
     private fun appendSessionLog(message: String) {
@@ -481,145 +411,35 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun clearSessionLog() {
-        consoleLogRepository.clear()
-        binding.sessionLogText.clearLog()
-        binding.sessionLogText.appendLog(getString(R.string.session_log_placeholder))
-        Toast.makeText(this, getString(R.string.session_log_cleared), Toast.LENGTH_SHORT).show()
-    }
-
-    private fun copySessionLog() {
-        val log = consoleLogRepository.getLog()
-        if (log.isBlank()) {
-            Toast.makeText(this, getString(R.string.session_log_empty), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val clipboard = getSystemService(ClipboardManager::class.java)
-        val reportLog = buildReportLog(log)
-        clipboard.setPrimaryClip(
-            ClipData.newPlainText(getString(R.string.clipboard_session_log_label), reportLog)
-        )
-        Toast.makeText(this, getString(R.string.session_log_copied), Toast.LENGTH_SHORT).show()
-    }
-
     private fun updateSessionUi() {
-        val isConnected = sshClient?.isConnected() == true
-        val statusLabel = when {
-            isConnecting -> getString(R.string.session_status_connecting)
-            isConnected -> getString(R.string.session_status_connected)
-            lastConnectFailed -> getString(R.string.session_status_failed)
-            else -> getString(R.string.session_status_disconnected)
+        val config = sshSettings.getConfigOrNull()
+        val statusLabel = if (isPlayRunning) {
+            getString(R.string.session_status_play_running)
+        } else {
+            getString(R.string.session_status_ready)
         }
-
-        val helperText = when {
-            isConnecting -> getString(R.string.status_helper_connecting)
-            isConnected -> getString(R.string.status_helper_connected)
-            lastConnectFailed -> getString(R.string.status_helper_failed)
-            else -> getString(R.string.status_helper_disconnected)
+        val helperText = if (config == null) {
+            getString(R.string.status_helper_disconnected)
+        } else if (isPlayRunning) {
+            getString(R.string.status_helper_play_running)
+        } else {
+            getString(R.string.status_helper_ready)
         }
 
         binding.statusText.text = helperText
         binding.sessionStatusText.text = statusLabel
 
-        val displayTarget = if (isConnected || isConnecting) {
-            activeConfig?.displayTarget()
-        } else {
-            sshSettings.getConfigOrNull()?.displayTarget()
-        }
+        val displayTarget = config?.displayTarget()
         binding.sessionTargetText.text = if (displayTarget.isNullOrBlank()) {
             getString(R.string.session_target_empty)
         } else {
             getString(R.string.session_target, displayTarget)
         }
 
-        binding.startSessionButton.isEnabled = true
+        binding.startSessionButton.isEnabled = config != null
         binding.startSessionButton.text = getString(R.string.action_start_session)
+        binding.configureHostButton.visibility = if (config == null) View.VISIBLE else View.GONE
 
-        binding.playsButton.isEnabled = !isConnecting
-    }
-
-    private fun attemptDriveLogUpload() {
-        if (!driveLogSettings.isAlwaysSaveEnabled()) {
-            return
-        }
-
-        val account = driveAuthManager.getSignedInAccount()
-        if (account == null) {
-            Toast.makeText(this, getString(R.string.drive_upload_disabled), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val log = consoleLogRepository.getLog()
-        if (log.isBlank()) {
-            return
-        }
-
-        driveLogUploader.uploadLog(account, log) { result ->
-            runOnUiThread {
-                val message = if (result.success) {
-                    getString(R.string.drive_upload_success)
-                } else {
-                    getString(R.string.drive_upload_failed)
-                }
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun appendDebugInfoIfMissing() {
-        val header = getString(R.string.debug_info_header)
-        if (consoleLogRepository.getLog().contains(header)) {
-            return
-        }
-        appendSessionLog(buildDebugInfoBlock())
-    }
-
-    private fun buildReportLog(log: String): String {
-        val header = getString(R.string.debug_info_header)
-        if (log.contains(header)) {
-            return log
-        }
-
-        val debugInfo = buildDebugInfoBlock()
-        return if (log.isBlank()) {
-            debugInfo
-        } else {
-            "$log\n\n$debugInfo"
-        }
-    }
-
-    private fun buildDebugInfoBlock(): String {
-        val androidVersion = Build.VERSION.RELEASE?.takeIf { it.isNotBlank() }
-            ?: getString(R.string.debug_info_unknown)
-        val appVersion = AppUtils.getAppVersionInfo(this)
-        val buildType = if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
-            "debug"
-        } else {
-            "release"
-        }
-        val locale = Locale.getDefault().toLanguageTag()
-        val timeZone = TimeZone.getDefault().id
-
-        val lines = listOf(
-            getString(R.string.debug_info_header),
-            getString(R.string.debug_info_app_version, appVersion.name, appVersion.code),
-            getString(R.string.debug_info_build_type, buildType),
-            getString(R.string.debug_info_android, androidVersion, Build.VERSION.SDK_INT),
-            getString(
-                R.string.debug_info_device,
-                Build.MANUFACTURER,
-                Build.MODEL,
-                Build.DEVICE
-            ),
-            getString(R.string.debug_info_locale, locale),
-            getString(R.string.debug_info_timezone, timeZone)
-        )
-
-        return lines.joinToString("\n")
-    }
-
-    private fun formatTimestamp(timestampMs: Long): String {
-        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(timestampMs))
+        binding.playsButton.isEnabled = !isPlayRunning
     }
 }

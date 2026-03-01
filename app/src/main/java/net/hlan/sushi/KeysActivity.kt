@@ -35,6 +35,10 @@ class KeysActivity : AppCompatActivity() {
         }
 
         updateUi()
+
+        if (intent.getBooleanExtra(EXTRA_AUTO_GENERATE, false) && sshSettings.getPrivateKey().isNullOrBlank()) {
+            generateKeyPair()
+        }
     }
 
     private fun updateUi() {
@@ -111,6 +115,7 @@ class KeysActivity : AppCompatActivity() {
     }
 
     companion object {
+        const val EXTRA_AUTO_GENERATE = "extra_auto_generate"
         private const val PHRASE_INSTALL_KEY = "Install SSH Key"
         private const val PHRASE_REMOVE_SUSHI_KEYS = "Remove Sushi SSH Keys"
     }

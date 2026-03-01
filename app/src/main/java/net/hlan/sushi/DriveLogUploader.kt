@@ -4,7 +4,7 @@ import android.accounts.Account
 import android.content.Context
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
-import com.google.api.client.extensions.android.http.AndroidHttp
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.services.drive.Drive
@@ -51,7 +51,7 @@ class DriveLogUploader(private val context: Context) {
         }
 
         return Drive.Builder(
-            AndroidHttp.newCompatibleTransport(),
+            GoogleNetHttpTransport.newTrustedTransport(),
             GsonFactory.getDefaultInstance(),
             credential
         )

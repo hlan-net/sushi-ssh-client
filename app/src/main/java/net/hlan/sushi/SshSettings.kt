@@ -56,8 +56,22 @@ class SshSettings(context: Context) {
     fun deleteHost(id: String) {
         val currentHosts = getHosts().toMutableList()
         val removed = currentHosts.removeAll { it.id == id }
+        val updatedHosts = currentHosts.map { host ->
+            if (host.jumpHostId == id) {
+                host.copy(
+                    jumpEnabled = false,
+                    jumpHostId = null,
+                    jumpHost = "",
+                    jumpPort = 22,
+                    jumpUsername = "",
+                    jumpPassword = ""
+                )
+            } else {
+                host
+            }
+        }
         if (removed) {
-            prefs.edit().putString(KEY_HOSTS_JSON, hostListAdapter.toJson(currentHosts)).apply()
+            prefs.edit().putString(KEY_HOSTS_JSON, hostListAdapter.toJson(updatedHosts)).apply()
         }
         if (getActiveHostId() == id) {
             setActiveHostId(null)
@@ -77,7 +91,24 @@ class SshSettings(context: Context) {
     fun getConfigOrNull(): SshConnectionConfig? {
         val activeId = getActiveHostId() ?: return null
         val host = getHosts().find { it.id == activeId } ?: return null
-        return host.copy(privateKey = getPrivateKey())
+        return resolveJumpServer(host.copy(privateKey = getPrivateKey()))
+    }
+
+    fun resolveJumpServer(config: SshConnectionConfig): SshConnectionConfig {
+        if (!config.jumpEnabled) {
+            return config
+        }
+
+        val jumpHostConfig = config.jumpHostId
+            ?.let { jumpId -> getHosts().find { host -> host.id == jumpId } }
+            ?: return config
+
+        return config.copy(
+            jumpHost = jumpHostConfig.host,
+            jumpPort = jumpHostConfig.port,
+            jumpUsername = jumpHostConfig.username,
+            jumpPassword = jumpHostConfig.password
+        )
     }
 
     // Migration function for old settings

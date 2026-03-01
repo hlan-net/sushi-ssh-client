@@ -1,6 +1,8 @@
 package net.hlan.sushi
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -10,6 +12,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivitySettingsBinding
 
 class SettingsActivity : AppCompatActivity() {
@@ -30,6 +36,7 @@ class SettingsActivity : AppCompatActivity() {
         )
     }
     private var selectedSettingsTab = SettingsTab.GENERAL
+    private var lastConnectionDiagnostics: String = ""
 
     private val driveSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -65,8 +72,21 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent(this, HostsActivity::class.java))
         }
 
+        binding.quickAddHostButton.setOnClickListener {
+            startActivity(Intent(this, HostEditActivity::class.java))
+        }
+
         binding.manageKeysButton.setOnClickListener {
             startActivity(Intent(this, KeysActivity::class.java))
+        }
+
+        binding.quickGenerateKeyButton.setOnClickListener {
+            val hasKey = sshSettings.getPrivateKey().orEmpty().isNotBlank()
+            val intent = Intent(this, KeysActivity::class.java)
+            if (!hasKey) {
+                intent.putExtra(KeysActivity.EXTRA_AUTO_GENERATE, true)
+            }
+            startActivity(intent)
         }
 
         binding.managePlaysButton.setOnClickListener {
@@ -77,12 +97,21 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent(this, PhrasesActivity::class.java))
         }
 
+        binding.testConnectionButton.setOnClickListener {
+            testActiveConnection()
+        }
+
+        binding.copyConnectionDiagnosticsButton.setOnClickListener {
+            copyConnectionDiagnostics()
+        }
+
         binding.aboutButton.setOnClickListener {
             startActivity(Intent(this, AboutActivity::class.java))
         }
 
         binding.geminiEnabledSwitch.setOnCheckedChangeListener { _, isChecked ->
             binding.apiKeyLayout.isEnabled = isChecked
+            refreshGeneralSummary()
         }
 
         binding.driveAlwaysSaveSwitch.isChecked = driveLogSettings.isAlwaysSaveEnabled()
@@ -107,10 +136,19 @@ class SettingsActivity : AppCompatActivity() {
             settings.setApiKey(binding.apiKeyInput.text?.toString()?.trim().orEmpty())
             driveLogSettings.setAlwaysSaveEnabled(binding.driveAlwaysSaveSwitch.isChecked)
 
+            refreshGeneralSummary()
+
             Toast.makeText(this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
         }
 
         refreshDriveState()
+        refreshGeneralSummary()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshDriveState()
+        refreshGeneralSummary()
     }
 
     private fun setupTabButtons() {
@@ -185,6 +223,121 @@ class SettingsActivity : AppCompatActivity() {
             binding.driveSignOutButton.visibility = android.view.View.VISIBLE
             binding.driveSignInButton.visibility = android.view.View.GONE
             binding.driveAlwaysSaveSwitch.isEnabled = true
+        }
+
+        refreshGeneralSummary()
+    }
+
+    private fun refreshGeneralSummary() {
+        val activeConfig = sshSettings.getConfigOrNull()
+        binding.summaryHostValue.text = activeConfig?.displayTarget()
+            ?: getString(R.string.settings_summary_host_none)
+
+        val hasKey = sshSettings.getPrivateKey().orEmpty().isNotBlank()
+        binding.quickGenerateKeyButton.text = if (hasKey) {
+            getString(R.string.action_keys_short)
+        } else {
+            getString(R.string.action_generate_key_quick)
+        }
+
+        binding.summaryAuthValue.text = authModeLabel(activeConfig)
+
+        val geminiEnabled = binding.geminiEnabledSwitch.isChecked
+        val geminiApiKey = binding.apiKeyInput.text?.toString()?.trim().orEmpty()
+        binding.summaryGeminiValue.text = when {
+            !geminiEnabled -> getString(R.string.settings_summary_gemini_disabled)
+            geminiApiKey.isBlank() -> getString(R.string.settings_summary_gemini_missing_key)
+            else -> getString(R.string.settings_summary_gemini_enabled)
+        }
+
+        val account = driveAuthManager.getSignedInAccount()
+        binding.summaryDriveValue.text = when {
+            account == null -> getString(R.string.settings_summary_drive_signed_out)
+            driveLogSettings.isAlwaysSaveEnabled() -> getString(R.string.settings_summary_drive_signed_in_autosave)
+            else -> getString(R.string.settings_summary_drive_signed_in)
+        }
+    }
+
+    private fun testActiveConnection() {
+        val config = sshSettings.getConfigOrNull()
+        if (config == null) {
+            Toast.makeText(this, getString(R.string.ssh_missing_config), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        binding.testConnectionButton.isEnabled = false
+        binding.testConnectionButton.text = getString(R.string.action_test_connection_running)
+        binding.testConnectionResultText.text = getString(R.string.session_status_connecting)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val startedAt = System.currentTimeMillis()
+            val outputLines = mutableListOf<String>()
+            val client = SshClient(config)
+            val connectResult = client.connect(onLine = { line ->
+                synchronized(outputLines) {
+                    if (outputLines.size < 6) {
+                        outputLines.add(line)
+                    }
+                }
+            })
+            val elapsed = (System.currentTimeMillis() - startedAt).toInt()
+
+            val diagnostics = buildString {
+                appendLine("target=${config.displayTarget()}")
+                appendLine("auth=${authModeLabel(config)}")
+                appendLine("elapsed_ms=$elapsed")
+                appendLine("success=${connectResult.success}")
+                appendLine("message=${connectResult.message}")
+                val sample = synchronized(outputLines) { outputLines.joinToString(" | ") }
+                if (sample.isNotBlank()) {
+                    appendLine("sample_output=$sample")
+                }
+            }.trim()
+
+            if (connectResult.success) {
+                client.sendCommand("echo sushi_connection_check")
+            }
+            client.disconnect()
+
+            withContext(Dispatchers.Main) {
+                lastConnectionDiagnostics = diagnostics
+                binding.copyConnectionDiagnosticsButton.visibility = View.VISIBLE
+                binding.testConnectionButton.isEnabled = true
+                binding.testConnectionButton.text = getString(R.string.action_test_connection)
+                if (connectResult.success) {
+                    binding.testConnectionResultText.text =
+                        getString(R.string.test_connection_success, elapsed)
+                } else {
+                    binding.testConnectionResultText.text =
+                        getString(R.string.test_connection_failure, elapsed, connectResult.message)
+                }
+            }
+        }.start()
+    }
+
+    private fun copyConnectionDiagnostics() {
+        if (lastConnectionDiagnostics.isBlank()) {
+            return
+        }
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(
+                getString(R.string.clipboard_connection_diagnostics_label),
+                lastConnectionDiagnostics
+            )
+        )
+        Toast.makeText(this, getString(R.string.connection_diagnostics_copied), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun authModeLabel(config: SshConnectionConfig?): String {
+        val hasPrivateKey = config?.privateKey.orEmpty().isNotBlank()
+        val hasPassword = config?.password.orEmpty().isNotBlank()
+        return when {
+            config == null -> getString(R.string.settings_summary_auth_none)
+            hasPrivateKey && hasPassword -> getString(R.string.settings_summary_auth_key_password)
+            hasPrivateKey -> getString(R.string.settings_summary_auth_key)
+            hasPassword -> getString(R.string.settings_summary_auth_password)
+            else -> getString(R.string.settings_summary_auth_none)
         }
     }
 

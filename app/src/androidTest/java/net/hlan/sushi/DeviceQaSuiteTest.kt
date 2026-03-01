@@ -15,7 +15,10 @@ class DeviceQaSuiteTest {
     fun clearState() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         SecurePrefs.get(context).edit().clear().commit()
-        ConsoleLogRepository(context).clear()
+        context.getSharedPreferences("sushi_console_logs", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .remove("latest_log")
+            .commit()
         context.deleteDatabase("sushi_phrases.db")
         context.deleteDatabase("sushi_plays.db")
     }
@@ -117,7 +120,7 @@ class DeviceQaSuiteTest {
             mainScenario.onActivity { activity ->
                 val footer = activity.findViewById<android.widget.TextView>(R.id.footerText)
                 assertTrue(footer.text?.toString()?.contains("sushi v") == true)
-                activity.findViewById<android.view.View>(R.id.phrasesButton).performClick()
+                activity.findViewById<android.view.View>(R.id.playsButton).performClick()
             }
         }
 

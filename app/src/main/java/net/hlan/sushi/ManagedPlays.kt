@@ -54,7 +54,7 @@ object ManagedPlays {
 
     fun buildInstallAuthorizedKeyCommand(publicKey: String): String {
         val normalizedKey = publicKey.trim()
-        val quotedKey = normalizedKey.replace("'", "'\"'\"'")
-        return "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && (grep -Fqx '$quotedKey' ~/.ssh/authorized_keys || echo '$quotedKey' >> ~/.ssh/authorized_keys)"
+        val quotedKey = ShellUtils.shellQuote(normalizedKey)
+        return "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && (grep -Fqx $quotedKey ~/.ssh/authorized_keys || echo $quotedKey >> ~/.ssh/authorized_keys)"
     }
 }

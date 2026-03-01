@@ -3,12 +3,16 @@ package net.hlan.sushi
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
-import android.view.KeyEvent
-import android.view.inputmethod.EditorInfo
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivityTerminalBinding
 
 class TerminalActivity : AppCompatActivity() {
@@ -17,7 +21,22 @@ class TerminalActivity : AppCompatActivity() {
 
     private var sshClient: SshClient? = null
     private var isConnecting = false
-    private var suppressInputWatcher = false
+    private var isRetrying = false
+    private var didLoseConnection = false
+    private var lastRawInput: String = ""
+    private var lastRawInputAtMs: Long = 0L
+    private val connectionMonitorHandler = Handler(Looper.getMainLooper())
+    private val connectionMonitorRunnable = Runnable {
+        monitorConnection()
+    }
+
+    private fun monitorConnection() {
+        val client = sshClient
+        if (!isConnecting && client != null && !client.isConnected()) {
+            handleUnexpectedDisconnect()
+        }
+        connectionMonitorHandler.postDelayed(connectionMonitorRunnable, CONNECTION_MONITOR_INTERVAL_MS)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,38 +71,12 @@ class TerminalActivity : AppCompatActivity() {
             sshClient?.sendCtrlD()
         }
 
-        binding.terminalLiveInput.setOnEditorActionListener { _, actionId, event ->
-            val isSend = actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_DONE
-            val isEnter = event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN
-            if (isSend || isEnter) {
-                sendRaw("\n")
-                true
-            } else {
-                false
-            }
+        binding.terminalOutputText.onInputText = { text ->
+            sendRaw(text)
         }
 
-        binding.terminalLiveInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-
-            override fun afterTextChanged(s: Editable?) {
-                if (suppressInputWatcher) {
-                    return
-                }
-                val chunk = s?.toString().orEmpty()
-                if (chunk.isBlank()) {
-                    return
-                }
-                sendRaw(chunk)
-                suppressInputWatcher = true
-                binding.terminalLiveInput.text?.clear()
-                suppressInputWatcher = false
-            }
-        })
-
         updateUi()
+        connectionMonitorHandler.postDelayed(connectionMonitorRunnable, CONNECTION_MONITOR_INTERVAL_MS)
 
         if (intent?.getBooleanExtra(EXTRA_AUTO_CONNECT, false) == true) {
             connectTerminal()
@@ -92,6 +85,7 @@ class TerminalActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        connectionMonitorHandler.removeCallbacks(connectionMonitorRunnable)
         disconnectTerminal()
     }
 
@@ -106,33 +100,64 @@ class TerminalActivity : AppCompatActivity() {
         }
 
         isConnecting = true
+        isRetrying = false
+        didLoseConnection = false
         updateUi()
+        binding.terminalOutputText.appendLog(getString(R.string.terminal_connect_attempt_log))
 
-        Thread {
-            val client = SshClient(config)
-            val result = client.connect { line ->
-                runOnUiThread {
-                    binding.terminalOutputText.appendLog(line)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val firstAttempt = connectWithClient(config)
+            var client = firstAttempt.first
+            var result = firstAttempt.second
+
+            if (!result.success) {
+                withContext(Dispatchers.Main) {
+                    isRetrying = true
+                    updateUi()
+                    binding.terminalOutputText.appendLog(
+                        getString(R.string.terminal_connect_retry_log, CONNECT_RETRY_DELAY_MS)
+                    )
                 }
+
+                delay(CONNECT_RETRY_DELAY_MS)
+
+                val secondAttempt = connectWithClient(config)
+                client = secondAttempt.first
+                result = secondAttempt.second
             }
-            runOnUiThread {
+
+            withContext(Dispatchers.Main) {
                 isConnecting = false
+                isRetrying = false
                 if (result.success) {
                     sshClient = client
+                    didLoseConnection = false
                     binding.terminalOutputText.appendLog(getString(R.string.session_connected_to, config.displayTarget()))
+                    binding.terminalOutputText.requestFocus()
                 } else {
                     client.disconnect()
-                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                    binding.terminalOutputText.appendLog(getString(R.string.terminal_connect_failed_log, result.message))
+                    Toast.makeText(this@TerminalActivity, result.message, Toast.LENGTH_SHORT).show()
                 }
                 updateUi()
             }
-        }.start()
+        }
     }
 
     private fun disconnectTerminal() {
         sshClient?.disconnect()
         sshClient = null
         isConnecting = false
+        didLoseConnection = false
+        updateUi()
+    }
+
+    private fun handleUnexpectedDisconnect() {
+        sshClient?.disconnect()
+        sshClient = null
+        didLoseConnection = true
+        binding.terminalOutputText.appendLog(getString(R.string.terminal_connection_lost_log))
+        Toast.makeText(this, getString(R.string.terminal_connection_lost_toast), Toast.LENGTH_SHORT).show()
         updateUi()
     }
 
@@ -141,11 +166,19 @@ class TerminalActivity : AppCompatActivity() {
         if (client?.isConnected() != true || isConnecting) {
             return
         }
+
+        val now = SystemClock.elapsedRealtime()
+        if (input == "\n" && lastRawInput == "\n" && now - lastRawInputAtMs < INPUT_DEDUP_WINDOW_MS) {
+            return
+        }
+        lastRawInput = input
+        lastRawInputAtMs = now
+
         Thread {
             val result = client.sendText(input)
             if (!result.success) {
                 runOnUiThread {
-                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@TerminalActivity, result.message, Toast.LENGTH_SHORT).show()
                 }
             }
         }.start()
@@ -154,19 +187,23 @@ class TerminalActivity : AppCompatActivity() {
     private fun updateUi() {
         val connected = sshClient?.isConnected() == true
         binding.terminalStatusText.text = when {
+            isRetrying -> getString(R.string.terminal_status_retrying)
             isConnecting -> getString(R.string.terminal_status_connecting)
             connected -> getString(R.string.terminal_status_connected)
+            didLoseConnection -> getString(R.string.terminal_status_reconnect_needed)
             else -> getString(R.string.terminal_status_disconnected)
         }
         binding.terminalConnectButton.text = if (connected) {
             getString(R.string.action_end_session)
+        } else if (didLoseConnection) {
+            getString(R.string.action_reconnect_session)
         } else {
             getString(R.string.action_start_session)
         }
+        binding.terminalConnectButton.isEnabled = !isConnecting
 
         val canInput = connected && !isConnecting
-        binding.terminalLiveInputLayout.isEnabled = canInput
-        binding.terminalLiveInput.isEnabled = canInput
+        binding.terminalOutputText.isEnabled = canInput
         binding.terminalEnterButton.isEnabled = canInput
         binding.terminalTabButton.isEnabled = canInput
         binding.terminalBackspaceButton.isEnabled = canInput
@@ -174,8 +211,21 @@ class TerminalActivity : AppCompatActivity() {
         binding.terminalCtrlDButton.isEnabled = canInput
     }
 
+    private fun connectWithClient(config: SshConnectionConfig): Pair<SshClient, SshConnectResult> {
+        val client = SshClient(config)
+        val result = client.connect(streamMode = true, onLine = { line ->
+            runOnUiThread {
+                binding.terminalOutputText.appendLog(line)
+            }
+        })
+        return client to result
+    }
+
     companion object {
         private const val EXTRA_AUTO_CONNECT = "extra_auto_connect"
+        private const val CONNECTION_MONITOR_INTERVAL_MS = 1500L
+        private const val CONNECT_RETRY_DELAY_MS = 1200L
+        private const val INPUT_DEDUP_WINDOW_MS = 150L
 
         fun createIntent(context: Context, autoConnect: Boolean): Intent {
             return Intent(context, TerminalActivity::class.java).putExtra(EXTRA_AUTO_CONNECT, autoConnect)
