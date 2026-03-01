@@ -26,7 +26,7 @@ The format is based on Keep a Changelog and follows semantic versioning.
 ## [0.3.0] - Unreleased
 
 ### Changed
-- Bumped development version target to `0.3.0-dev`.
+- Bumped development version target to `0.3.0-dev` (`versionCode` 9).
 
 ## [0.1.3] - 2026-02-27
 
