@@ -4,17 +4,29 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-03-01
 
 ### Added
 - Added a collapsible session tools section in the main screen to keep secondary actions hidden by default.
 - Added a Gemini control modal so voice interaction and Gemini output no longer occupy permanent space on the main screen.
 - Added tabbed sections in Settings (General, Gemini, Drive) to reduce vertical clutter.
 - Added a dedicated Terminal mode screen for direct shell interaction with live input, Enter/Tab/Backspace, and Ctrl+C/Ctrl+D controls.
+- Added a Plays system with managed predefined plays and per-run host selection.
+- Added host-level SSH authentication preference (auto/password-only/key-only).
+- Added jump-server support with host-list selection and dependent host cleanup.
+- Added settings quick actions, connection testing, and copyable diagnostics.
+- Added local SSH test wizard defaults with optional jump-server credentials.
 
 ### Changed
 - Simplified the main UI by replacing inline Gemini details with a compact status and modal entrypoint.
-- Bumped development version to `0.2.0-dev` (`versionCode` 8).
+- Switched main flow to terminal-first session startup.
+- Improved terminal rendering/input behavior and reconnect handling.
+- Bumped app version to `0.2.0` (`versionCode` 8).
+
+## [0.3.0] - Unreleased
+
+### Changed
+- Bumped development version target to `0.3.0-dev`.
 
 ## [0.1.3] - 2026-02-27
 
