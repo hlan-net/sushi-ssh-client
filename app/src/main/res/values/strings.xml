@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name_short">sushi</string>
-    <string name="app_name_long">sushi - SSH client</string>
+    <string name="app_name_short">Sushi</string>
+    <string name="app_name_long">Sushi - SSH Client</string>
     <string name="placeholder_status">Add SSH details in Settings to start a session.</string>
     <string name="placeholder_status_active">Connecting...</string>
     <string name="session_title">Terminal session</string>
@@ -10,6 +10,12 @@
     <string name="session_status_failed">Connection failed</string>
     <string name="session_status_ready">Ready</string>
     <string name="session_status_play_running">Play running</string>
+    <string name="main_tab_terminal">Terminal</string>
+    <string name="main_tab_plays">Plays</string>
+    <string name="main_plays_subtitle">Run reusable host plays without leaving the home screen.</string>
+    <string name="main_plays_empty_ready">Ready to run plays.</string>
+    <string name="main_plays_empty_add_host">Add a host before running plays.</string>
+    <string name="main_plays_empty_add_play">Add your first play to get started.</string>
     <string name="session_target_empty">Host: Not configured</string>
     <string name="session_target">Host: %1$s</string>
     <string name="session_log_label">Session log</string>
@@ -132,8 +138,17 @@
     <string name="settings_title">Settings</string>
     <string name="settings_subtitle">Manage optional integrations for voice and cloud logs.</string>
     <string name="settings_tab_general">General</string>
+    <string name="settings_tab_ssh">SSH</string>
     <string name="settings_tab_gemini">Gemini</string>
     <string name="settings_tab_drive">Drive</string>
+    <string name="settings_changes_pending">Changes pending</string>
+    <string name="theme_section_title">Appearance</string>
+    <string name="theme_section_subtitle">Choose app theme. Auto follows your device setting.</string>
+    <string name="theme_mode_label">Theme mode</string>
+    <string name="theme_mode_auto">Auto (device setting)</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_dark">Dark</string>
+    <string name="settings_hosts_keys_title">Hosts and keys</string>
     <string name="settings_summary_title">Current status</string>
     <string name="settings_summary_host_label">Active host</string>
     <string name="settings_summary_host_none">Not set</string>

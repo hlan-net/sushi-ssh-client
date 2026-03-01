@@ -1,455 +1,84 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/sushi_mist"
-    android:fillViewport="true">
+    android:paddingHorizontal="24dp"
+    android:paddingTop="24dp"
+    android:paddingBottom="12dp">
+
+    <TextView
+        android:id="@+id/settingsTitle"
+        style="@style/TextAppearance.Sushi.Headline"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/settings_title"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/settingsSubtitle"
+        style="@style/TextAppearance.Sushi.Body"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/settings_subtitle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/settingsTitle" />
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/settingsTabLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/settingsSubtitle"
+        app:tabIndicatorColor="@color/sushi_green"
+        app:tabIndicatorFullWidth="false"
+        app:tabMode="fixed"
+        app:tabTextColor="@color/sushi_slate"
+        app:tabSelectedTextColor="@color/sushi_ink" />
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/settingsViewPager"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="10dp"
+        app:layout_constraintBottom_toTopOf="@id/settingsBottomBar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/settingsTabLayout" />
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:id="@+id/settingsBottomBar"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
         android:orientation="vertical"
-        android:padding="24dp">
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
         <TextView
-            android:id="@+id/settingsTitle"
-            style="@style/TextAppearance.Sushi.Headline"
+            android:id="@+id/pendingChangesText"
+            style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/settings_title" />
-
-        <TextView
-            android:id="@+id/settingsSubtitle"
-            style="@style/TextAppearance.Sushi.Body"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/settings_subtitle" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:orientation="horizontal">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/settingsTabGeneral"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/settings_tab_general" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/settingsTabGemini"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:text="@string/settings_tab_gemini" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/settingsTabDrive"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:text="@string/settings_tab_drive" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/settingsGeneralSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/languageSectionTitle"
-                style="@style/TextAppearance.Sushi.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/language_section_title" />
-
-            <TextView
-                android:id="@+id/languageSectionSubtitle"
-                style="@style/TextAppearance.Sushi.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="@string/language_section_subtitle" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/languageLayout"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:hint="@string/language_label">
-
-                <AutoCompleteTextView
-                    android:id="@+id/languageInput"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="none" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <TextView
-                android:id="@+id/sshSectionTitle"
-                style="@style/TextAppearance.Sushi.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/ssh_section_title" />
-
-            <TextView
-                android:id="@+id/sshSectionSubtitle"
-                style="@style/TextAppearance.Sushi.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="@string/ssh_section_subtitle" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/settingsSummaryCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                app:cardBackgroundColor="@color/sushi_white"
-                app:cardElevation="1dp"
-                app:strokeColor="@color/sushi_card_stroke"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="12dp">
-
-                    <TextView
-                        android:id="@+id/settingsSummaryTitle"
-                        style="@style/TextAppearance.Sushi.Body"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/settings_summary_title"
-                        android:textStyle="bold" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:id="@+id/summaryHostLabel"
-                            style="@style/TextAppearance.Sushi.Caption"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/settings_summary_host_label" />
-
-                        <TextView
-                            android:id="@+id/summaryHostValue"
-                            style="@style/TextAppearance.Sushi.Caption"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:gravity="end"
-                            android:text="@string/settings_summary_host_none" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:id="@+id/summaryAuthLabel"
-                            style="@style/TextAppearance.Sushi.Caption"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/settings_summary_auth_label" />
-
-                        <TextView
-                            android:id="@+id/summaryAuthValue"
-                            style="@style/TextAppearance.Sushi.Caption"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:gravity="end"
-                            android:text="@string/settings_summary_auth_none" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:id="@+id/summaryGeminiLabel"
-                            style="@style/TextAppearance.Sushi.Caption"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/settings_summary_gemini_label" />
-
-                        <TextView
-                            android:id="@+id/summaryGeminiValue"
-                            style="@style/TextAppearance.Sushi.Caption"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:gravity="end"
-                            android:text="@string/settings_summary_gemini_disabled" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:id="@+id/summaryDriveLabel"
-                            style="@style/TextAppearance.Sushi.Caption"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/settings_summary_drive_label" />
-
-                        <TextView
-                            android:id="@+id/summaryDriveValue"
-                            style="@style/TextAppearance.Sushi.Caption"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:gravity="end"
-                            android:text="@string/settings_summary_drive_signed_out" />
-                    </LinearLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/testConnectionButton"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="@string/action_test_connection" />
-
-            <TextView
-                android:id="@+id/testConnectionResultText"
-                style="@style/TextAppearance.Sushi.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/test_connection_idle" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/copyConnectionDiagnosticsButton"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/action_copy_connection_diagnostics"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/managementSectionTitle"
-                style="@style/TextAppearance.Sushi.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/settings_management_title" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:orientation="horizontal">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/quickAddHostButton"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/action_add_host" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/quickGenerateKeyButton"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:text="@string/action_generate_key_quick" />
-            </LinearLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/manageHostsButton"
-                style="@style/Widget.Sushi.PrimaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="@string/action_hosts" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/manageKeysButton"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="@string/action_keys_short" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/managePlaysButton"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="@string/action_plays_short" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/managePhrasesButton"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="@string/action_phrases_short" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/settingsGeminiSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/geminiSectionTitle"
-                style="@style/TextAppearance.Sushi.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/gemini_settings_section_title" />
-
-            <TextView
-                android:id="@+id/settingsGeminiSubtitle"
-                style="@style/TextAppearance.Sushi.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="@string/gemini_settings_subtitle" />
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/geminiEnabledSwitch"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/gemini_settings_toggle" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/apiKeyLayout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:hint="@string/gemini_api_key_hint">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/apiKeyInput"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="textPassword" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <TextView
-                android:id="@+id/apiKeyHelper"
-                style="@style/TextAppearance.Sushi.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/gemini_api_key_helper" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/settingsDriveSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/driveSectionTitle"
-                style="@style/TextAppearance.Sushi.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/drive_section_title" />
-
-            <TextView
-                android:id="@+id/driveSectionSubtitle"
-                style="@style/TextAppearance.Sushi.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="@string/drive_section_subtitle" />
-
-            <TextView
-                android:id="@+id/driveStatusText"
-                style="@style/TextAppearance.Sushi.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="@string/drive_status_signed_out" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/driveSignInButton"
-                style="@style/Widget.Sushi.PrimaryButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:text="@string/action_drive_sign_in" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/driveSignOutButton"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/action_drive_sign_out"
-                android:visibility="gone" />
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/driveAlwaysSaveSwitch"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/drive_always_save_toggle" />
-
-            <TextView
-                android:id="@+id/driveAlwaysSaveHelper"
-                style="@style/TextAppearance.Sushi.Caption"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="@string/drive_always_save_helper" />
-        </LinearLayout>
+            android:layout_marginBottom="6dp"
+            android:text="@string/settings_changes_pending"
+            android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/saveButton"
             style="@style/Widget.Sushi.PrimaryButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/action_save_settings" />
+            android:text="@string/action_save_settings"
+            android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/aboutButton"
@@ -458,6 +87,6 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="@string/action_about" />
-
     </LinearLayout>
-</ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,4 +1,4 @@
-# sushi - SSH client
+# Sushi - SSH Client
 
 An open source Android SSH client focused on fast connections, clean session management, and a modern UI.
 
@@ -6,6 +6,23 @@ An open source Android SSH client focused on fast connections, clean session man
 - Active development with working SSH session flow and host management.
 - Optional Gemini voice command mode (user-provided API key).
 - Optional Google Drive log uploads (Google sign-in required).
+
+## v0.3.0 highlights
+- Main screen reorganization:
+  - shared terminal session block stays visible at the top
+  - top carousel now uses focused `Terminal` and `Plays` tabs
+  - Gemini controls moved into the `Terminal` tab
+  - Plays tab now combines play actions and session logs in one flow
+- Settings redesign with carousel navigation:
+  - dedicated pages for `General`, `SSH`, `Gemini`, and `Drive`
+  - `Hosts` and `Keys` grouped into their own SSH-focused settings page
+  - improved settings tab state and section grouping
+- Theme support:
+  - `Auto` (follow system), `Light`, and `Dark` appearance modes
+- QoL updates:
+  - smarter pending-save behavior for Gemini API key changes
+  - main/settings tab memory across app restarts
+  - one-command Wi-Fi deploy helper script (`scripts/install-wifi-debug.sh`)
 
 ## v0.1.3 highlights
 - Phrase management improvements:
@@ -28,6 +45,16 @@ Optional integrations:
 Build a debug APK:
 ```bash
 ./gradlew assembleDebug
+```
+
+Build and install to a Wi-Fi device in one step (auto-increments debug versionCode to avoid downgrade errors):
+```bash
+./scripts/install-wifi-debug.sh
+```
+
+Optional: pass a specific ADB device target:
+```bash
+./scripts/install-wifi-debug.sh 192.168.1.136:43333
 ```
 
 Run the optional local SSH integration tests on a connected device (not for CI):

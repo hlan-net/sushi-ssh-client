@@ -36,18 +36,41 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/titleText" />
 
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/mainToolsTabLayout"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/statusText"
+            app:tabIndicatorColor="@color/sushi_green"
+            app:tabIndicatorFullWidth="false"
+            app:tabMode="fixed"
+            app:tabSelectedTextColor="@color/sushi_ink"
+            app:tabTextColor="@color/sushi_slate" />
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/mainToolsViewPager"
+            android:layout_width="0dp"
+            android:layout_height="230dp"
+            android:layout_marginTop="14dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/sessionCard" />
+
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/sessionCard"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="16dp"
             app:cardBackgroundColor="@color/sushi_white"
             app:cardElevation="2dp"
             app:strokeColor="@color/sushi_card_stroke"
             app:strokeWidth="1dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/statusText">
+            app:layout_constraintTop_toBottomOf="@id/mainToolsTabLayout">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -96,97 +119,19 @@
                     android:text="@string/action_configure_host"
                     android:visibility="gone" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/playsButton"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/action_plays" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/sessionLogLabel"
-                    style="@style/TextAppearance.Sushi.Caption"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/session_log_label" />
-
-                <net.hlan.sushi.TerminalView
-                    android:id="@+id/sessionLogText"
-                    style="@style/TextAppearance.Sushi.Body"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:background="@color/sushi_terminal_bg"
-                    android:fontFamily="monospace"
-                    android:minHeight="160dp"
-                    android:padding="12dp"
-                    android:text="@string/session_log_placeholder"
-                    android:textColor="@color/sushi_ink" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-
-        <TextView
-            android:id="@+id/geminiTitleText"
-            style="@style/TextAppearance.Sushi.Body"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="@string/gemini_section_title"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/sessionCard" />
-
-        <TextView
-            android:id="@+id/geminiStatusText"
-            style="@style/TextAppearance.Sushi.Caption"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/gemini_status_disabled"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/geminiTitleText" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/geminiVoiceButton"
-            style="@style/Widget.Sushi.PrimaryButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/action_open_gemini"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/geminiStatusText" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/geminiSettingsButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/action_gemini_settings"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/geminiVoiceButton" />
 
         <TextView
             android:id="@+id/footerText"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="24dp"
             android:text="@string/placeholder_footer"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/geminiSettingsButton" />
+            app:layout_constraintTop_toBottomOf="@id/mainToolsViewPager" />
 
         <View
             android:layout_width="0dp"
