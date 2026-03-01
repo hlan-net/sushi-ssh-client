@@ -12,6 +12,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivitySettingsBinding
 
 class SettingsActivity : AppCompatActivity() {
@@ -265,7 +269,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.testConnectionButton.text = getString(R.string.action_test_connection_running)
         binding.testConnectionResultText.text = getString(R.string.session_status_connecting)
 
-        Thread {
+        lifecycleScope.launch(Dispatchers.IO) {
             val startedAt = System.currentTimeMillis()
             val outputLines = mutableListOf<String>()
             val client = SshClient(config)
@@ -295,7 +299,7 @@ class SettingsActivity : AppCompatActivity() {
             }
             client.disconnect()
 
-            runOnUiThread {
+            withContext(Dispatchers.Main) {
                 lastConnectionDiagnostics = diagnostics
                 binding.copyConnectionDiagnosticsButton.visibility = View.VISIBLE
                 binding.testConnectionButton.isEnabled = true

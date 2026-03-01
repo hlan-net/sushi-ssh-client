@@ -8,6 +8,11 @@ import android.os.Looper
 import android.os.SystemClock
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivityTerminalBinding
 
 class TerminalActivity : AppCompatActivity() {
@@ -21,14 +26,16 @@ class TerminalActivity : AppCompatActivity() {
     private var lastRawInput: String = ""
     private var lastRawInputAtMs: Long = 0L
     private val connectionMonitorHandler = Handler(Looper.getMainLooper())
-    private val connectionMonitorRunnable = object : Runnable {
-        override fun run() {
-            val client = sshClient
-            if (!isConnecting && client != null && !client.isConnected()) {
-                handleUnexpectedDisconnect()
-            }
-            connectionMonitorHandler.postDelayed(this, CONNECTION_MONITOR_INTERVAL_MS)
+    private val connectionMonitorRunnable = Runnable {
+        monitorConnection()
+    }
+
+    private fun monitorConnection() {
+        val client = sshClient
+        if (!isConnecting && client != null && !client.isConnected()) {
+            handleUnexpectedDisconnect()
         }
+        connectionMonitorHandler.postDelayed(connectionMonitorRunnable, CONNECTION_MONITOR_INTERVAL_MS)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -98,13 +105,13 @@ class TerminalActivity : AppCompatActivity() {
         updateUi()
         binding.terminalOutputText.appendLog(getString(R.string.terminal_connect_attempt_log))
 
-        Thread {
+        lifecycleScope.launch(Dispatchers.IO) {
             val firstAttempt = connectWithClient(config)
             var client = firstAttempt.first
             var result = firstAttempt.second
 
             if (!result.success) {
-                runOnUiThread {
+                withContext(Dispatchers.Main) {
                     isRetrying = true
                     updateUi()
                     binding.terminalOutputText.appendLog(
@@ -112,14 +119,14 @@ class TerminalActivity : AppCompatActivity() {
                     )
                 }
 
-                Thread.sleep(CONNECT_RETRY_DELAY_MS)
+                delay(CONNECT_RETRY_DELAY_MS)
 
                 val secondAttempt = connectWithClient(config)
                 client = secondAttempt.first
                 result = secondAttempt.second
             }
 
-            runOnUiThread {
+            withContext(Dispatchers.Main) {
                 isConnecting = false
                 isRetrying = false
                 if (result.success) {
@@ -130,11 +137,11 @@ class TerminalActivity : AppCompatActivity() {
                 } else {
                     client.disconnect()
                     binding.terminalOutputText.appendLog(getString(R.string.terminal_connect_failed_log, result.message))
-                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@TerminalActivity, result.message, Toast.LENGTH_SHORT).show()
                 }
                 updateUi()
             }
-        }.start()
+        }
     }
 
     private fun disconnectTerminal() {
@@ -171,7 +178,7 @@ class TerminalActivity : AppCompatActivity() {
             val result = client.sendText(input)
             if (!result.success) {
                 runOnUiThread {
-                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@TerminalActivity, result.message, Toast.LENGTH_SHORT).show()
                 }
             }
         }.start()

@@ -67,6 +67,16 @@ class SshClient(private val config: SshConnectionConfig) {
     private var shellInput: OutputStream? = null
     private var shellReaderThread: Thread? = null
 
+    private data class AuthPlan(
+        val shouldUseKey: Boolean,
+        val shouldUsePassword: Boolean
+    )
+
+    private data class JumpSessionResult(
+        val session: Session,
+        val forwardedPort: Int
+    )
+
     fun connect(onLine: (String) -> Unit, streamMode: Boolean = false): SshConnectResult {
         var newJumpSession: Session? = null
         var newJumpForwardPort: Int? = null
@@ -74,75 +84,26 @@ class SshClient(private val config: SshConnectionConfig) {
         var newChannel: ChannelShell? = null
         return runCatching {
             val jsch = JSch()
-            val authPreference = config.resolvedAuthPreference()
-            val hasPrivateKey = !config.privateKey.isNullOrBlank()
-            val shouldUseKey = when (authPreference) {
-                SshAuthPreference.AUTO -> hasPrivateKey
-                SshAuthPreference.PASSWORD -> false
-                SshAuthPreference.KEY -> hasPrivateKey
-            }
-            val shouldUsePassword = when (authPreference) {
-                SshAuthPreference.AUTO -> true
-                SshAuthPreference.PASSWORD -> true
-                SshAuthPreference.KEY -> false
-            }
+            val authPlan = resolveAuthPlan(config)
+            addPrivateKeyIdentity(jsch, authPlan)
 
-            if (authPreference == SshAuthPreference.KEY && !hasPrivateKey) {
-                throw IllegalStateException("SSH key preferred but no private key is configured.")
-            }
+            val jumpResult = establishJumpSession(jsch, authPlan)
+            newJumpSession = jumpResult?.session
+            newJumpForwardPort = jumpResult?.forwardedPort
 
-            if (shouldUseKey) {
-                // Only use a passphrase if the key is actually encrypted
-                val keyPassphrase: ByteArray? = null // Should be handled separately from the SSH password
-                val privateKeyBytes = config.privateKey.orEmpty().toByteArray()
-                jsch.addIdentity("key", privateKeyBytes, null, keyPassphrase)
-            }
-            val targetHost: String
-            val targetPort: Int
+            val targetHost = jumpResult?.let { "127.0.0.1" } ?: config.host
+            val targetPort = jumpResult?.forwardedPort ?: config.port
 
-            if (config.hasJumpServer()) {
-                val createdJumpSession = jsch.getSession(
-                    config.jumpUsername,
-                    config.jumpHost,
-                    config.jumpPort
-                )
-                newJumpSession = createdJumpSession
-                if (shouldUsePassword && config.jumpPassword.isNotBlank()) {
-                    createdJumpSession.setPassword(config.jumpPassword)
-                }
-                createdJumpSession.setConfig("StrictHostKeyChecking", "no")
-                createdJumpSession.serverAliveInterval = SERVER_ALIVE_INTERVAL_MS
-                createdJumpSession.serverAliveCountMax = SERVER_ALIVE_COUNT_MAX
-                createdJumpSession.connect(CONNECTION_TIMEOUT_MS)
-                val forwardedPort = createdJumpSession.setPortForwardingL(0, config.host, config.port)
-                newJumpForwardPort = forwardedPort
-                targetHost = "127.0.0.1"
-                targetPort = forwardedPort
-            } else {
-                targetHost = config.host
-                targetPort = config.port
-            }
-
-            val createdSession = jsch.getSession(config.username, targetHost, targetPort)
+            val createdSession = establishTargetSession(jsch, targetHost, targetPort, authPlan)
             newSession = createdSession
-            if (shouldUsePassword && config.password.isNotBlank()) {
-                createdSession.setPassword(config.password)
-            }
-            createdSession.setConfig("StrictHostKeyChecking", "no")
-            createdSession.serverAliveInterval = SERVER_ALIVE_INTERVAL_MS
-            createdSession.serverAliveCountMax = SERVER_ALIVE_COUNT_MAX
-            createdSession.connect(CONNECTION_TIMEOUT_MS)
 
-            val createdChannel = createdSession.openChannel("shell") as? ChannelShell
-                ?: throw IllegalStateException("Unable to open shell channel")
+            val createdChannel = openShellChannel(createdSession)
             newChannel = createdChannel
-            createdChannel.setPty(true)
 
             val inputStream = createdChannel.inputStream
                 ?: throw IllegalStateException("Shell input stream unavailable")
             val outputStream = createdChannel.outputStream
                 ?: throw IllegalStateException("Shell output stream unavailable")
-            createdChannel.connect(SHELL_CONNECT_TIMEOUT_MS)
 
             jumpSession = newJumpSession
             jumpForwardPort = newJumpForwardPort
@@ -165,6 +126,80 @@ class SshClient(private val config: SshConnectionConfig) {
                 ?: "Unable to connect. Check host and credentials."
             SshConnectResult(false, message)
         }
+    }
+
+    private fun resolveAuthPlan(config: SshConnectionConfig): AuthPlan {
+        val authPreference = config.resolvedAuthPreference()
+        val hasPrivateKey = !config.privateKey.isNullOrBlank()
+        check(!(authPreference == SshAuthPreference.KEY && !hasPrivateKey)) {
+            "SSH key preferred but no private key is configured."
+        }
+
+        return AuthPlan(
+            shouldUseKey = when (authPreference) {
+                SshAuthPreference.AUTO -> hasPrivateKey
+                SshAuthPreference.PASSWORD -> false
+                SshAuthPreference.KEY -> true
+            },
+            shouldUsePassword = when (authPreference) {
+                SshAuthPreference.AUTO -> true
+                SshAuthPreference.PASSWORD -> true
+                SshAuthPreference.KEY -> false
+            }
+        )
+    }
+
+    private fun addPrivateKeyIdentity(jsch: JSch, authPlan: AuthPlan) {
+        if (!authPlan.shouldUseKey) {
+            return
+        }
+        val keyPassphrase: ByteArray? = null
+        val privateKeyBytes = config.privateKey.orEmpty().toByteArray()
+        jsch.addIdentity("key", privateKeyBytes, null, keyPassphrase)
+    }
+
+    private fun establishJumpSession(jsch: JSch, authPlan: AuthPlan): JumpSessionResult? {
+        if (!config.hasJumpServer()) {
+            return null
+        }
+
+        val createdJumpSession = jsch.getSession(config.jumpUsername, config.jumpHost, config.jumpPort)
+        if (authPlan.shouldUsePassword && config.jumpPassword.isNotBlank()) {
+            createdJumpSession.setPassword(config.jumpPassword)
+        }
+        configureSession(createdJumpSession)
+        createdJumpSession.connect(CONNECTION_TIMEOUT_MS)
+        val forwardedPort = createdJumpSession.setPortForwardingL(0, config.host, config.port)
+        return JumpSessionResult(createdJumpSession, forwardedPort)
+    }
+
+    private fun establishTargetSession(
+        jsch: JSch,
+        targetHost: String,
+        targetPort: Int,
+        authPlan: AuthPlan
+    ): Session {
+        val createdSession = jsch.getSession(config.username, targetHost, targetPort)
+        if (authPlan.shouldUsePassword && config.password.isNotBlank()) {
+            createdSession.setPassword(config.password)
+        }
+        configureSession(createdSession)
+        createdSession.connect(CONNECTION_TIMEOUT_MS)
+        return createdSession
+    }
+
+    private fun openShellChannel(createdSession: Session): ChannelShell {
+        val channel = createdSession.openChannel("shell") as? ChannelShell
+            ?: throw IllegalStateException("Unable to open shell channel")
+        channel.setPty(true)
+        channel.connect(SHELL_CONNECT_TIMEOUT_MS)
+        return channel
+    }
+
+    private fun configureSession(session: Session) {
+        session.setConfig("StrictHostKeyChecking", "no")
+        session.serverAliveInterval = SERVER_ALIVE_INTERVAL_MS
+        session.serverAliveCountMax = SERVER_ALIVE_COUNT_MAX
     }
 
     fun disconnect() {
@@ -327,23 +362,12 @@ class SshClient(private val config: SshConnectionConfig) {
                 }
 
                 for (i in 0 until read) {
-                    when (val ch = buffer[i]) {
-                        '\r' -> {
-                            flushLine(includeNewline = true)
-                            lastWasCarriageReturn = true
-                        }
-                        '\n' -> {
-                            if (lastWasCarriageReturn) {
-                                lastWasCarriageReturn = false
-                            } else {
-                                flushLine(includeNewline = true)
-                            }
-                        }
-                        else -> {
-                            lastWasCarriageReturn = false
-                            lineBuffer.append(ch)
-                        }
-                    }
+                    lastWasCarriageReturn = processShellChar(
+                        ch = buffer[i],
+                        lineBuffer = lineBuffer,
+                        lastWasCarriageReturn = lastWasCarriageReturn,
+                        flushLine = ::flushLine
+                    )
                 }
 
                 val shouldFlush = runCatching { inputStream.available() == 0 }.getOrDefault(false)
@@ -354,6 +378,30 @@ class SshClient(private val config: SshConnectionConfig) {
         } finally {
             flushLine(includeNewline = false)
             runCatching { reader.close() }
+        }
+    }
+
+    private fun processShellChar(
+        ch: Char,
+        lineBuffer: StringBuilder,
+        lastWasCarriageReturn: Boolean,
+        flushLine: (Boolean) -> Unit
+    ): Boolean {
+        return when (ch) {
+            '\r' -> {
+                flushLine(true)
+                true
+            }
+            '\n' -> {
+                if (!lastWasCarriageReturn) {
+                    flushLine(true)
+                }
+                false
+            }
+            else -> {
+                lineBuffer.append(ch)
+                false
+            }
         }
     }
 }

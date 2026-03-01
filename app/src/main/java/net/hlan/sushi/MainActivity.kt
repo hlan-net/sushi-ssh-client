@@ -285,28 +285,7 @@ class MainActivity : AppCompatActivity() {
         val fields = linkedMapOf<PlayParameter, TextInputEditText>()
 
         parameters.forEachIndexed { index, parameter ->
-            val layout = TextInputLayout(this).apply {
-                hint = parameter.label
-            }
-            val input = TextInputEditText(this).apply {
-                inputType = if (parameter.secret) {
-                    android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-                } else {
-                    android.text.InputType.TYPE_CLASS_TEXT
-                }
-            }
-            layout.addView(input)
-            if (index > 0) {
-                val params = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                params.topMargin = 12
-                container.addView(layout, params)
-            } else {
-                container.addView(layout)
-            }
-            fields[parameter] = input
+            addParameterField(container, fields, parameter, index > 0)
         }
 
         val content = ScrollView(this).apply { addView(container) }
@@ -321,27 +300,61 @@ class MainActivity : AppCompatActivity() {
         dialog.setOnShowListener {
             val runButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
             runButton.setOnClickListener {
-                val values = mutableMapOf<String, String>()
-                var hasError = false
-                fields.forEach { (parameter, input) ->
-                    val value = input.text?.toString().orEmpty()
-                    val layout = input.parent.parent as? TextInputLayout
-                    layout?.error = null
-                    if (parameter.required && value.isBlank()) {
-                        layout?.error = getString(R.string.play_parameter_required)
-                        hasError = true
-                    } else {
-                        values[parameter.key] = value
-                    }
-                }
-                if (hasError) {
-                    return@setOnClickListener
-                }
+                val values = collectAndValidatePlayValues(fields) ?: return@setOnClickListener
                 dialog.dismiss()
                 runPlay(play, host, values)
             }
         }
         dialog.show()
+    }
+
+    private fun addParameterField(
+        container: LinearLayout,
+        fields: MutableMap<PlayParameter, TextInputEditText>,
+        parameter: PlayParameter,
+        withTopMargin: Boolean
+    ) {
+        val layout = TextInputLayout(this).apply {
+            hint = parameter.label
+        }
+        val input = TextInputEditText(this).apply {
+            inputType = if (parameter.secret) {
+                android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            } else {
+                android.text.InputType.TYPE_CLASS_TEXT
+            }
+        }
+        layout.addView(input)
+        if (withTopMargin) {
+            val params = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            params.topMargin = 12
+            container.addView(layout, params)
+        } else {
+            container.addView(layout)
+        }
+        fields[parameter] = input
+    }
+
+    private fun collectAndValidatePlayValues(
+        fields: Map<PlayParameter, TextInputEditText>
+    ): Map<String, String>? {
+        val values = mutableMapOf<String, String>()
+        var hasError = false
+        fields.forEach { (parameter, input) ->
+            val value = input.text?.toString().orEmpty()
+            val layout = input.parent.parent as? TextInputLayout
+            layout?.error = null
+            if (parameter.required && value.isBlank()) {
+                layout?.error = getString(R.string.play_parameter_required)
+                hasError = true
+            } else {
+                values[parameter.key] = value
+            }
+        }
+        return if (hasError) null else values
     }
 
     private fun runPlay(play: Play, host: SshConnectionConfig, values: Map<String, String>) {
@@ -350,7 +363,7 @@ class MainActivity : AppCompatActivity() {
         updateSessionUi()
         appendSessionLog(getString(R.string.play_run_started, play.name, config.displayTarget()))
 
-        Thread {
+        lifecycleScope.launch(Dispatchers.IO) {
             val result = PlayRunner.execute(
                 play = play,
                 hostConfig = config,
@@ -358,17 +371,17 @@ class MainActivity : AppCompatActivity() {
                 onLine = { line -> appendSessionLog("[Play] ${line.trimEnd()}") }
             )
 
-            runOnUiThread {
+            withContext(Dispatchers.Main) {
                 isPlayRunning = false
                 if (result.success) {
                     appendSessionLog(getString(R.string.play_run_finished, play.name))
                 } else {
                     appendSessionLog(getString(R.string.play_run_failed, play.name, result.message))
-                    Toast.makeText(this, result.message, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_SHORT).show()
                 }
                 updateSessionUi()
             }
-        }.start()
+        }
     }
 
     private fun appendSessionLog(message: String) {

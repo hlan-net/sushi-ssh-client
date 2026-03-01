@@ -14,7 +14,6 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.widget.AppCompatTextView
-import java.util.LinkedList
 import java.util.regex.Pattern
 
 class TerminalView @JvmOverloads constructor(
@@ -23,13 +22,16 @@ class TerminalView @JvmOverloads constructor(
 
     private var currentFgColor: Int? = null
     private var currentBgColor: Int? = null
-    private val lineBuffer = LinkedList<CharSequence>()
+    private val rawTextBuffer = StringBuilder()
+    private var pendingCarriageReturn = false
     var onInputText: ((String) -> Unit)? = null
+    var renderAnsi: Boolean = true
 
     var onSizeChangedListener: ((col: Int, row: Int, wp: Int, hp: Int) -> Unit)? = null
 
     companion object {
         private const val MAX_LINES = 500
+        private const val MAX_CHARS = 200_000
         private val ESCAPE_PATTERN = Pattern.compile("\u001B\\[[0-9;?]*[a-ln-zA-LN-Z]")
         private val SGR_PATTERN = Pattern.compile("\u001B\\[([0-9;]*)m")
     }
@@ -112,28 +114,26 @@ class TerminalView @JvmOverloads constructor(
     fun appendLog(text: String) {
         // Prevent DoS from extremely large input strings by truncating
         val safeText = if (text.length > 50000) text.substring(text.length - 50000) else text
-        val normalizedText = safeText.replace("\r\n", "\n").replace('\r', '\n')
-        val parsed = parseAnsi(normalizedText)
-        lineBuffer.add(parsed)
-        if (lineBuffer.size > MAX_LINES) {
-            lineBuffer.removeFirst()
-        }
+        val normalizedText = normalizeLineEndings(safeText)
+        rawTextBuffer.append(normalizedText)
+        trimBuffer()
         updateText()
     }
 
     fun clearLog() {
-        lineBuffer.clear()
+        rawTextBuffer.setLength(0)
+        currentFgColor = null
+        currentBgColor = null
+        pendingCarriageReturn = false
         text = ""
         scrollTo(0, 0)
     }
 
     private fun updateText() {
-        val builder = SpannableStringBuilder()
-        for (i in 0 until lineBuffer.size) {
-            val chunk = lineBuffer[i]
-            builder.append(chunk, 0, chunk.length)
-        }
-        text = builder
+        val fullText = rawTextBuffer.toString()
+        currentFgColor = null
+        currentBgColor = null
+        text = if (renderAnsi) parseAnsi(fullText) else fullText
         post {
             val scrollAmount = layout?.let {
                 it.getLineTop(lineCount) - height + paddingBottom + paddingTop
@@ -144,6 +144,59 @@ class TerminalView @JvmOverloads constructor(
                 scrollTo(0, 0)
             }
         }
+    }
+
+    private fun trimBuffer() {
+        if (rawTextBuffer.length > MAX_CHARS) {
+            val extraChars = rawTextBuffer.length - MAX_CHARS
+            rawTextBuffer.delete(0, extraChars)
+        }
+
+        var newlineCount = 0
+        for (i in 0 until rawTextBuffer.length) {
+            if (rawTextBuffer[i] == '\n') {
+                newlineCount++
+            }
+        }
+
+        if (newlineCount <= MAX_LINES) {
+            return
+        }
+
+        var linesToDrop = newlineCount - MAX_LINES
+        var cutIndex = 0
+        while (linesToDrop > 0 && cutIndex < rawTextBuffer.length) {
+            if (rawTextBuffer[cutIndex] == '\n') {
+                linesToDrop--
+            }
+            cutIndex++
+        }
+
+        if (cutIndex > 0) {
+            rawTextBuffer.delete(0, cutIndex)
+        }
+    }
+
+    private fun normalizeLineEndings(input: String): String {
+        if (input.isEmpty()) {
+            return input
+        }
+
+        val out = StringBuilder(input.length)
+        for (ch in input) {
+            when (ch) {
+                '\r' -> pendingCarriageReturn = true
+                '\n' -> {
+                    out.append('\n')
+                    pendingCarriageReturn = false
+                }
+                else -> {
+                    pendingCarriageReturn = false
+                    out.append(ch)
+                }
+            }
+        }
+        return out.toString()
     }
 
     private fun parseAnsi(rawText: String): CharSequence {

@@ -6,7 +6,7 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
-import java.net.URL
+import java.net.URI
 
 class GeminiClient(
     private val context: Context,
@@ -18,7 +18,9 @@ class GeminiClient(
             return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
         }
 
-        val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$MODEL_ID:generateContent?key=$apiKey")
+        val url = URI.create(
+            "https://generativelanguage.googleapis.com/v1beta/models/$MODEL_ID:generateContent?key=$apiKey"
+        ).toURL()
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             setRequestProperty("Content-Type", "application/json; charset=utf-8")

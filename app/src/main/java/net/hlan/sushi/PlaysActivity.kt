@@ -46,17 +46,13 @@ class PlaysActivity : AppCompatActivity() {
     }
 
     private fun showEditPlayDialog(play: Play?) {
-        if (play?.managed == true) {
-            Toast.makeText(this, getString(R.string.play_managed_read_only), Toast.LENGTH_SHORT).show()
+        if (isManagedPlay(play)) {
+            showManagedPlayToast()
             return
         }
 
         val dialogBinding = DialogEditPlayBinding.inflate(LayoutInflater.from(this))
-        if (play != null) {
-            dialogBinding.playNameInput.setText(play.name)
-            dialogBinding.playDescriptionInput.setText(play.description)
-            dialogBinding.playScriptInput.setText(play.scriptTemplate)
-        }
+        populatePlayDialog(dialogBinding, play)
 
         val dialog = AlertDialog.Builder(this)
             .setTitle(if (play == null) R.string.action_add_play else R.string.action_edit_play)
@@ -72,60 +68,97 @@ class PlaysActivity : AppCompatActivity() {
                 val description = dialogBinding.playDescriptionInput.text?.toString()?.trim().orEmpty()
                 val script = dialogBinding.playScriptInput.text?.toString()?.trim().orEmpty()
 
-                dialogBinding.playNameLayout.error = null
-                dialogBinding.playScriptLayout.error = null
-
-                var hasError = false
-                if (name.isBlank()) {
-                    dialogBinding.playNameLayout.error = getString(R.string.play_name_required)
-                    hasError = true
-                }
-                if (script.isBlank()) {
-                    dialogBinding.playScriptLayout.error = getString(R.string.play_script_required)
-                    hasError = true
-                }
-                if (hasError) {
+                if (!validatePlayInputs(dialogBinding, name, script)) {
                     return@setOnClickListener
                 }
 
                 lifecycleScope.launch(Dispatchers.IO) {
-                    val existing = db.getPlayByName(name)
-                    val duplicate = existing != null && existing.id != play?.id
-                    if (duplicate) {
-                        withContext(Dispatchers.Main) {
-                            dialogBinding.playNameLayout.error = getString(R.string.play_name_exists)
-                        }
+                    if (isDuplicatePlayName(name, play?.id)) {
+                        showDuplicatePlayNameError(dialogBinding)
                         return@launch
                     }
 
-                    if (play == null) {
-                        db.insert(
-                            Play(
-                                name = name,
-                                description = description,
-                                scriptTemplate = script,
-                                parametersJson = "[]",
-                                managed = false
-                            )
-                        )
-                    } else {
-                        db.update(
-                            play.copy(
-                                name = name,
-                                description = description,
-                                scriptTemplate = script
-                            )
-                        )
-                    }
-
-                    withContext(Dispatchers.Main) {
-                        dialog.dismiss()
-                    }
+                    savePlay(play, name, description, script)
+                    dismissDialog(dialog)
                 }
             }
         }
 
         dialog.show()
+    }
+
+    private fun isManagedPlay(play: Play?): Boolean = play?.managed == true
+
+    private fun showManagedPlayToast() {
+        Toast.makeText(this, getString(R.string.play_managed_read_only), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun populatePlayDialog(dialogBinding: DialogEditPlayBinding, play: Play?) {
+        if (play == null) {
+            return
+        }
+        dialogBinding.playNameInput.setText(play.name)
+        dialogBinding.playDescriptionInput.setText(play.description)
+        dialogBinding.playScriptInput.setText(play.scriptTemplate)
+    }
+
+    private fun validatePlayInputs(
+        dialogBinding: DialogEditPlayBinding,
+        name: String,
+        script: String
+    ): Boolean {
+        dialogBinding.playNameLayout.error = null
+        dialogBinding.playScriptLayout.error = null
+
+        var hasError = false
+        if (name.isBlank()) {
+            dialogBinding.playNameLayout.error = getString(R.string.play_name_required)
+            hasError = true
+        }
+        if (script.isBlank()) {
+            dialogBinding.playScriptLayout.error = getString(R.string.play_script_required)
+            hasError = true
+        }
+        return !hasError
+    }
+
+    private fun isDuplicatePlayName(name: String, playId: Long?): Boolean {
+        val existing = db.getPlayByName(name)
+        return existing != null && existing.id != playId
+    }
+
+    private suspend fun showDuplicatePlayNameError(dialogBinding: DialogEditPlayBinding) {
+        withContext(Dispatchers.Main) {
+            dialogBinding.playNameLayout.error = getString(R.string.play_name_exists)
+        }
+    }
+
+    private fun savePlay(play: Play?, name: String, description: String, script: String) {
+        if (play == null) {
+            db.insert(
+                Play(
+                    name = name,
+                    description = description,
+                    scriptTemplate = script,
+                    parametersJson = "[]",
+                    managed = false
+                )
+            )
+            return
+        }
+        db.update(
+            play.copy(
+                name = name,
+                description = description,
+                scriptTemplate = script
+            )
+        )
+    }
+
+    private suspend fun dismissDialog(dialog: AlertDialog) {
+        withContext(Dispatchers.Main) {
+            dialog.dismiss()
+        }
     }
 
     private fun deletePlay(play: Play) {

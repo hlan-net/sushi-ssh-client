@@ -161,27 +161,29 @@ class LocalSshIntegrationTest {
                 activity.getString(R.string.terminal_status_connected) == statusView.text.toString()
             }
 
+            val doneMarker = "SUSHI_LS_LINES_DONE_${System.currentTimeMillis()}"
+
             scenario.onActivity { activity ->
                 val sendRawMethod = TerminalActivity::class.java.getDeclaredMethod("sendRaw", String::class.java)
                 sendRawMethod.isAccessible = true
                 sendRawMethod.invoke(
                     activity,
-                    "rm -rf sushi_linecheck && mkdir sushi_linecheck && cd sushi_linecheck && touch file01 file02 file03 file04 file05 file06 file07 file08 file09 file10 && ls -l\\n"
+                    "rm -rf sushi_linecheck && mkdir sushi_linecheck && cd sushi_linecheck && touch file01 file02 file03 file04 file05 file06 file07 file08 file09 file10 && ls -1 && echo $doneMarker\\n"
                 )
             }
 
             waitForCondition(
                 scenario = scenario,
                 timeoutMs = 20_000,
-                timeoutMessage = "ls -l output did not include all files"
+                timeoutMessage = "ls output did not finish in terminal"
             ) { activity ->
                 val output = activity.findViewById<TextView>(R.id.terminalOutputText).text?.toString().orEmpty()
-                output.contains("file10")
+                output.contains(doneMarker)
             }
 
             scenario.onActivity { activity ->
                 val output = activity.findViewById<TextView>(R.id.terminalOutputText).text?.toString().orEmpty()
-                val fileLines = output.lineSequence().count { it.contains("file") }
+                val fileLines = output.lineSequence().count { it.matches(Regex(".*file[0-9]{2}\\s*")) }
                 assertTrue("Expected at least 10 file lines from ls -l, got $fileLines", fileLines >= 10)
             }
         }
@@ -428,27 +430,40 @@ class LocalSshIntegrationTest {
                 marker = "SUSHI_NANO_TOUCH_DONE_${System.currentTimeMillis()}"
             )
 
+            val nanoStartIndex = synchronized(receivedLines) { receivedLines.size }
             val openNanoResult = client.sendCommand("nano newfile")
             assertTrue("Failed to open nano: ${openNanoResult.message}", openNanoResult.success)
-            Thread.sleep(1200)
+            assertTrue(
+                "nano screen did not render after open",
+                waitForOutputGrowth(receivedLines, nanoStartIndex, minAdded = 1, timeoutSec = 8)
+            )
 
+            val textInputIndex = synchronized(receivedLines) { receivedLines.size }
             assertTrue("Failed to type nano content", client.sendText("ready\nfor\nsuccess").success)
-            Thread.sleep(300)
+            assertTrue(
+                "No output change after typing nano content",
+                waitForOutputGrowth(receivedLines, textInputIndex, minAdded = 1, timeoutSec = 8)
+            )
 
+            val writeOutIndex = synchronized(receivedLines) { receivedLines.size }
             assertTrue("Failed to send Ctrl+O in nano", client.sendText("\u000f").success)
-            Thread.sleep(300)
-            assertTrue("Failed to confirm nano write", client.sendText("\n").success)
-            Thread.sleep(500)
-            assertTrue("Failed to send Ctrl+X in nano", client.sendText("\u0018").success)
-            Thread.sleep(1000)
+            assertTrue(
+                "No output change after Ctrl+O",
+                waitForOutputGrowth(receivedLines, writeOutIndex, minAdded = 1, timeoutSec = 8)
+            )
 
-            // Extra escape sequence to get back to shell reliably from any nano prompt state.
-            client.sendText("\u0018") // Ctrl+X
-            Thread.sleep(250)
-            client.sendText("Y\n")
-            Thread.sleep(250)
-            client.sendText("\n")
-            Thread.sleep(400)
+            val confirmWriteIndex = synchronized(receivedLines) { receivedLines.size }
+            assertTrue("Failed to confirm nano write", client.sendText("\n").success)
+            assertTrue(
+                "No output change after confirming write",
+                waitForOutputGrowth(receivedLines, confirmWriteIndex, minAdded = 1, timeoutSec = 8)
+            )
+
+            assertTrue("Failed to send Ctrl+X in nano", client.sendText("\u0018").success)
+            assertTrue(
+                "Did not return to shell prompt after nano exit sequence",
+                waitForShellReadyAfterNano(client, receivedLines, timeoutSec = 20)
+            )
 
             val startIndex = synchronized(receivedLines) { receivedLines.size }
             assertTrue(
@@ -662,6 +677,64 @@ class LocalSshIntegrationTest {
                 return true
             }
             Thread.sleep(100)
+        }
+        return false
+    }
+
+    private fun waitForOutputGrowth(
+        receivedLines: List<String>,
+        startIndex: Int,
+        minAdded: Int,
+        timeoutSec: Long
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutSec)
+        while (System.currentTimeMillis() < deadline) {
+            val currentSize = synchronized(receivedLines) { receivedLines.size }
+            if ((currentSize - startIndex) >= minAdded) {
+                return true
+            }
+            Thread.sleep(100)
+        }
+        return false
+    }
+
+    private fun waitForLineContainsAfterIndex(
+        receivedLines: List<String>,
+        marker: String,
+        startIndex: Int,
+        timeoutSec: Long
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutSec)
+        while (System.currentTimeMillis() < deadline) {
+            val found = synchronized(receivedLines) {
+                receivedLines.drop(startIndex).any { it.contains(marker) }
+            }
+            if (found) {
+                return true
+            }
+            Thread.sleep(100)
+        }
+        return false
+    }
+
+    private fun waitForShellReadyAfterNano(
+        client: SshClient,
+        receivedLines: MutableList<String>,
+        timeoutSec: Long
+    ): Boolean {
+        repeat(4) {
+            val readyMarker = "SUSHI_AFTER_NANO_READY_${System.currentTimeMillis()}_$it"
+            val startIndex = synchronized(receivedLines) { receivedLines.size }
+            val markerCommandSent = client.sendText("printf '$readyMarker\\n'\n").success
+            if (markerCommandSent && waitForLineContainsAfterIndex(receivedLines, readyMarker, startIndex, timeoutSec = 4)) {
+                return true
+            }
+
+            // If still inside nano prompt states, force close + save sequence and retry marker.
+            client.sendText("\u0018")
+            client.sendText("Y\n")
+            client.sendText("\n")
+            waitForOutputGrowth(receivedLines, startIndex, minAdded = 1, timeoutSec = 4)
         }
         return false
     }

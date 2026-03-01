@@ -59,10 +59,7 @@ class PhrasesActivity : AppCompatActivity() {
     private fun showEditPhraseDialog(phrase: Phrase?) {
         val dialogBinding = DialogEditPhraseBinding.inflate(LayoutInflater.from(this))
 
-        if (phrase != null) {
-            dialogBinding.phraseNameInput.setText(phrase.name)
-            dialogBinding.phraseCommandInput.setText(phrase.command)
-        }
+        populatePhraseDialog(dialogBinding, phrase)
 
         val dialog = AlertDialog.Builder(this)
             .setTitle(if (phrase == null) R.string.action_add_phrase else R.string.action_edit_phrase)
@@ -77,47 +74,76 @@ class PhrasesActivity : AppCompatActivity() {
                 val name = dialogBinding.phraseNameInput.text?.toString()?.trim().orEmpty()
                 val command = dialogBinding.phraseCommandInput.text?.toString()?.trim().orEmpty()
 
-                dialogBinding.phraseNameLayout.error = null
-                dialogBinding.phraseCommandLayout.error = null
-
-                var hasError = false
-                if (name.isBlank()) {
-                    dialogBinding.phraseNameLayout.error = getString(R.string.phrase_name_required)
-                    hasError = true
-                }
-                if (command.isBlank()) {
-                    dialogBinding.phraseCommandLayout.error = getString(R.string.phrase_command_required)
-                    hasError = true
-                }
-                if (hasError) {
+                if (!validatePhraseInputs(dialogBinding, name, command)) {
                     return@setOnClickListener
                 }
 
                 lifecycleScope.launch(Dispatchers.IO) {
-                    val existing = db.getPhraseByName(name)
-                    val isDuplicate = existing != null && existing.id != phrase?.id
-                    if (isDuplicate) {
-                        withContext(Dispatchers.Main) {
-                            dialogBinding.phraseNameLayout.error =
-                                getString(R.string.phrase_name_exists)
-                        }
+                    if (isDuplicateName(name, phrase?.id)) {
+                        showDuplicateNameError(dialogBinding)
                         return@launch
                     }
 
-                    if (phrase == null) {
-                        db.insert(Phrase(name = name, command = command))
-                    } else {
-                        db.update(phrase.copy(name = name, command = command))
-                    }
-
-                    withContext(Dispatchers.Main) {
-                        dialog.dismiss()
-                    }
+                    savePhrase(phrase, name, command)
+                    dismissDialog(dialog)
                 }
             }
         }
 
         dialog.show()
+    }
+
+    private fun populatePhraseDialog(dialogBinding: DialogEditPhraseBinding, phrase: Phrase?) {
+        if (phrase == null) {
+            return
+        }
+        dialogBinding.phraseNameInput.setText(phrase.name)
+        dialogBinding.phraseCommandInput.setText(phrase.command)
+    }
+
+    private fun validatePhraseInputs(
+        dialogBinding: DialogEditPhraseBinding,
+        name: String,
+        command: String
+    ): Boolean {
+        dialogBinding.phraseNameLayout.error = null
+        dialogBinding.phraseCommandLayout.error = null
+
+        var hasError = false
+        if (name.isBlank()) {
+            dialogBinding.phraseNameLayout.error = getString(R.string.phrase_name_required)
+            hasError = true
+        }
+        if (command.isBlank()) {
+            dialogBinding.phraseCommandLayout.error = getString(R.string.phrase_command_required)
+            hasError = true
+        }
+        return !hasError
+    }
+
+    private fun isDuplicateName(name: String, phraseId: Long?): Boolean {
+        val existing = db.getPhraseByName(name)
+        return existing != null && existing.id != phraseId
+    }
+
+    private suspend fun showDuplicateNameError(dialogBinding: DialogEditPhraseBinding) {
+        withContext(Dispatchers.Main) {
+            dialogBinding.phraseNameLayout.error = getString(R.string.phrase_name_exists)
+        }
+    }
+
+    private fun savePhrase(phrase: Phrase?, name: String, command: String) {
+        if (phrase == null) {
+            db.insert(Phrase(name = name, command = command))
+        } else {
+            db.update(phrase.copy(name = name, command = command))
+        }
+    }
+
+    private suspend fun dismissDialog(dialog: AlertDialog) {
+        withContext(Dispatchers.Main) {
+            dialog.dismiss()
+        }
     }
 
     private fun deletePhrase(phrase: Phrase) {
