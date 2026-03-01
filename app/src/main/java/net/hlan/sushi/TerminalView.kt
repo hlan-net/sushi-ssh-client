@@ -133,7 +133,11 @@ class TerminalView @JvmOverloads constructor(
         val fullText = rawTextBuffer.toString()
         currentFgColor = null
         currentBgColor = null
-        text = if (renderAnsi) parseAnsi(fullText) else fullText
+        text = runCatching {
+            if (renderAnsi) parseAnsi(fullText) else fullText
+        }.getOrElse {
+            fullText
+        }
         post {
             val scrollAmount = layout?.let {
                 it.getLineTop(lineCount) - height + paddingBottom + paddingTop

@@ -26,7 +26,7 @@ data class SshConnectionConfig(
     val port: Int,
     val username: String,
     val password: String,
-    val authPreference: String = SshAuthPreference.AUTO.value,
+    val authPreference: String? = SshAuthPreference.AUTO.value,
     val privateKey: String? = null,
     val jumpEnabled: Boolean = false,
     val jumpHostId: String? = null,
