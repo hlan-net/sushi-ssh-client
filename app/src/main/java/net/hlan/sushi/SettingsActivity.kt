@@ -60,6 +60,14 @@ class SettingsActivity : AppCompatActivity() {
             ThemeOption(AppThemeSettings.ThemeMode.DARK, getString(R.string.theme_mode_dark))
         )
     }
+    private val fontSizeOptions by lazy {
+        listOf(
+            FontSizeOption(AppThemeSettings.TerminalFontSize.SMALL, getString(R.string.terminal_font_size_small)),
+            FontSizeOption(AppThemeSettings.TerminalFontSize.MEDIUM, getString(R.string.terminal_font_size_medium)),
+            FontSizeOption(AppThemeSettings.TerminalFontSize.LARGE, getString(R.string.terminal_font_size_large)),
+            FontSizeOption(AppThemeSettings.TerminalFontSize.XL, getString(R.string.terminal_font_size_xl))
+        )
+    }
     private var pendingApiKey: String = ""
     private var lastConnectionDiagnostics: String = ""
 
@@ -169,6 +177,7 @@ class SettingsActivity : AppCompatActivity() {
         generalPageBinding = pageBinding
         setupLanguagePicker(pageBinding)
         setupThemePicker(pageBinding)
+        setupFontSizePicker(pageBinding)
 
         pageBinding.managePlaysButton.setOnClickListener {
             startActivity(Intent(this, PlaysActivity::class.java))
@@ -317,6 +326,21 @@ class SettingsActivity : AppCompatActivity() {
         pageBinding.themeModeInput.setOnItemClickListener { _, _, position, _ ->
             val option = themeOptions.getOrNull(position) ?: return@setOnItemClickListener
             appThemeSettings.setThemeMode(option.mode)
+        }
+    }
+
+    private fun setupFontSizePicker(pageBinding: PageSettingsGeneralBinding) {
+        val labels = fontSizeOptions.map { it.label }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
+        pageBinding.terminalFontSizeInput.setAdapter(adapter)
+
+        val selected = fontSizeOptions.firstOrNull { it.size == appThemeSettings.getTerminalFontSize() }
+            ?: fontSizeOptions[1]
+        pageBinding.terminalFontSizeInput.setText(selected.label, false)
+
+        pageBinding.terminalFontSizeInput.setOnItemClickListener { _, _, position, _ ->
+            val option = fontSizeOptions.getOrNull(position) ?: return@setOnItemClickListener
+            appThemeSettings.setTerminalFontSize(option.size)
         }
     }
 
@@ -537,6 +561,11 @@ class SettingsActivity : AppCompatActivity() {
 
     private data class ThemeOption(
         val mode: AppThemeSettings.ThemeMode,
+        val label: String
+    )
+
+    private data class FontSizeOption(
+        val size: AppThemeSettings.TerminalFontSize,
         val label: String
     )
 

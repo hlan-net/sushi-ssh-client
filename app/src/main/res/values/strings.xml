@@ -293,6 +293,14 @@
     <string name="play_desc_change_password">Change one user password on the selected host.</string>
     <string name="play_host_item">%1$s</string>
     <string name="play_host_item_active">%1$s (active)</string>
+    <string name="terminal_font_section_title">Terminal font size</string>
+    <string name="terminal_font_section_subtitle">Adjust the text size in the terminal view.</string>
+    <string name="terminal_font_size_label">Font size</string>
+    <string name="terminal_font_size_small">Small</string>
+    <string name="terminal_font_size_medium">Medium</string>
+    <string name="terminal_font_size_large">Large</string>
+    <string name="terminal_font_size_xl">Extra Large</string>
+
     <plurals name="import_success_toast">
         <item quantity="one">Imported %d phrase</item>
         <item quantity="other">Imported %d phrases</item>
