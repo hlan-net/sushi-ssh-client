@@ -109,7 +109,7 @@ dependencies {
     implementation("com.google.http-client:google-http-client-android:1.43.3")
     implementation("com.google.apis:google-api-services-drive:v3-rev20230815-2.0.0")
 
-    val coroutines_version = "1.7.3"
+    val coroutines_version = "1.10.2"
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines_version")
 
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
