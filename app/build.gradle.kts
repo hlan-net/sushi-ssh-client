@@ -103,7 +103,7 @@ dependencies {
     implementation("com.github.mwiede:jsch:0.2.21")
     implementation("com.jcraft:jzlib:1.1.3")
     implementation("androidx.security:security-crypto:1.0.0")
-    implementation("com.google.android.gms:play-services-auth:20.7.0")
+    implementation("com.google.android.gms:play-services-auth:21.5.1")
     implementation("com.google.api-client:google-api-client-android:2.2.0")
     implementation("com.google.api-client:google-api-client-gson:2.2.0")
     implementation("com.google.http-client:google-http-client-android:1.43.3")
