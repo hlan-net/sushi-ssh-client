@@ -120,6 +120,8 @@ class TerminalView @JvmOverloads constructor(
         updateText()
     }
 
+    fun getRawText(): String = rawTextBuffer.toString()
+
     fun clearLog() {
         rawTextBuffer.setLength(0)
         currentFgColor = null

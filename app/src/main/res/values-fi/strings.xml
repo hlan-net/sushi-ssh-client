@@ -51,6 +51,7 @@
     <string name="clipboard_session_log_label">SSH-istuntoloki</string>
     <string name="placeholder_footer">sushi v%1$s - Avoimen lähdekoodin SSH-asiakas</string>
     <string name="action_start_session">Aloita istunto</string>
+    <string name="action_return_terminal">Palaa päätteeseen</string>
     <string name="action_configure_host">Määritä isäntä</string>
     <string name="action_end_session">Lopeta istunto</string>
     <string name="action_open_terminal_mode">Avaa päätemoodi</string>
@@ -105,6 +106,7 @@
     <string name="gemini_status_disabled">Gemini on pois päältä. Ota käyttöön asetuksissa.</string>
     <string name="gemini_status_missing_key">Gemini tarvitsee API-avaimen. Lisää se asetuksissa.</string>
     <string name="gemini_status_ready">Gemini on valmis äänisyötteelle.</string>
+    <string name="gemini_status_google_account">Gemini on valmis (Google-tilillä).</string>
     <string name="gemini_prompt_label">Äänipyyntö</string>
     <string name="gemini_prompt_placeholder">Äänisyötettä ei vielä tallennettu.</string>
     <string name="gemini_output_label">Ehdotettu CLI-komento</string>
@@ -117,6 +119,8 @@
     <string name="action_open_gemini">Avaa Gemini</string>
     <string name="action_gemini_settings">Asetukset</string>
     <string name="gemini_dialog_title">Gemini-avustaja</string>
+    <string name="action_copy_command">Kopioi komento</string>
+    <string name="gemini_command_copied">Komento kopioitu.</string>
     <string name="settings_title">Asetukset</string>
     <string name="settings_subtitle">Hallinnoi valinnaisia ääni- ja pilviloki-integraatioita.</string>
     <string name="settings_tab_general">Yleiset</string>
@@ -134,6 +138,7 @@
     <string name="settings_summary_gemini_disabled">Pois käytöstä</string>
     <string name="settings_summary_gemini_missing_key">API-avain puuttuu</string>
     <string name="settings_summary_gemini_enabled">Käytössä</string>
+    <string name="settings_summary_gemini_google">Google-tili</string>
     <string name="settings_summary_drive_label">Drive-lokit</string>
     <string name="settings_summary_drive_signed_out">Ei kirjautunut</string>
     <string name="settings_summary_drive_signed_in">Kirjautunut</string>
@@ -167,6 +172,8 @@
     <string name="gemini_settings_toggle">Ota Gemini-ääniohjaus käyttöön</string>
     <string name="gemini_api_key_hint">Gemini API-avain</string>
     <string name="gemini_api_key_helper">Tallennetaan paikallisesti tälle laitteelle.</string>
+    <string name="gemini_api_key_helper_fallback">Valinnainen varatodennus. Google-tiliä käytetään kun kirjautunut.</string>
+    <string name="gemini_auth_using_google">Käytetään Google-tiliä (%1$s) Geminille.</string>
     <string name="action_save_settings">Tallenna asetukset</string>
     <string name="gemini_saved">Gemini-asetukset tallennettu.</string>
     <string name="settings_saved">Asetukset tallennettu.</string>

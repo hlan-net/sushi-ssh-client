@@ -8,4 +8,10 @@
     <string name="language_swedish">Svenska</string>
     <string name="language_german">Tyska</string>
     <string name="language_spanish">Spanska</string>
+    <string name="action_copy_command">Kopiera kommando</string>
+    <string name="gemini_command_copied">Kommando kopierat.</string>
+    <string name="gemini_status_google_account">Gemini är redo (med Google-konto).</string>
+    <string name="gemini_api_key_helper_fallback">Valfri reserv. Google-konto används vid inloggning.</string>
+    <string name="gemini_auth_using_google">Använder Google-konto (%1$s) för Gemini.</string>
+    <string name="settings_summary_gemini_google">Google-konto</string>
 </resources>

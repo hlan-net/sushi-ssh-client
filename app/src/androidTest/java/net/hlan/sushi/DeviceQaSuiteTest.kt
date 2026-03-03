@@ -32,7 +32,7 @@ class DeviceQaSuiteTest {
             mainScenario.onActivity { activity ->
                 val status = activity.findViewById<android.widget.TextView>(R.id.sessionStatusText)
                 assertTrue(status.text.isNotBlank())
-                activity.findViewById<android.view.View>(R.id.geminiSettingsButton).performClick()
+                activity.findViewById<android.view.View>(R.id.mainSettingsButton).performClick()
             }
         }
 
@@ -181,23 +181,32 @@ class DeviceQaSuiteTest {
                 recycler.adapter?.itemCount ?: 0 >= 2
             }
 
-            var clicked = false
+            var targetPosition = -1
             phrasesScenario.onActivity { activity ->
                 val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.phrasesRecyclerView)
-                val adapter = recycler.adapter
-                val itemCount = adapter?.itemCount ?: 0
-                for (position in 0 until itemCount) {
-                    recycler.scrollToPosition(position)
-                    val holder = recycler.findViewHolderForAdapterPosition(position) ?: continue
-                    val nameView = holder.itemView.findViewById<android.widget.TextView>(R.id.phraseNameText)
-                    val commandView = holder.itemView.findViewById<android.widget.TextView>(R.id.phraseCommandText)
-                    if (nameView.text?.toString() == PHRASE_REMOVE_SUSHI_KEYS &&
-                        commandView.text?.toString() == removePhraseCommand
-                    ) {
-                        holder.itemView.performClick()
-                        clicked = true
-                        break
-                    }
+                val adapter = recycler.adapter as? PhraseAdapter ?: return@onActivity
+                targetPosition = adapter.currentList.indexOfFirst { phrase ->
+                    phrase.name == PHRASE_REMOVE_SUSHI_KEYS && phrase.command == removePhraseCommand
+                }
+            }
+
+            assertTrue("Remove Sushi SSH Keys phrase row should exist", targetPosition >= 0)
+
+            var clicked = false
+            waitForCondition(phrasesScenario, timeoutMs = 10_000) { activity ->
+                if (clicked) {
+                    return@waitForCondition true
+                }
+
+                val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.phrasesRecyclerView)
+                recycler.scrollToPosition(targetPosition)
+                val holder = recycler.findViewHolderForAdapterPosition(targetPosition)
+                if (holder != null) {
+                    holder.itemView.performClick()
+                    clicked = true
+                    true
+                } else {
+                    false
                 }
             }
 

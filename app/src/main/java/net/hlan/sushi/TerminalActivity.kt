@@ -18,6 +18,10 @@ import net.hlan.sushi.databinding.ActivityTerminalBinding
 class TerminalActivity : AppCompatActivity() {
     private lateinit var binding: ActivityTerminalBinding
     private val sshSettings by lazy { SshSettings(this) }
+    private val terminalLogRepository by lazy { TerminalLogRepository(this) }
+    private val driveLogSettings by lazy { DriveLogSettings(this) }
+    private val driveAuthManager by lazy { DriveAuthManager(this) }
+    private val driveLogUploader by lazy { DriveLogUploader(this) }
 
     private var sshClient: SshClient? = null
     private var isConnecting = false
@@ -145,6 +149,7 @@ class TerminalActivity : AppCompatActivity() {
     }
 
     private fun disconnectTerminal() {
+        saveTerminalLog()
         sshClient?.disconnect()
         sshClient = null
         isConnecting = false
@@ -153,12 +158,37 @@ class TerminalActivity : AppCompatActivity() {
     }
 
     private fun handleUnexpectedDisconnect() {
+        saveTerminalLog()
         sshClient?.disconnect()
         sshClient = null
         didLoseConnection = true
         binding.terminalOutputText.appendLog(getString(R.string.terminal_connection_lost_log))
         Toast.makeText(this, getString(R.string.terminal_connection_lost_toast), Toast.LENGTH_SHORT).show()
         updateUi()
+    }
+
+    private fun saveTerminalLog() {
+        val logContent = binding.terminalOutputText.getRawText()
+        if (logContent.isBlank()) {
+            return
+        }
+        terminalLogRepository.saveLog(logContent)
+        uploadLogToDriveIfEnabled(logContent)
+    }
+
+    private fun uploadLogToDriveIfEnabled(logContent: String) {
+        if (!driveLogSettings.isAlwaysSaveEnabled()) {
+            return
+        }
+        val account = driveAuthManager.getSignedInAccount() ?: return
+        driveLogUploader.uploadLog(account, logContent) { result ->
+            val message = if (result.success) {
+                getString(R.string.drive_upload_success)
+            } else {
+                getString(R.string.drive_upload_failed)
+            }
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun sendRaw(input: String) {

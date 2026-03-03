@@ -33,7 +33,8 @@ import net.hlan.sushi.databinding.PageMainTerminalBinding
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val geminiSettings by lazy { GeminiSettings(this) }
-    private val geminiClient by lazy { GeminiClient(this, geminiSettings) }
+    private val driveAuthManager by lazy { DriveAuthManager(this) }
+    private val geminiClient by lazy { GeminiClient(this, geminiSettings, driveAuthManager) }
     private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
     private val sshSettings by lazy { SshSettings(this) }
     private val playDb by lazy { PlayDatabaseHelper.getInstance(this) }
@@ -91,6 +92,10 @@ class MainActivity : AppCompatActivity() {
             startActivity(TerminalActivity.createIntent(this, autoConnect = true))
         }
 
+        binding.returnTerminalButton.setOnClickListener {
+            startActivity(TerminalActivity.createIntent(this, autoConnect = true))
+        }
+
         binding.configureHostButton.setOnClickListener {
             val hosts = sshSettings.getHosts()
             if (hosts.isEmpty()) {
@@ -98,6 +103,10 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startActivity(Intent(this, HostsActivity::class.java))
             }
+        }
+
+        binding.mainSettingsButton.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
 
         setupToolsPager()
@@ -168,9 +177,6 @@ class MainActivity : AppCompatActivity() {
         pageBinding.geminiVoiceButton.setOnClickListener {
             showGeminiDialog()
         }
-        pageBinding.geminiSettingsButton.setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        }
         updateGeminiState()
         if (binding.mainToolsViewPager.currentItem == PAGE_TERMINAL) {
             binding.mainToolsViewPager.post { adjustToolsPagerHeight(PAGE_TERMINAL) }
@@ -228,6 +234,8 @@ class MainActivity : AppCompatActivity() {
     private fun updateGeminiState() {
         val status = when {
             !geminiSettings.isEnabled() -> getString(R.string.gemini_status_disabled)
+            geminiClient.getAuthMode() == GeminiClient.AuthMode.GOOGLE_ACCOUNT ->
+                getString(R.string.gemini_status_google_account)
             geminiSettings.getApiKey().isBlank() -> getString(R.string.gemini_status_missing_key)
             else -> getString(R.string.gemini_status_ready)
         }
@@ -236,7 +244,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleGeminiVoice() {
-        if (!geminiSettings.isEnabled() || geminiSettings.getApiKey().isBlank()) {
+        if (!geminiSettings.isEnabled() || geminiClient.getAuthMode() == GeminiClient.AuthMode.NONE) {
             startActivity(Intent(this, SettingsActivity::class.java))
             return
         }
@@ -257,14 +265,14 @@ class MainActivity : AppCompatActivity() {
         lastGeminiOutput = getString(R.string.gemini_output_waiting)
         updateGeminiDialogState()
 
-        Thread {
+        lifecycleScope.launch(Dispatchers.IO) {
             val result = geminiClient.generateCommand(voiceText)
-            runOnUiThread {
+            withContext(Dispatchers.Main) {
                 isGeminiRequestRunning = false
                 lastGeminiOutput = result.message
                 updateGeminiDialogState()
             }
-        }.start()
+        }
     }
 
     private fun showGeminiDialog() {
@@ -280,6 +288,9 @@ class MainActivity : AppCompatActivity() {
         }
         dialogBinding.geminiDialogSettingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        dialogBinding.geminiDialogCopyButton.setOnClickListener {
+            copyGeminiCommand()
         }
 
         val dialog = AlertDialog.Builder(this)
@@ -313,6 +324,22 @@ class MainActivity : AppCompatActivity() {
         } else {
             View.GONE
         }
+        val hasCommand = !isGeminiRequestRunning
+            && lastGeminiOutput.isNotBlank()
+            && lastGeminiOutput != getString(R.string.gemini_output_placeholder)
+            && lastGeminiOutput != getString(R.string.gemini_output_waiting)
+        dialogBinding.geminiDialogCopyButton.visibility = if (hasCommand) View.VISIBLE else View.GONE
+    }
+
+    private fun copyGeminiCommand() {
+        if (lastGeminiOutput.isBlank()) {
+            return
+        }
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        clipboard?.setPrimaryClip(
+            ClipData.newPlainText(getString(R.string.gemini_output_label), lastGeminiOutput)
+        )
+        Toast.makeText(this, getString(R.string.gemini_command_copied), Toast.LENGTH_SHORT).show()
     }
 
     private fun showPlayHostDialog() {
@@ -584,6 +611,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.startSessionButton.isEnabled = config != null
         binding.startSessionButton.text = getString(R.string.action_start_session)
+        binding.returnTerminalButton.visibility = if (config == null) View.GONE else View.VISIBLE
         binding.configureHostButton.visibility = if (config == null) View.VISIBLE else View.GONE
 
         refreshPlaysPageState()

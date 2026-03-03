@@ -10,21 +10,50 @@ import java.net.URI
 
 class GeminiClient(
     private val context: Context,
-    private val settings: GeminiSettings
+    private val settings: GeminiSettings,
+    private val authManager: DriveAuthManager? = null
 ) {
-    fun generateCommand(userPrompt: String): GeminiResult {
+    /**
+     * Returns the current auth mode that will be used for the next request.
+     * Google account takes priority over API key when signed in.
+     */
+    fun getAuthMode(): AuthMode {
+        if (authManager?.getSignedInAccount() != null) {
+            return AuthMode.GOOGLE_ACCOUNT
+        }
         val apiKey = settings.getApiKey().trim()
-        if (apiKey.isEmpty()) {
+        if (apiKey.isNotEmpty()) {
+            return AuthMode.API_KEY
+        }
+        return AuthMode.NONE
+    }
+
+    fun generateCommand(userPrompt: String): GeminiResult {
+        val authMode = getAuthMode()
+        if (authMode == AuthMode.NONE) {
             return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
         }
 
-        val url = URI.create(
-            "https://generativelanguage.googleapis.com/v1beta/models/$MODEL_ID:generateContent?key=$apiKey"
-        ).toURL()
-        val connection = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            setRequestProperty("Content-Type", "application/json; charset=utf-8")
-            doOutput = true
+        val connection = when (authMode) {
+            AuthMode.GOOGLE_ACCOUNT -> {
+                val token = authManager?.getAccessToken()
+                if (token == null) {
+                    // Token retrieval failed — fall back to API key if available
+                    val apiKey = settings.getApiKey().trim()
+                    if (apiKey.isEmpty()) {
+                        return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
+                    }
+                    createApiKeyConnection(apiKey)
+                } else {
+                    createOAuthConnection(token)
+                }
+            }
+            AuthMode.API_KEY -> {
+                createApiKeyConnection(settings.getApiKey().trim())
+            }
+            AuthMode.NONE -> {
+                return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
+            }
         }
 
         val requestBody = JSONObject().apply {
@@ -54,6 +83,31 @@ class GeminiClient(
             GeminiResult(false, ex.message ?: context.getString(R.string.gemini_output_error))
         } finally {
             connection.disconnect()
+        }
+    }
+
+    private fun createApiKeyConnection(apiKey: String): HttpURLConnection {
+        val url = URI.create(
+            "$BASE_URL?key=$apiKey"
+        ).toURL()
+        return (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            connectTimeout = CONNECT_TIMEOUT_MS
+            readTimeout = READ_TIMEOUT_MS
+            doOutput = true
+        }
+    }
+
+    private fun createOAuthConnection(accessToken: String): HttpURLConnection {
+        val url = URI.create(BASE_URL).toURL()
+        return (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            setRequestProperty("Authorization", "Bearer $accessToken")
+            connectTimeout = CONNECT_TIMEOUT_MS
+            readTimeout = READ_TIMEOUT_MS
+            doOutput = true
         }
     }
 
@@ -106,8 +160,18 @@ User request: $userPrompt
         return text?.trim()
     }
 
+    enum class AuthMode {
+        GOOGLE_ACCOUNT,
+        API_KEY,
+        NONE
+    }
+
     companion object {
         private const val MODEL_ID = "gemini-1.5-flash"
+        private const val BASE_URL =
+            "https://generativelanguage.googleapis.com/v1beta/models/$MODEL_ID:generateContent"
+        private const val CONNECT_TIMEOUT_MS = 15_000
+        private const val READ_TIMEOUT_MS = 30_000
     }
 }
 

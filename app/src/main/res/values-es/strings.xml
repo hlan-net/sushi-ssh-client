@@ -8,4 +8,10 @@
     <string name="language_swedish">Sueco</string>
     <string name="language_german">Alemán</string>
     <string name="language_spanish">Español</string>
+    <string name="action_copy_command">Copiar comando</string>
+    <string name="gemini_command_copied">Comando copiado.</string>
+    <string name="gemini_status_google_account">Gemini listo (con cuenta de Google).</string>
+    <string name="gemini_api_key_helper_fallback">Alternativa opcional. Se usa la cuenta de Google cuando está conectada.</string>
+    <string name="gemini_auth_using_google">Usando cuenta de Google (%1$s) para Gemini.</string>
+    <string name="settings_summary_gemini_google">Cuenta de Google</string>
 </resources>

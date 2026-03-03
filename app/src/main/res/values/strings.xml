@@ -57,6 +57,7 @@
     <string name="clipboard_session_log_label">SSH Session Log</string>
     <string name="placeholder_footer">sushi v%1$s - Open source SSH client</string>
     <string name="action_start_session">Start session</string>
+    <string name="action_return_terminal">Return to terminal</string>
     <string name="action_configure_host">Configure host</string>
     <string name="action_end_session">End session</string>
     <string name="action_open_terminal_mode">Open dedicated terminal</string>
@@ -123,6 +124,7 @@
     <string name="gemini_status_disabled">Gemini is off. Enable it in settings to use voice commands.</string>
     <string name="gemini_status_missing_key">Gemini needs an API key. Add one in settings.</string>
     <string name="gemini_status_ready">Gemini is ready for voice input.</string>
+    <string name="gemini_status_google_account">Gemini is ready (using Google account).</string>
     <string name="gemini_prompt_label">Voice request</string>
     <string name="gemini_prompt_placeholder">No voice input captured yet.</string>
     <string name="gemini_output_label">Suggested CLI command</string>
@@ -135,6 +137,8 @@
     <string name="action_open_gemini">Open Gemini</string>
     <string name="action_gemini_settings">Settings</string>
     <string name="gemini_dialog_title">Gemini voice assistant</string>
+    <string name="action_copy_command">Copy command</string>
+    <string name="gemini_command_copied">Command copied.</string>
     <string name="settings_title">Settings</string>
     <string name="settings_subtitle">Manage optional integrations for voice and cloud logs.</string>
     <string name="settings_tab_general">General</string>
@@ -161,6 +165,7 @@
     <string name="settings_summary_gemini_disabled">Disabled</string>
     <string name="settings_summary_gemini_missing_key">Missing API key</string>
     <string name="settings_summary_gemini_enabled">Enabled</string>
+    <string name="settings_summary_gemini_google">Google account</string>
     <string name="settings_summary_drive_label">Drive logs</string>
     <string name="settings_summary_drive_signed_out">Signed out</string>
     <string name="settings_summary_drive_signed_in">Signed in</string>
@@ -193,6 +198,8 @@
     <string name="gemini_settings_toggle">Enable Gemini voice control</string>
     <string name="gemini_api_key_hint">Gemini API key</string>
     <string name="gemini_api_key_helper">Stored locally on this device.</string>
+    <string name="gemini_api_key_helper_fallback">Optional fallback. Google account is used when signed in.</string>
+    <string name="gemini_auth_using_google">Using Google account (%1$s) for Gemini.</string>
     <string name="action_save_settings">Save settings</string>
     <string name="gemini_saved">Gemini settings saved.</string>
     <string name="settings_saved">Settings saved.</string>

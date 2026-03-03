@@ -34,6 +34,7 @@ class SettingsActivity : AppCompatActivity() {
     private val appThemeSettings by lazy { AppThemeSettings(this) }
     private val driveLogSettings by lazy { DriveLogSettings(this) }
     private val driveAuthManager by lazy { DriveAuthManager(this) }
+    private val geminiClient by lazy { GeminiClient(this, settings, driveAuthManager) }
     private val sshSettings by lazy { SshSettings(this) }
     private var generalPageBinding: PageSettingsGeneralBinding? = null
     private var sshPageBinding: PageSettingsSshBinding? = null
@@ -101,6 +102,7 @@ class SettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshDriveState()
+        refreshGeminiAuthStatus()
         refreshSshSummary()
         geminiPageBinding?.geminiEnabledSwitch?.let { switch ->
             switch.setOnCheckedChangeListener(null)
@@ -228,14 +230,18 @@ class SettingsActivity : AppCompatActivity() {
         pageBinding.geminiEnabledSwitch.setOnCheckedChangeListener { _, isChecked ->
             settings.setEnabled(isChecked)
             pageBinding.apiKeyLayout.isEnabled = isChecked
+            refreshGeminiAuthStatus()
             refreshSshSummary()
         }
 
         pageBinding.apiKeyInput.doAfterTextChanged { editable ->
             pendingApiKey = editable?.toString().orEmpty().trim()
             updateSaveControls()
+            refreshGeminiAuthStatus()
             refreshSshSummary()
         }
+
+        refreshGeminiAuthStatus()
     }
 
     private fun setupDrivePage(pageBinding: PageSettingsDriveBinding) {
@@ -328,6 +334,22 @@ class SettingsActivity : AppCompatActivity() {
         AppCompatDelegate.setApplicationLocales(locales)
     }
 
+    private fun refreshGeminiAuthStatus() {
+        val pageBinding = geminiPageBinding ?: return
+        val account = driveAuthManager.getSignedInAccount()
+        if (account != null && settings.isEnabled()) {
+            pageBinding.geminiAuthStatusText.text = getString(
+                R.string.gemini_auth_using_google,
+                account.email ?: account.displayName ?: ""
+            )
+            pageBinding.geminiAuthStatusText.visibility = View.VISIBLE
+            pageBinding.apiKeyHelper.text = getString(R.string.gemini_api_key_helper_fallback)
+        } else {
+            pageBinding.geminiAuthStatusText.visibility = View.GONE
+            pageBinding.apiKeyHelper.text = getString(R.string.gemini_api_key_helper)
+        }
+    }
+
     private fun refreshDriveState() {
         val account = driveAuthManager.getSignedInAccount()
         val pageBinding = drivePageBinding
@@ -360,6 +382,7 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        refreshGeminiAuthStatus()
         refreshSshSummary()
     }
 
@@ -379,11 +402,14 @@ class SettingsActivity : AppCompatActivity() {
         pageBinding.summaryAuthValue.text = authModeLabel(activeConfig)
 
         val geminiEnabled = settings.isEnabled()
-        val geminiApiKey = pendingApiKey
+        val authMode = geminiClient.getAuthMode()
         pageBinding.summaryGeminiValue.text = when {
             !geminiEnabled -> getString(R.string.settings_summary_gemini_disabled)
-            geminiApiKey.isBlank() -> getString(R.string.settings_summary_gemini_missing_key)
-            else -> getString(R.string.settings_summary_gemini_enabled)
+            authMode == GeminiClient.AuthMode.GOOGLE_ACCOUNT ->
+                getString(R.string.settings_summary_gemini_google)
+            authMode == GeminiClient.AuthMode.API_KEY ->
+                getString(R.string.settings_summary_gemini_enabled)
+            else -> getString(R.string.settings_summary_gemini_missing_key)
         }
 
         val account = driveAuthManager.getSignedInAccount()

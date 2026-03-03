@@ -32,6 +32,14 @@
             android:layout_marginTop="16dp"
             android:text="@string/gemini_settings_toggle" />
 
+        <TextView
+            android:id="@+id/geminiAuthStatusText"
+            style="@style/TextAppearance.Sushi.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:visibility="gone" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/apiKeyLayout"
             android:layout_width="match_parent"
