@@ -189,8 +189,6 @@
     <string name="drive_sign_in_failed">Google-kirjautuminen epäonnistui.</string>
     <string name="drive_sign_out_done">Kirjauduttu ulos Googlesta.</string>
     <string name="drive_upload_success">Loki ladattu Driveen.</string>
-    <string name="drive_upload_failed">Drive-lataus epäonnistui.</string>
-    <string name="drive_upload_disabled">Ota Drive-lokitus käyttöön asetuksissa.</string>
 
     <string name="keys_title">SSH-avaimet</string>
     <string name="keys_subtitle">Luo ja hallitse todentamiseen käytettävää SSH-avainta.</string>
