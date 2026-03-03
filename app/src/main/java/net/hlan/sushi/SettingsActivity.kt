@@ -204,10 +204,6 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent(this, HostEditActivity::class.java))
         }
 
-        pageBinding.manageKeysButton.setOnClickListener {
-            startActivity(Intent(this, KeysActivity::class.java))
-        }
-
         pageBinding.quickGenerateKeyButton.setOnClickListener {
             val hasKey = sshSettings.getPrivateKey().orEmpty().isNotBlank()
             val intent = Intent(this, KeysActivity::class.java)

@@ -57,6 +57,10 @@
     <string name="clipboard_session_log_label">SSH Session Log</string>
     <string name="placeholder_footer">sushi v%1$s - Open source SSH client</string>
     <string name="action_start_session">Start session</string>
+    <string name="action_start_session_host">Connect to %1$s</string>
+    <string name="action_end_session_host">Disconnect from %1$s</string>
+    <string name="phrase_sent_log">[Phrase] Sent: %1$s</string>
+    <string name="phrase_copied_toast">Copied: %1$s</string>
     <string name="action_return_terminal">Return to terminal</string>
     <string name="action_configure_host">Configure host</string>
     <string name="action_end_session">End session</string>

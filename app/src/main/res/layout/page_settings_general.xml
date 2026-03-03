@@ -117,7 +117,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="@string/action_plays_short" />
+            android:text="@string/action_plays_short"
+            app:icon="@drawable/ic_play_arrow"
+            app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/managePhrasesButton"
@@ -125,7 +127,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="@string/action_phrases_short" />
+            android:text="@string/action_phrases_short"
+            app:icon="@drawable/ic_format_quote"
+            app:iconGravity="textStart" />
 
     </LinearLayout>
 </ScrollView>

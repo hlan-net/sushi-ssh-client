@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true">
@@ -39,7 +40,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:text="@string/action_drive_sign_in" />
+            android:text="@string/action_drive_sign_in"
+            app:icon="@drawable/ic_login"
+            app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/driveSignOutButton"
@@ -48,7 +51,9 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="@string/action_drive_sign_out"
-            android:visibility="gone" />
+            android:visibility="gone"
+            app:icon="@drawable/ic_logout"
+            app:iconGravity="textStart" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/driveAlwaysSaveSwitch"

@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ class TerminalActivity : AppCompatActivity() {
     private val driveLogSettings by lazy { DriveLogSettings(this) }
     private val driveAuthManager by lazy { DriveAuthManager(this) }
     private val driveLogUploader by lazy { DriveLogUploader(this) }
+    private val phraseDb by lazy { PhraseDatabaseHelper.getInstance(this) }
 
     private var sshClient: SshClient? = null
     private var isConnecting = false
@@ -76,6 +78,10 @@ class TerminalActivity : AppCompatActivity() {
         }
         binding.terminalCtrlDButton.setOnClickListener {
             sshClient?.sendCtrlD()
+        }
+
+        binding.terminalPhrasesButton.setOnClickListener {
+            showPhrasePicker()
         }
 
         binding.terminalOutputText.onInputText = { text ->
@@ -226,12 +232,13 @@ class TerminalActivity : AppCompatActivity() {
             didLoseConnection -> getString(R.string.terminal_status_reconnect_needed)
             else -> getString(R.string.terminal_status_disconnected)
         }
-        binding.terminalConnectButton.text = if (connected) {
-            getString(R.string.action_end_session)
-        } else if (didLoseConnection) {
-            getString(R.string.action_reconnect_session)
-        } else {
-            getString(R.string.action_start_session)
+        val hostLabel = sshSettings.getConfigOrNull()?.displayTarget()
+        binding.terminalConnectButton.text = when {
+            connected && hostLabel != null -> getString(R.string.action_end_session_host, hostLabel)
+            connected -> getString(R.string.action_end_session)
+            didLoseConnection -> getString(R.string.action_reconnect_session)
+            hostLabel != null -> getString(R.string.action_start_session_host, hostLabel)
+            else -> getString(R.string.action_start_session)
         }
         binding.terminalConnectButton.isEnabled = !isConnecting
 
@@ -242,6 +249,7 @@ class TerminalActivity : AppCompatActivity() {
         binding.terminalBackspaceButton.isEnabled = canInput
         binding.terminalCtrlCButton.isEnabled = canInput
         binding.terminalCtrlDButton.isEnabled = canInput
+        binding.terminalPhrasesButton.isEnabled = canInput
     }
 
     private fun connectWithClient(config: SshConnectionConfig): Pair<SshClient, SshConnectResult> {
@@ -252,6 +260,28 @@ class TerminalActivity : AppCompatActivity() {
             }
         })
         return client to result
+    }
+
+    private fun showPhrasePicker() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val phrases = phraseDb.getAllPhrases()
+            withContext(Dispatchers.Main) {
+                if (phrases.isEmpty()) {
+                    Toast.makeText(this@TerminalActivity, getString(R.string.phrases_empty_toast), Toast.LENGTH_SHORT).show()
+                    return@withContext
+                }
+                val labels = phrases.map { "${it.name}\n${it.command}" }.toTypedArray()
+                AlertDialog.Builder(this@TerminalActivity)
+                    .setTitle(getString(R.string.action_phrases_short))
+                    .setItems(labels) { _, which ->
+                        val phrase = phrases[which]
+                        binding.terminalOutputText.appendLog(getString(R.string.phrase_sent_log, phrase.name))
+                        sendRaw(phrase.command + "\n")
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+        }
     }
 
     companion object {
