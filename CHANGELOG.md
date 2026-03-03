@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
-## [0.3.0] - Unreleased
+## [0.3.0] - 2026-03-03
 
 ### Added
 - Added terminal font size setting (Small/Medium/Large/XL) in Settings > General.
