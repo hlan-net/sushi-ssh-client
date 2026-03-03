@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Looper
 import android.speech.RecognizerIntent
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -22,6 +23,7 @@ import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import com.google.mlkit.genai.common.FeatureStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private val driveLogSettings by lazy { DriveLogSettings(this) }
     private val driveLogUploader by lazy { DriveLogUploader(this) }
     private val geminiClient by lazy { GeminiClient(this, geminiSettings, driveAuthManager) }
+    private val nanoClient by lazy { GeminiNanoClient(this) }
     private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
     private val sshSettings by lazy { SshSettings(this) }
     private val playDb by lazy { PlayDatabaseHelper.getInstance(this) }
@@ -127,6 +130,7 @@ class MainActivity : AppCompatActivity() {
         updateGeminiState()
         updateSessionUi()
         refreshPlaysPageState()
+        warmUpNanoIfAvailable()
     }
 
     override fun onDestroy() {
@@ -140,6 +144,26 @@ class MainActivity : AppCompatActivity() {
         geminiDialog?.dismiss()
         geminiDialog = null
         geminiDialogBinding = null
+        nanoClient.close()
+    }
+
+    /**
+     * Warm up Gemini Nano in the background if it's already downloaded.
+     * This reduces first-inference latency without blocking the UI.
+     */
+    private fun warmUpNanoIfAvailable() {
+        if (!geminiSettings.isEnabled() || !geminiSettings.getNanoPreferred()) return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val status = nanoClient.checkStatus()
+                if (status == FeatureStatus.AVAILABLE) {
+                    nanoClient.warmup()
+                    Log.d(TAG, "Gemini Nano warmed up")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Nano warmup check failed: ${e.message}")
+            }
+        }
     }
 
     private fun setupToolsPager() {
@@ -233,16 +257,46 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Updates the Gemini status text shown on the terminal page and in the Gemini dialog.
+     * Checks Nano status asynchronously so the check doesn't block the UI thread.
+     */
     private fun updateGeminiState() {
-        val status = when {
-            !geminiSettings.isEnabled() -> getString(R.string.gemini_status_disabled)
+        if (!geminiSettings.isEnabled()) {
+            val status = getString(R.string.gemini_status_disabled)
+            terminalPageBinding?.geminiStatusText?.text = status
+            geminiDialogBinding?.geminiDialogStatusText?.text = status
+            return
+        }
+
+        // Check cloud auth synchronously — it reads from prefs, no I/O.
+        val cloudStatus = when {
             geminiClient.getAuthMode() == GeminiClient.AuthMode.GOOGLE_ACCOUNT ->
                 getString(R.string.gemini_status_google_account)
             geminiSettings.getApiKey().isBlank() -> getString(R.string.gemini_status_missing_key)
             else -> getString(R.string.gemini_status_ready)
         }
-        terminalPageBinding?.geminiStatusText?.text = status
-        geminiDialogBinding?.geminiDialogStatusText?.text = status
+
+        // Set cloud status immediately, then refine if Nano is preferred.
+        terminalPageBinding?.geminiStatusText?.text = cloudStatus
+        geminiDialogBinding?.geminiDialogStatusText?.text = cloudStatus
+
+        if (!geminiSettings.getNanoPreferred()) return
+
+        // Check Nano status on a background thread to avoid blocking the UI.
+        lifecycleScope.launch(Dispatchers.IO) {
+            val nanoStatus = nanoClient.checkStatus()
+            val statusText = when (nanoStatus) {
+                FeatureStatus.AVAILABLE -> getString(R.string.gemini_status_nano)
+                FeatureStatus.DOWNLOADING -> getString(R.string.gemini_status_nano_downloading)
+                FeatureStatus.DOWNLOADABLE -> getString(R.string.gemini_status_nano_downloadable)
+                else -> cloudStatus
+            }
+            withContext(Dispatchers.Main) {
+                terminalPageBinding?.geminiStatusText?.text = statusText
+                geminiDialogBinding?.geminiDialogStatusText?.text = statusText
+            }
+        }
     }
 
     private fun handleGeminiVoice() {
@@ -262,13 +316,27 @@ class MainActivity : AppCompatActivity() {
         voiceResultLauncher.launch(intent)
     }
 
+    /**
+     * Routes the voice command to Gemini Nano (on-device) if available and preferred,
+     * falling back to the cloud GeminiClient otherwise.
+     */
     private fun requestGeminiCommand(voiceText: String) {
         isGeminiRequestRunning = true
         lastGeminiOutput = getString(R.string.gemini_output_waiting)
         updateGeminiDialogState()
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val result = geminiClient.generateCommand(voiceText)
+            val useNano = geminiSettings.getNanoPreferred()
+                && nanoClient.checkStatus() == FeatureStatus.AVAILABLE
+
+            val result = if (useNano) {
+                Log.d(TAG, "Routing voice command to Gemini Nano (on-device)")
+                nanoClient.generateCommand(voiceText)
+            } else {
+                Log.d(TAG, "Routing voice command to cloud Gemini (${geminiSettings.getCloudModel()})")
+                geminiClient.generateCommand(voiceText)
+            }
+
             withContext(Dispatchers.Main) {
                 isGeminiRequestRunning = false
                 lastGeminiOutput = result.message
@@ -696,6 +764,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val TAG = "MainActivity"
         private const val PAGE_TERMINAL = 0
         private const val PAGE_PLAYS = 1
         private const val PREFS_MAIN_UI = "main_ui"

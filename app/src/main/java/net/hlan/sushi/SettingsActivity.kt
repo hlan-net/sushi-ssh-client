@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -19,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.tabs.TabLayoutMediator
+import com.google.mlkit.genai.common.FeatureStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,6 +37,7 @@ class SettingsActivity : AppCompatActivity() {
     private val driveLogSettings by lazy { DriveLogSettings(this) }
     private val driveAuthManager by lazy { DriveAuthManager(this) }
     private val geminiClient by lazy { GeminiClient(this, settings, driveAuthManager) }
+    private val nanoClient by lazy { GeminiNanoClient(this) }
     private val sshSettings by lazy { SshSettings(this) }
     private var generalPageBinding: PageSettingsGeneralBinding? = null
     private var sshPageBinding: PageSettingsSshBinding? = null
@@ -122,6 +125,7 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
         geminiPageBinding?.apiKeyLayout?.isEnabled = settings.isEnabled()
+        refreshNanoStatus()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -138,6 +142,7 @@ class SettingsActivity : AppCompatActivity() {
         pageChangeCallback = null
         tabMediator?.detach()
         tabMediator = null
+        nanoClient.close()
     }
 
     private fun setupPager(savedInstanceState: Bundle?) {
@@ -250,7 +255,35 @@ class SettingsActivity : AppCompatActivity() {
             refreshSshSummary()
         }
 
+        // Cloud model toggle
+        val currentModel = settings.getCloudModel()
+        pageBinding.geminiModelToggle.check(
+            if (currentModel == GeminiClient.MODEL_PRO) R.id.geminiModelPro else R.id.geminiModelFlash
+        )
+        pageBinding.geminiModelToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val modelId = if (checkedId == R.id.geminiModelPro) {
+                GeminiClient.MODEL_PRO
+            } else {
+                GeminiClient.MODEL_FLASH
+            }
+            settings.setCloudModel(modelId)
+        }
+
+        // Nano preference switch
+        pageBinding.nanoPreferredSwitch.setOnCheckedChangeListener(null)
+        pageBinding.nanoPreferredSwitch.isChecked = settings.getNanoPreferred()
+        pageBinding.nanoPreferredSwitch.setOnCheckedChangeListener { _, isChecked ->
+            settings.setNanoPreferred(isChecked)
+        }
+
+        // Nano download button
+        pageBinding.nanoDownloadButton.setOnClickListener {
+            startNanoDownload(pageBinding)
+        }
+
         refreshGeminiAuthStatus()
+        refreshNanoStatus()
     }
 
     private fun setupDrivePage(pageBinding: PageSettingsDriveBinding) {
@@ -271,6 +304,81 @@ class SettingsActivity : AppCompatActivity() {
             refreshSshSummary()
         }
         refreshDriveState()
+    }
+
+    /**
+     * Checks Gemini Nano availability asynchronously and updates the status text and
+     * download button visibility on the Gemini settings page.
+     */
+    private fun refreshNanoStatus() {
+        val pageBinding = geminiPageBinding ?: return
+        lifecycleScope.launch(Dispatchers.IO) {
+            val status = try {
+                nanoClient.checkStatus()
+            } catch (e: Exception) {
+                Log.w(TAG, "refreshNanoStatus failed: ${e.message}")
+                FeatureStatus.UNAVAILABLE
+            }
+            withContext(Dispatchers.Main) {
+                val currentBinding = geminiPageBinding ?: return@withContext
+                currentBinding.nanoStatusText.text = when (status) {
+                    FeatureStatus.AVAILABLE -> getString(R.string.gemini_nano_status_available)
+                    FeatureStatus.DOWNLOADABLE -> getString(R.string.gemini_nano_status_downloadable)
+                    FeatureStatus.DOWNLOADING -> getString(R.string.gemini_nano_status_downloading)
+                    else -> getString(R.string.gemini_nano_status_unavailable)
+                }
+                currentBinding.nanoDownloadButton.visibility =
+                    if (status == FeatureStatus.DOWNLOADABLE) View.VISIBLE else View.GONE
+                currentBinding.nanoDownloadProgress.visibility = View.GONE
+            }
+        }
+    }
+
+    /**
+     * Triggers a Gemini Nano model download and shows progress in the settings page.
+     */
+    private fun startNanoDownload(pageBinding: PageSettingsGeminiBinding) {
+        pageBinding.nanoDownloadButton.isEnabled = false
+        pageBinding.nanoDownloadProgress.visibility = View.VISIBLE
+        pageBinding.nanoDownloadProgress.isIndeterminate = true
+        pageBinding.nanoStatusText.text = getString(R.string.gemini_nano_status_downloading)
+        Toast.makeText(this, getString(R.string.gemini_nano_download_started), Toast.LENGTH_SHORT).show()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            nanoClient.download(
+                onProgress = { bytesDownloaded ->
+                    // Progress value is cumulative bytes; show indeterminate since total isn't always known
+                    Log.d(TAG, "Nano download progress: $bytesDownloaded bytes")
+                },
+                onComplete = {
+                    runOnUiThread {
+                        val currentBinding = geminiPageBinding ?: return@runOnUiThread
+                        currentBinding.nanoDownloadProgress.visibility = View.GONE
+                        currentBinding.nanoDownloadButton.visibility = View.GONE
+                        currentBinding.nanoStatusText.text = getString(R.string.gemini_nano_status_available)
+                        Toast.makeText(
+                            this@SettingsActivity,
+                            getString(R.string.gemini_nano_download_complete),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                },
+                onFailed = { e ->
+                    Log.e(TAG, "Nano download failed: ${e.message}")
+                    runOnUiThread {
+                        val currentBinding = geminiPageBinding ?: return@runOnUiThread
+                        currentBinding.nanoDownloadProgress.visibility = View.GONE
+                        currentBinding.nanoDownloadButton.isEnabled = true
+                        currentBinding.nanoStatusText.text = getString(R.string.gemini_nano_status_downloadable)
+                        Toast.makeText(
+                            this@SettingsActivity,
+                            getString(R.string.gemini_nano_download_failed),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            )
+        }
     }
 
     private fun updateSaveControls() {
@@ -531,6 +639,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val TAG = "SettingsActivity"
         private const val PAGE_GENERAL = 0
         private const val PAGE_SSH = 1
         private const val PAGE_GEMINI = 2
