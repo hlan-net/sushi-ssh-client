@@ -6,7 +6,21 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [0.3.0] - Unreleased
 
+### Added
+- Added terminal font size setting (Small/Medium/Large/XL) in Settings > General.
+- Added Drive log upload on terminal disconnect (automatic when always-save is enabled).
+- Added copy-command button to Gemini dialog.
+- Added settings button and return-to-terminal button on main screen.
+
+### Fixed
+- Fixed SSH session being destroyed on screen rotation (orientation changes no longer disconnect).
+- Added ProGuard keep rule for `ListAdapter.getCurrentList()` stripped in minified builds.
+
 ### Changed
+- Redesigned main screen and Settings into tabbed carousel layouts.
+- Unified Google Sign-In: Drive auth now requests both Drive and Gemini scopes; Gemini supports OAuth2 bearer token with API key fallback.
+- Migrated Gemini API calls to coroutines with HTTP timeouts (15s connect / 30s read).
+- Added translations for new strings in all 5 locales (en, fi, sv, de, es).
 - Bumped development version target to `0.3.0-dev` (`versionCode` 11).
 
 ## [0.2.1] - 2026-03-01
