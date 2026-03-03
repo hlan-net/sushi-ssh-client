@@ -63,6 +63,7 @@
             android:label="@string/about_title" />
         <activity
             android:name=".TerminalActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:exported="false"
             android:label="@string/terminal_title" />
     </application>

@@ -73,6 +73,37 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <TextView
+            android:id="@+id/terminalFontSectionTitle"
+            style="@style/TextAppearance.Sushi.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/terminal_font_section_title" />
+
+        <TextView
+            android:id="@+id/terminalFontSectionSubtitle"
+            style="@style/TextAppearance.Sushi.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/terminal_font_section_subtitle" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/terminalFontSizeLayout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:hint="@string/terminal_font_size_label">
+
+            <AutoCompleteTextView
+                android:id="@+id/terminalFontSizeInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
             android:id="@+id/managementSectionTitle"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="match_parent"

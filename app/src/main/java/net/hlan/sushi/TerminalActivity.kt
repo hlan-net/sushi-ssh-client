@@ -18,6 +18,7 @@ import net.hlan.sushi.databinding.ActivityTerminalBinding
 class TerminalActivity : AppCompatActivity() {
     private lateinit var binding: ActivityTerminalBinding
     private val sshSettings by lazy { SshSettings(this) }
+    private val appThemeSettings by lazy { AppThemeSettings(this) }
     private val terminalLogRepository by lazy { TerminalLogRepository(this) }
     private val driveLogSettings by lazy { DriveLogSettings(this) }
     private val driveAuthManager by lazy { DriveAuthManager(this) }
@@ -46,6 +47,8 @@ class TerminalActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityTerminalBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        binding.terminalOutputText.textSize = appThemeSettings.getTerminalFontSize().sp
 
         binding.terminalOutputText.onSizeChangedListener = { col, row, wp, hp ->
             sshClient?.resizePty(col, row, wp, hp)

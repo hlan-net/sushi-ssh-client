@@ -25,3 +25,8 @@
 -keep class com.jcraft.jsch.UserAuthGSSAPIWithMIC { *; }
 -keep class com.jcraft.jsch.jce.** { *; }
 -keep class com.jcraft.jsch.jcraft.** { *; }
+
+# ListAdapter.getCurrentList() is called from instrumented tests against the minified build.
+-keepclassmembers class * extends androidx.recyclerview.widget.ListAdapter {
+    public java.util.List getCurrentList();
+}
