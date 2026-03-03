@@ -1,4 +1,7 @@
 <resources>
+    <string name="placeholder_status">Lägg till SSH-uppgifter i Inställningar för att starta en session.</string>
+    <string name="placeholder_status_active">Ansluter…</string>
+    <string name="session_title">Terminalsession</string>
     <string name="language_section_title">Språk</string>
     <string name="language_section_subtitle">Välj appens språk. Systemstandard följer telefonens språk.</string>
     <string name="language_label">Appspråk</string>

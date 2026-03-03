@@ -1,4 +1,7 @@
 <resources>
+    <string name="placeholder_status">SSH-Details in Einstellungen hinzufügen, um eine Sitzung zu starten.</string>
+    <string name="placeholder_status_active">Verbinde…</string>
+    <string name="session_title">Terminalsitzung</string>
     <string name="language_section_title">Sprache</string>
     <string name="language_section_subtitle">Wähle die App-Sprache. Die Systemeinstellung folgt deiner Telefonsprache.</string>
     <string name="language_label">App-Sprache</string>

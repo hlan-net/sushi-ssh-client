@@ -1,5 +1,4 @@
 <resources>
-    <string name="app_name_short">sushi</string>
     <string name="app_name_long">sushi - SSH-asiakas</string>
     <string name="placeholder_status">Lisää SSH-tiedot Asetuksissa aloittaaksesi istunnon.</string>
     <string name="placeholder_status_active">Yhdistetään...</string>

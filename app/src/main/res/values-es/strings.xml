@@ -1,4 +1,7 @@
 <resources>
+    <string name="placeholder_status">Añade los datos SSH en Ajustes para iniciar una sesión.</string>
+    <string name="placeholder_status_active">Conectando…</string>
+    <string name="session_title">Sesión de terminal</string>
     <string name="language_section_title">Idioma</string>
     <string name="language_section_subtitle">Elige el idioma de la app. El valor del sistema sigue el idioma del teléfono.</string>
     <string name="language_label">Idioma de la app</string>

@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name_short">Sushi</string>
-    <string name="app_name_long">Sushi - SSH Client</string>
+    <string name="app_name_short" translatable="false">Sushi</string>
+    <string name="app_name_long" translatable="false">Sushi - SSH Client</string>
     <string name="placeholder_status">Add SSH details in Settings to start a session.</string>
     <string name="placeholder_status_active">Connecting...</string>
     <string name="session_title">Terminal session</string>
@@ -240,7 +240,7 @@
     <string name="drive_sign_out_done">Signed out of Google.</string>
     <string name="drive_upload_success">Log uploaded to Drive.</string>
     <string name="drive_upload_failed_detail">Drive upload failed: %1$s</string>
-    <string name="gemini_log_entry">[Gemini] prompt: %1$s | command: %2$s</string>
+    <string name="gemini_log_entry" translatable="false">[Gemini] prompt: %1$s | command: %2$s</string>
     <string name="about_title">About sushi</string>
     <string name="about_version">Version %1$s (%2$s)</string>
     <string name="about_description">sushi is an open-source SSH client for Android, built with focus on clean design and modern tooling.</string>
