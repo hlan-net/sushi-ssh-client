@@ -184,13 +184,13 @@ class TerminalActivity : AppCompatActivity() {
             return
         }
         val account = driveAuthManager.getSignedInAccount() ?: return
-        driveLogUploader.uploadLog(account, logContent) { result ->
+        driveLogUploader.uploadLog(account, logContent, DriveLogUploader.LogType.TERMINAL) { result ->
             val message = if (result.success) {
                 getString(R.string.drive_upload_success)
             } else {
-                getString(R.string.drive_upload_failed)
+                getString(R.string.drive_upload_failed_detail, result.message)
             }
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         }
     }
 

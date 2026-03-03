@@ -36,11 +36,12 @@ class DriveAuthManager(context: Context) {
     }
 
     /**
-     * Returns an OAuth2 access token for the signed-in account.
+     * Returns an OAuth2 access token scoped to the Gemini generative-language API.
+     * Used by [GeminiClient] for bearer-token auth when the user is signed in with Google.
      * Must be called on a background thread. Returns null if no account is signed in
      * or token retrieval fails.
      */
-    fun getAccessToken(): String? {
+    fun getGeminiAccessToken(): String? {
         val account = getSignedInAccount() ?: return null
         return runCatching {
             val credential = GoogleAccountCredential.usingOAuth2(

@@ -34,6 +34,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val geminiSettings by lazy { GeminiSettings(this) }
     private val driveAuthManager by lazy { DriveAuthManager(this) }
+    private val driveLogSettings by lazy { DriveLogSettings(this) }
+    private val driveLogUploader by lazy { DriveLogUploader(this) }
     private val geminiClient by lazy { GeminiClient(this, geminiSettings, driveAuthManager) }
     private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
     private val sshSettings by lazy { SshSettings(this) }
@@ -271,6 +273,7 @@ class MainActivity : AppCompatActivity() {
                 isGeminiRequestRunning = false
                 lastGeminiOutput = result.message
                 updateGeminiDialogState()
+                appendSessionLog(getString(R.string.gemini_log_entry, voiceText, result.message))
             }
         }
     }
@@ -511,7 +514,23 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_SHORT).show()
                 }
                 updateSessionUi()
+                uploadConsoleLogToDriveIfEnabled()
             }
+        }
+    }
+
+    private fun uploadConsoleLogToDriveIfEnabled() {
+        if (!driveLogSettings.isAlwaysSaveEnabled()) return
+        val account = driveAuthManager.getSignedInAccount() ?: return
+        val logContent = consoleLogRepository.getLog()
+        if (logContent.isBlank()) return
+        driveLogUploader.uploadLog(account, logContent, DriveLogUploader.LogType.CONSOLE) { result ->
+            val message = if (result.success) {
+                getString(R.string.drive_upload_success)
+            } else {
+                getString(R.string.drive_upload_failed_detail, result.message)
+            }
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         }
     }
 

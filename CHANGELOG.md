@@ -10,10 +10,14 @@ The format is based on Keep a Changelog and follows semantic versioning.
 - Added terminal font size setting (Small/Medium/Large/XL) in Settings > General.
 - Added Drive log upload on terminal disconnect (automatic when always-save is enabled).
 - Added copy-command button to Gemini dialog.
+- Added Gemini interaction logging to the console log (prompt and generated command recorded for each voice request).
 - Added settings button and return-to-terminal button on main screen.
 
 ### Fixed
 - Fixed SSH session being destroyed on screen rotation (orientation changes no longer disconnect).
+- Fixed Drive uploads landing in Drive root — all logs now go to a `sushi-logs/` folder (created automatically).
+- Fixed Drive upload errors showing only a generic message — actual error detail is now shown.
+- Fixed console log (plays/Gemini activity) never being uploaded to Drive — it is now uploaded after each play run.
 - Added ProGuard keep rule for `ListAdapter.getCurrentList()` stripped in minified builds.
 
 ### Changed

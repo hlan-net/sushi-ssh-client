@@ -36,7 +36,7 @@ class GeminiClient(
 
         val connection = when (authMode) {
             AuthMode.GOOGLE_ACCOUNT -> {
-                val token = authManager?.getAccessToken()
+                val token = authManager?.getGeminiAccessToken()
                 if (token == null) {
                     // Token retrieval failed — fall back to API key if available
                     val apiKey = settings.getApiKey().trim()
