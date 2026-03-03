@@ -34,6 +34,9 @@ class GeminiClient(
             return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
         }
 
+        val modelId = settings.getCloudModel()
+        val baseUrl = BASE_URL_TEMPLATE.format(modelId)
+
         val connection = when (authMode) {
             AuthMode.GOOGLE_ACCOUNT -> {
                 val token = authManager?.getGeminiAccessToken()
@@ -43,13 +46,13 @@ class GeminiClient(
                     if (apiKey.isEmpty()) {
                         return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
                     }
-                    createApiKeyConnection(apiKey)
+                    createApiKeyConnection(apiKey, baseUrl)
                 } else {
-                    createOAuthConnection(token)
+                    createOAuthConnection(token, baseUrl)
                 }
             }
             AuthMode.API_KEY -> {
-                createApiKeyConnection(settings.getApiKey().trim())
+                createApiKeyConnection(settings.getApiKey().trim(), baseUrl)
             }
             AuthMode.NONE -> {
                 return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
@@ -86,10 +89,8 @@ class GeminiClient(
         }
     }
 
-    private fun createApiKeyConnection(apiKey: String): HttpURLConnection {
-        val url = URI.create(
-            "$BASE_URL?key=$apiKey"
-        ).toURL()
+    private fun createApiKeyConnection(apiKey: String, baseUrl: String): HttpURLConnection {
+        val url = URI.create("$baseUrl?key=$apiKey").toURL()
         return (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -99,8 +100,8 @@ class GeminiClient(
         }
     }
 
-    private fun createOAuthConnection(accessToken: String): HttpURLConnection {
-        val url = URI.create(BASE_URL).toURL()
+    private fun createOAuthConnection(accessToken: String, baseUrl: String): HttpURLConnection {
+        val url = URI.create(baseUrl).toURL()
         return (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -167,9 +168,11 @@ User request: $userPrompt
     }
 
     companion object {
-        private const val MODEL_ID = "gemini-1.5-flash"
-        private const val BASE_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/$MODEL_ID:generateContent"
+        const val MODEL_PRO = "gemini-2.5-pro"
+        const val MODEL_FLASH = "gemini-1.5-flash"
+
+        private const val BASE_URL_TEMPLATE =
+            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent"
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val READ_TIMEOUT_MS = 30_000
     }

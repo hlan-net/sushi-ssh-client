@@ -194,7 +194,7 @@
     <string name="language_spanish">Spanish</string>
     <string name="gemini_settings_title">Gemini settings</string>
     <string name="gemini_settings_section_title">Gemini voice commands</string>
-    <string name="gemini_settings_subtitle">Optional voice control for SSH commands. Requires your own Gemini API key.</string>
+    <string name="gemini_settings_subtitle">Optional voice control for SSH commands. Requires your own Gemini API key or Google sign-in.</string>
     <string name="gemini_settings_toggle">Enable Gemini voice control</string>
     <string name="gemini_api_key_hint">Gemini API key</string>
     <string name="gemini_api_key_helper">Stored locally on this device.</string>
@@ -204,6 +204,30 @@
     <string name="gemini_saved">Gemini settings saved.</string>
     <string name="settings_saved">Settings saved.</string>
     <string name="gemini_missing_key_message">Missing API key. Add one in settings.</string>
+
+    <!-- Cloud model selector -->
+    <string name="gemini_model_section_title">Cloud model</string>
+    <string name="gemini_model_flash">Flash (fast)</string>
+    <string name="gemini_model_pro">Pro (smarter)</string>
+    <string name="gemini_model_helper">Pro gives better results for complex requests. Flash is faster and cheaper.</string>
+
+    <!-- On-device Nano section -->
+    <string name="gemini_nano_section_title">On-device AI (Gemini Nano)</string>
+    <string name="gemini_nano_status_unavailable">Not supported on this device.</string>
+    <string name="gemini_nano_status_downloadable">Ready to download (~1 GB).</string>
+    <string name="gemini_nano_status_downloading">Downloading\u2026</string>
+    <string name="gemini_nano_status_available">Available on this device.</string>
+    <string name="gemini_nano_download_button">Download Gemini Nano</string>
+    <string name="gemini_nano_preferred_toggle">Prefer on-device Gemini Nano</string>
+    <string name="gemini_nano_preferred_helper">Uses Nano when available. Falls back to cloud Gemini otherwise.</string>
+    <string name="gemini_nano_download_started">Downloading Gemini Nano\u2026</string>
+    <string name="gemini_nano_download_complete">Gemini Nano download complete.</string>
+    <string name="gemini_nano_download_failed">Gemini Nano download failed.</string>
+
+    <!-- Main screen Nano status strings -->
+    <string name="gemini_status_nano">Gemini Nano ready (on-device).</string>
+    <string name="gemini_status_nano_downloading">Gemini Nano downloading. Using cloud.</string>
+    <string name="gemini_status_nano_downloadable">Gemini Nano available to download. See settings.</string>
     <string name="drive_section_title">Google Drive logs</string>
     <string name="drive_section_subtitle">Sign in to upload console logs to your Drive.</string>
     <string name="drive_status_signed_out">Not signed in.</string>

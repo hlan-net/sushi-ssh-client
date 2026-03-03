@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
+## [0.4.0] - Unreleased
+
+### Added
+- Added Gemini Nano on-device inference via ML Kit GenAI Prompt API (no API key or network required for inference on supported devices).
+- Added user-initiated Gemini Nano model download and status display in Settings.
+- Added Nano preference toggle: when enabled and Nano is available, inference is routed on-device; otherwise falls back to cloud.
+- Added cloud model selector (Flash / Pro) in Gemini settings, defaulting to `gemini-2.5-pro`.
+
+### Changed
+- Bumped `minSdk` from 24 to 26 (required by ML Kit Prompt API; drops Android 7 support).
+- Bumped development version target to `0.4.0-dev` (`versionCode` 12).
+
 ## [0.3.0] - 2026-03-03
 
 ### Added

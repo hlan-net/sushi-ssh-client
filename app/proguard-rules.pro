@@ -26,6 +26,10 @@
 -keep class com.jcraft.jsch.jce.** { *; }
 -keep class com.jcraft.jsch.jcraft.** { *; }
 
+# ML Kit GenAI Prompt API — keep all classes to prevent stripping of AICore bindings.
+-keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.**
+
 # ListAdapter.getCurrentList() is called from instrumented tests against the minified build.
 -keepclassmembers class * extends androidx.recyclerview.widget.ListAdapter {
     public java.util.List getCurrentList();
