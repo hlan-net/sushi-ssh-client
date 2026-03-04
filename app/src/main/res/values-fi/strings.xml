@@ -316,4 +316,23 @@
         <item quantity="other">%d fraasia tuotu</item>
     </plurals>
 
+    <string name="share_activity_title">Jaa Sushiin</string>
+    <string name="share_select_host_title">Lähetä isännälle</string>
+    <string name="share_host_item_active">%1$s (aktiivinen)</string>
+    <string name="share_remote_path_label">Etätiedostopolku</string>
+    <string name="share_upload_to_host">Lataa kohteeseen %1$s</string>
+    <string name="share_upload_button">Lataa</string>
+    <string name="share_path_required">Etäpolku on pakollinen.</string>
+    <string name="share_preparing">Valmistellaan\u2026</string>
+    <string name="share_uploading">Ladataan\u2026</string>
+    <string name="share_upload_success">Ladattu kohteeseen %1$s</string>
+    <string name="share_upload_failed">Lataus epäonnistui: %1$s</string>
+    <string name="share_no_hosts">Ei isäntiä. Lisää isäntä Sushi-asetuksissa.</string>
+    <string name="share_nothing_to_share">Ei jaettavaa.</string>
+    <string name="share_could_not_read">Jaettua sisältöä ei voitu lukea.</string>
+
+    <string name="gemini_transcript_label">Keskusteluhistoria</string>
+    <string name="gemini_transcript_you_label">Sinä</string>
+    <string name="gemini_transcript_gemini_label">Gemini</string>
+
 </resources>

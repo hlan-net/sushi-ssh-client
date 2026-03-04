@@ -84,26 +84,13 @@ class SshClient(private val config: SshConnectionConfig) {
     )
 
     fun connect(onLine: (String) -> Unit, streamMode: Boolean = false): SshConnectResult {
-        var newJumpSession: Session? = null
-        var newJumpForwardPort: Int? = null
-        var newSession: Session? = null
         var newChannel: ChannelShell? = null
+        var sessionPair: ConnectedSessionPair? = null
         return runCatching {
-            val jsch = JSch()
-            val authPlan = resolveAuthPlan(config)
-            addPrivateKeyIdentity(jsch, authPlan)
+            val pair = createConnectedSession()
+            sessionPair = pair
 
-            val jumpResult = establishJumpSession(jsch, authPlan)
-            newJumpSession = jumpResult?.session
-            newJumpForwardPort = jumpResult?.forwardedPort
-
-            val targetHost = jumpResult?.let { "127.0.0.1" } ?: config.host
-            val targetPort = jumpResult?.forwardedPort ?: config.port
-
-            val createdSession = establishTargetSession(jsch, targetHost, targetPort, authPlan)
-            newSession = createdSession
-
-            val createdChannel = openShellChannel(createdSession)
+            val createdChannel = openShellChannel(pair.targetSession)
             newChannel = createdChannel
 
             val inputStream = createdChannel.inputStream
@@ -111,17 +98,17 @@ class SshClient(private val config: SshConnectionConfig) {
             val outputStream = createdChannel.outputStream
                 ?: throw IllegalStateException("Shell output stream unavailable")
 
-            jumpSession = newJumpSession
-            jumpForwardPort = newJumpForwardPort
-            session = createdSession
+            jumpSession = pair.jumpSession
+            jumpForwardPort = pair.jumpForwardedPort
+            session = pair.targetSession
             shellChannel = createdChannel
             shellInput = outputStream
             startShellReader(inputStream, onLine, streamMode)
             SshConnectResult(true, "Connected")
         }.getOrElse { error ->
             newChannel?.disconnect()
-            newSession?.disconnect()
-            newJumpSession?.disconnect()
+            sessionPair?.targetSession?.disconnect()
+            sessionPair?.jumpSession?.disconnect()
             jumpForwardPort = null
             jumpSession = null
             session = null
@@ -200,6 +187,25 @@ class SshClient(private val config: SshConnectionConfig) {
         channel.setPty(true)
         channel.connect(SHELL_CONNECT_TIMEOUT_MS)
         return channel
+    }
+
+    private data class ConnectedSessionPair(
+        val targetSession: Session,
+        val jumpSession: Session?,
+        val jumpForwardedPort: Int?
+    )
+
+    private fun createConnectedSession(): ConnectedSessionPair {
+        val jsch = JSch()
+        val authPlan = resolveAuthPlan(config)
+        addPrivateKeyIdentity(jsch, authPlan)
+
+        val jumpResult = establishJumpSession(jsch, authPlan)
+        val targetHost = jumpResult?.let { "127.0.0.1" } ?: config.host
+        val targetPort = jumpResult?.forwardedPort ?: config.port
+        val targetSession = establishTargetSession(jsch, targetHost, targetPort, authPlan)
+
+        return ConnectedSessionPair(targetSession, jumpResult?.session, jumpResult?.forwardedPort)
     }
 
     private fun configureSession(session: Session) {
@@ -297,24 +303,13 @@ class SshClient(private val config: SshConnectionConfig) {
     }
 
     fun sftpUpload(remotePath: String, inputStream: InputStream): SftpUploadResult {
-        var sftpSession: Session? = null
-        var sftpJumpSession: Session? = null
+        var sessionPair: ConnectedSessionPair? = null
         var sftpChannel: ChannelSftp? = null
         return runCatching {
-            val jsch = JSch()
-            val authPlan = resolveAuthPlan(config)
-            addPrivateKeyIdentity(jsch, authPlan)
+            val pair = createConnectedSession()
+            sessionPair = pair
 
-            val jumpResult = establishJumpSession(jsch, authPlan)
-            sftpJumpSession = jumpResult?.session
-
-            val targetHost = jumpResult?.let { "127.0.0.1" } ?: config.host
-            val targetPort = jumpResult?.forwardedPort ?: config.port
-
-            val createdSession = establishTargetSession(jsch, targetHost, targetPort, authPlan)
-            sftpSession = createdSession
-
-            val channel = createdSession.openChannel("sftp") as? ChannelSftp
+            val channel = pair.targetSession.openChannel("sftp") as? ChannelSftp
                 ?: throw IllegalStateException("Unable to open SFTP channel")
             sftpChannel = channel
             channel.connect(SFTP_CONNECT_TIMEOUT_MS)
@@ -326,8 +321,8 @@ class SshClient(private val config: SshConnectionConfig) {
             SftpUploadResult(false, message)
         }.also {
             runCatching { sftpChannel?.disconnect() }
-            runCatching { sftpSession?.disconnect() }
-            runCatching { sftpJumpSession?.disconnect() }
+            runCatching { sessionPair?.targetSession?.disconnect() }
+            runCatching { sessionPair?.jumpSession?.disconnect() }
         }
     }
 

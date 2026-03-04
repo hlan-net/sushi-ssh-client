@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivityShareBinding
+import net.hlan.sushi.databinding.DialogRemotePathBinding
 import java.io.ByteArrayInputStream
 
 class ShareActivity : AppCompatActivity() {
@@ -116,35 +117,39 @@ class ShareActivity : AppCompatActivity() {
     }
 
     private fun showPathDialog(host: SshConnectionConfig, payload: SharePayload) {
-        val defaultPath = when (payload) {
-            is SharePayload.TextPayload -> "/tmp/shared_text.txt"
-            is SharePayload.FilePayload -> "/tmp/${payload.filename}"
+        val safeFilename = when (payload) {
+            is SharePayload.TextPayload -> "shared_text.txt"
+            is SharePayload.FilePayload -> payload.filename.substringAfterLast('/')
         }
+        val defaultPath = "/tmp/$safeFilename"
 
-        val inputLayout = TextInputLayout(this).apply {
-            hint = getString(R.string.share_remote_path_label)
-            setPadding(48, 16, 48, 0)
-        }
-        val input = TextInputEditText(this).apply {
-            setText(defaultPath)
-        }
-        inputLayout.addView(input)
+        val dialogBinding = DialogRemotePathBinding.inflate(layoutInflater)
+        val inputLayout = dialogBinding.remotePathLayout
+        val input = dialogBinding.remotePathInput
+        input.setText(defaultPath)
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(getString(R.string.share_upload_to_host, host.displayTarget()))
-            .setView(inputLayout)
-            .setPositiveButton(R.string.share_upload_button) { _, _ ->
-                val remotePath = input.text?.toString()?.trim().orEmpty()
-                if (remotePath.isBlank()) {
-                    Toast.makeText(this, getString(R.string.share_path_required), Toast.LENGTH_SHORT).show()
-                    finish()
-                    return@setPositiveButton
-                }
-                performUpload(host, remotePath, payload)
-            }
+            .setView(dialogBinding.root)
+            .setPositiveButton(R.string.share_upload_button, null)
             .setNegativeButton(android.R.string.cancel) { _, _ -> finish() }
             .setOnCancelListener { finish() }
-            .show()
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val remotePath = input.text?.toString()?.trim().orEmpty()
+                if (remotePath.isBlank()) {
+                    inputLayout.error = getString(R.string.share_path_required)
+                    return@setOnClickListener
+                }
+                inputLayout.error = null
+                dialog.dismiss()
+                performUpload(host, remotePath, payload)
+            }
+        }
+
+        dialog.show()
     }
 
     private fun performUpload(
@@ -173,7 +178,7 @@ class ShareActivity : AppCompatActivity() {
                     client.sftpUpload(remotePath, stream)
                 }
             } else {
-                SftpUploadResult(false, "Could not read shared content")
+                SftpUploadResult(false, getString(R.string.share_could_not_read))
             }
 
             withContext(Dispatchers.Main) {

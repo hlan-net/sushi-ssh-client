@@ -317,4 +317,23 @@
         <item quantity="other">Importadas %d frases</item>
     </plurals>
 
+    <string name="share_activity_title">Compartir con Sushi</string>
+    <string name="share_select_host_title">Enviar al host</string>
+    <string name="share_host_item_active">%1$s (activo)</string>
+    <string name="share_remote_path_label">Ruta de archivo remoto</string>
+    <string name="share_upload_to_host">Subir a %1$s</string>
+    <string name="share_upload_button">Subir</string>
+    <string name="share_path_required">La ruta remota es obligatoria.</string>
+    <string name="share_preparing">Preparando\u2026</string>
+    <string name="share_uploading">Subiendo\u2026</string>
+    <string name="share_upload_success">Subido a %1$s</string>
+    <string name="share_upload_failed">Error al subir: %1$s</string>
+    <string name="share_no_hosts">No hay hosts configurados. Añada uno en los ajustes de Sushi.</string>
+    <string name="share_nothing_to_share">Nada que compartir.</string>
+    <string name="share_could_not_read">No se pudo leer el contenido compartido.</string>
+
+    <string name="gemini_transcript_label">Historial de conversación</string>
+    <string name="gemini_transcript_you_label">Tú</string>
+    <string name="gemini_transcript_gemini_label">Gemini</string>
+
 </resources>

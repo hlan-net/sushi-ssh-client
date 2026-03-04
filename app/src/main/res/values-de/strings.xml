@@ -316,4 +316,23 @@
         <item quantity="other">%d Frasen importiert</item>
     </plurals>
 
+    <string name="share_activity_title">An Sushi teilen</string>
+    <string name="share_select_host_title">An Host senden</string>
+    <string name="share_host_item_active">%1$s (aktiv)</string>
+    <string name="share_remote_path_label">Remote-Dateipfad</string>
+    <string name="share_upload_to_host">Hochladen nach %1$s</string>
+    <string name="share_upload_button">Hochladen</string>
+    <string name="share_path_required">Remote-Pfad ist erforderlich.</string>
+    <string name="share_preparing">Vorbereitung\u2026</string>
+    <string name="share_uploading">Wird hochgeladen\u2026</string>
+    <string name="share_upload_success">Hochgeladen nach %1$s</string>
+    <string name="share_upload_failed">Hochladen fehlgeschlagen: %1$s</string>
+    <string name="share_no_hosts">Keine Hosts konfiguriert. Fügen Sie einen in den Sushi-Einstellungen hinzu.</string>
+    <string name="share_nothing_to_share">Nichts zum Teilen.</string>
+    <string name="share_could_not_read">Geteilter Inhalt konnte nicht gelesen werden.</string>
+
+    <string name="gemini_transcript_label">Gesprächsverlauf</string>
+    <string name="gemini_transcript_you_label">Du</string>
+    <string name="gemini_transcript_gemini_label">Gemini</string>
+
 </resources>

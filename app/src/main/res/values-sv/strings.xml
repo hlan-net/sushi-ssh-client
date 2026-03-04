@@ -316,4 +316,23 @@
         <item quantity="other">Importerade %d fraser</item>
     </plurals>
 
+    <string name="share_activity_title">Dela till Sushi</string>
+    <string name="share_select_host_title">Skicka till värd</string>
+    <string name="share_host_item_active">%1$s (aktiv)</string>
+    <string name="share_remote_path_label">Fjärrsökväg</string>
+    <string name="share_upload_to_host">Ladda upp till %1$s</string>
+    <string name="share_upload_button">Ladda upp</string>
+    <string name="share_path_required">Fjärrsökväg krävs.</string>
+    <string name="share_preparing">Förbereder\u2026</string>
+    <string name="share_uploading">Laddar upp\u2026</string>
+    <string name="share_upload_success">Uppladdat till %1$s</string>
+    <string name="share_upload_failed">Uppladdning misslyckades: %1$s</string>
+    <string name="share_no_hosts">Inga värdar konfigurerade. Lägg till en i Sushi-inställningarna.</string>
+    <string name="share_nothing_to_share">Inget att dela.</string>
+    <string name="share_could_not_read">Kunde inte läsa delat innehåll.</string>
+
+    <string name="gemini_transcript_label">Konversationshistorik</string>
+    <string name="gemini_transcript_you_label">Du</string>
+    <string name="gemini_transcript_gemini_label">Gemini</string>
+
 </resources>
