@@ -4,17 +4,22 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
-## [0.4.0] - Unreleased
+## [0.4.0] - 2026-03-04
 
 ### Added
 - Added Gemini Nano on-device inference via ML Kit GenAI Prompt API (no API key or network required for inference on supported devices).
 - Added user-initiated Gemini Nano model download and status display in Settings.
 - Added Nano preference toggle: when enabled and Nano is available, inference is routed on-device; otherwise falls back to cloud.
 - Added cloud model selector (Flash / Pro) in Gemini settings, defaulting to `gemini-2.5-pro`.
+- Added Android Share target: Sushi now appears in the system Share sheet for text and files, uploading via SFTP to a selected host.
+- Added Gemini conversation transcript: the Gemini dialog now shows a scrollable chat history of all prompts and responses in the session.
+- Added shared phrase picker helper to eliminate code duplication across activities.
+- Added Material Design icons across all screens and dark mode color scheme.
 
 ### Changed
 - Bumped `minSdk` from 24 to 26 (required by ML Kit Prompt API; drops Android 7 support).
-- Bumped development version target to `0.4.0-dev` (`versionCode` 12).
+- Updated translations for all new strings in de, fi, sv, es locales.
+- Bumped app version to `0.4.0` (`versionCode` 13).
 
 ## [0.3.0] - 2026-03-03
 

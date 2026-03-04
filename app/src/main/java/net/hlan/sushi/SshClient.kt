@@ -1,5 +1,6 @@
 package net.hlan.sushi
 
+import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
@@ -56,6 +57,11 @@ data class SshConnectResult(
 data class SshCommandResult(
     val success: Boolean,
     val exitStatus: Int?,
+    val message: String
+)
+
+data class SftpUploadResult(
+    val success: Boolean,
     val message: String
 )
 
@@ -290,9 +296,45 @@ class SshClient(private val config: SshConnectionConfig) {
         }
     }
 
+    fun sftpUpload(remotePath: String, inputStream: InputStream): SftpUploadResult {
+        var sftpSession: Session? = null
+        var sftpJumpSession: Session? = null
+        var sftpChannel: ChannelSftp? = null
+        return runCatching {
+            val jsch = JSch()
+            val authPlan = resolveAuthPlan(config)
+            addPrivateKeyIdentity(jsch, authPlan)
+
+            val jumpResult = establishJumpSession(jsch, authPlan)
+            sftpJumpSession = jumpResult?.session
+
+            val targetHost = jumpResult?.let { "127.0.0.1" } ?: config.host
+            val targetPort = jumpResult?.forwardedPort ?: config.port
+
+            val createdSession = establishTargetSession(jsch, targetHost, targetPort, authPlan)
+            sftpSession = createdSession
+
+            val channel = createdSession.openChannel("sftp") as? ChannelSftp
+                ?: throw IllegalStateException("Unable to open SFTP channel")
+            sftpChannel = channel
+            channel.connect(SFTP_CONNECT_TIMEOUT_MS)
+            channel.put(inputStream, remotePath, ChannelSftp.OVERWRITE)
+            SftpUploadResult(true, "Upload complete")
+        }.getOrElse { error ->
+            val message = error.message?.takeIf { it.isNotBlank() }
+                ?: "Upload failed"
+            SftpUploadResult(false, message)
+        }.also {
+            runCatching { sftpChannel?.disconnect() }
+            runCatching { sftpSession?.disconnect() }
+            runCatching { sftpJumpSession?.disconnect() }
+        }
+    }
+
     companion object {
         private const val CONNECTION_TIMEOUT_MS = 10000
         private const val SHELL_CONNECT_TIMEOUT_MS = 10000
+        private const val SFTP_CONNECT_TIMEOUT_MS = 10000
         private const val SERVER_ALIVE_INTERVAL_MS = 15000
         private const val SERVER_ALIVE_COUNT_MAX = 3
         private const val CTRL_C_ETX = 3

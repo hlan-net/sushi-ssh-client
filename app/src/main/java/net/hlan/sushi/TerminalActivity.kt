@@ -263,24 +263,9 @@ class TerminalActivity : AppCompatActivity() {
     }
 
     private fun showPhrasePicker() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val phrases = phraseDb.getAllPhrases()
-            withContext(Dispatchers.Main) {
-                if (phrases.isEmpty()) {
-                    Toast.makeText(this@TerminalActivity, getString(R.string.phrases_empty_toast), Toast.LENGTH_SHORT).show()
-                    return@withContext
-                }
-                val labels = phrases.map { "${it.name}\n${it.command}" }.toTypedArray()
-                AlertDialog.Builder(this@TerminalActivity)
-                    .setTitle(getString(R.string.action_phrases_short))
-                    .setItems(labels) { _, which ->
-                        val phrase = phrases[which]
-                        binding.terminalOutputText.appendLog(getString(R.string.phrase_sent_log, phrase.name))
-                        sendRaw(phrase.command + "\n")
-                    }
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .show()
-            }
+        PhrasePickerHelper.showPicker(this, phraseDb) { phrase ->
+            binding.terminalOutputText.appendLog(getString(R.string.phrase_sent_log, phrase.name))
+            sendRaw(phrase.command + "\n")
         }
     }
 

@@ -43,36 +43,23 @@
         app:iconGravity="textStart" />
 
     <TextView
-        android:id="@+id/geminiDialogPromptLabel"
+        android:id="@+id/geminiTranscriptLabel"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="@string/gemini_prompt_label" />
+        android:text="@string/gemini_transcript_label"
+        android:textStyle="bold"
+        android:visibility="gone" />
 
-    <TextView
-        android:id="@+id/geminiDialogPromptText"
-        style="@style/TextAppearance.Sushi.Body"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/geminiTranscriptRecycler"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="@string/gemini_prompt_placeholder" />
-
-    <TextView
-        android:id="@+id/geminiDialogOutputLabel"
-        style="@style/TextAppearance.Sushi.Caption"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="@string/gemini_output_label" />
-
-    <TextView
-        android:id="@+id/geminiDialogOutputText"
-        style="@style/TextAppearance.Sushi.Body"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="@string/gemini_output_placeholder" />
+        android:layout_height="220dp"
+        android:layout_marginTop="8dp"
+        android:nestedScrollingEnabled="true"
+        android:scrollbars="vertical"
+        android:visibility="gone" />
 
     <ProgressBar
         android:id="@+id/geminiDialogProgressBar"

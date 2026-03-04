@@ -13,6 +13,9 @@
 -dontwarn org.ietf.jgss.**
 -dontwarn org.apache.http.**
 
+# JSch loads channel types by reflection; keep SFTP channel for share-to-host uploads.
+-keep class com.jcraft.jsch.ChannelSftp { *; }
+
 # JSch loads crypto providers by reflection; keep these classes for release builds.
 -keep class com.jcraft.jsch.DHEC256 { *; }
 -keep class com.jcraft.jsch.DHEC384 { *; }
