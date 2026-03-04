@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
     private val sshSettings by lazy { SshSettings(this) }
     private val playDb by lazy { PlayDatabaseHelper.getInstance(this) }
+    private val phraseDb by lazy { PhraseDatabaseHelper.getInstance(this) }
 
     private var isPlayRunning = false
     private var geminiDialog: AlertDialog? = null
@@ -202,6 +203,9 @@ class MainActivity : AppCompatActivity() {
         terminalPageBinding = pageBinding
         pageBinding.geminiVoiceButton.setOnClickListener {
             showGeminiDialog()
+        }
+        pageBinding.phrasesButton.setOnClickListener {
+            showPhraseCopyPicker()
         }
         updateGeminiState()
         if (binding.mainToolsViewPager.currentItem == PAGE_TERMINAL) {
@@ -411,6 +415,31 @@ class MainActivity : AppCompatActivity() {
             ClipData.newPlainText(getString(R.string.gemini_output_label), lastGeminiOutput)
         )
         Toast.makeText(this, getString(R.string.gemini_command_copied), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showPhraseCopyPicker() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val phrases = phraseDb.getAllPhrases()
+            withContext(Dispatchers.Main) {
+                if (phrases.isEmpty()) {
+                    Toast.makeText(this@MainActivity, getString(R.string.phrases_empty_toast), Toast.LENGTH_SHORT).show()
+                    return@withContext
+                }
+                val labels = phrases.map { "${it.name}\n${it.command}" }.toTypedArray()
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle(getString(R.string.action_phrases_short))
+                    .setItems(labels) { _, which ->
+                        val phrase = phrases[which]
+                        val clipboard = getSystemService(ClipboardManager::class.java)
+                        clipboard?.setPrimaryClip(
+                            ClipData.newPlainText(phrase.name, phrase.command)
+                        )
+                        Toast.makeText(this@MainActivity, getString(R.string.phrase_copied_toast, phrase.name), Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+        }
     }
 
     private fun showPlayHostDialog() {
@@ -697,7 +726,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.startSessionButton.isEnabled = config != null
-        binding.startSessionButton.text = getString(R.string.action_start_session)
+        binding.startSessionButton.text = if (displayTarget.isNullOrBlank()) {
+            getString(R.string.action_start_session)
+        } else {
+            getString(R.string.action_start_session_host, displayTarget)
+        }
         binding.returnTerminalButton.visibility = if (config == null) View.GONE else View.VISIBLE
         binding.configureHostButton.visibility = if (config == null) View.VISIBLE else View.GONE
 

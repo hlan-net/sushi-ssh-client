@@ -108,7 +108,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
-                    android:text="@string/action_start_session" />
+                    android:text="@string/action_start_session"
+                    app:icon="@drawable/ic_terminal"
+                    app:iconGravity="textStart" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/returnTerminalButton"
@@ -117,7 +119,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:text="@string/action_return_terminal"
-                    android:visibility="gone" />
+                    android:visibility="gone"
+                    app:icon="@drawable/ic_terminal"
+                    app:iconGravity="textStart" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/configureHostButton"
@@ -126,7 +130,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:text="@string/action_configure_host"
-                    android:visibility="gone" />
+                    android:visibility="gone"
+                    app:icon="@drawable/ic_dns"
+                    app:iconGravity="textStart" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/mainSettingsButton"
@@ -134,7 +140,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="@string/settings_title" />
+                    android:text="@string/settings_title"
+                    app:icon="@drawable/ic_settings"
+                    app:iconGravity="textStart" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

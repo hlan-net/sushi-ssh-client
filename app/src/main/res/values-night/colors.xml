@@ -1,0 +1,12 @@
+<resources>
+    <color name="sushi_green">#4CAF7A</color>
+    <color name="sushi_ink">#E6F1ED</color>
+    <color name="sushi_slate">#A8B5AE</color>
+    <color name="sushi_mist">#0F1514</color>
+    <color name="sushi_white">#1A2320</color>
+    <color name="sushi_card_stroke">#1AA8B5AE</color>
+    <color name="sushi_terminal_bg">#0F1514</color>
+    <color name="sushi_terminal_bg_dark">#0A0F0E</color>
+    <color name="sushi_terminal_panel_dark">#0D1311</color>
+    <color name="sushi_terminal_text">#E6F1ED</color>
+</resources>

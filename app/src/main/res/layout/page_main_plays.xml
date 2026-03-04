@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -45,7 +46,9 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="@string/action_add_host" />
+            android:text="@string/action_add_host"
+            app:icon="@drawable/ic_add"
+            app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/addPlayButton"
@@ -54,7 +57,9 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_weight="1"
-            android:text="@string/action_add_play" />
+            android:text="@string/action_add_play"
+            app:icon="@drawable/ic_add"
+            app:iconGravity="textStart" />
 
     </LinearLayout>
 
@@ -64,7 +69,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
-        android:text="@string/action_plays" />
+        android:text="@string/action_plays"
+        app:icon="@drawable/ic_play_arrow"
+        app:iconGravity="textStart" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/managePlaysButton"
@@ -72,7 +79,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:text="@string/action_manage_plays" />
+        android:text="@string/action_manage_plays"
+        app:icon="@drawable/ic_list"
+        app:iconGravity="textStart" />
 
     <TextView
         android:id="@+id/sessionLogLabel"
@@ -95,7 +104,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minHeight="40dp"
-            android:text="@string/action_copy_log" />
+            android:text="@string/action_copy_log"
+            app:icon="@drawable/ic_content_copy"
+            app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/clearLogButton"
@@ -103,7 +114,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minHeight="40dp"
-            android:text="@string/action_clear_log" />
+            android:text="@string/action_clear_log"
+            app:icon="@drawable/ic_clear"
+            app:iconGravity="textStart" />
     </LinearLayout>
 
     <net.hlan.sushi.TerminalView

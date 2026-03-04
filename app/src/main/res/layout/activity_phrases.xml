@@ -45,6 +45,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="@string/action_add_phrase"
+        app:icon="@drawable/ic_add"
+        app:iconGravity="textStart"
         app:layout_constraintBottom_toTopOf="@id/exportButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
@@ -56,6 +58,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="@string/action_export_phrases"
+        app:icon="@drawable/ic_upload"
+        app:iconGravity="textStart"
         app:layout_constraintBottom_toTopOf="@id/importButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
@@ -67,6 +71,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="@string/action_import_phrases"
+        app:icon="@drawable/ic_download"
+        app:iconGravity="textStart"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

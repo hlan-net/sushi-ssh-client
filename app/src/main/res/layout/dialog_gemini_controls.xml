@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -27,7 +28,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
-        android:text="@string/action_gemini_voice" />
+        android:text="@string/action_gemini_voice"
+        app:icon="@drawable/ic_mic"
+        app:iconGravity="textStart" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/geminiDialogSettingsButton"
@@ -35,7 +38,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:text="@string/action_gemini_settings" />
+        android:text="@string/action_gemini_settings"
+        app:icon="@drawable/ic_settings"
+        app:iconGravity="textStart" />
 
     <TextView
         android:id="@+id/geminiDialogPromptLabel"
@@ -84,6 +89,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:text="@string/action_copy_command"
-        android:visibility="gone" />
+        android:visibility="gone"
+        app:icon="@drawable/ic_content_copy"
+        app:iconGravity="textStart" />
 
 </LinearLayout>

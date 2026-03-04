@@ -75,6 +75,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="@string/action_generate_key"
+            app:icon="@drawable/ic_vpn_key"
+            app:iconGravity="textStart"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/publicKeyLayout" />
@@ -87,6 +89,9 @@
             android:layout_marginTop="8dp"
             android:text="@string/action_delete_key"
             android:textColor="?attr/colorError"
+            app:icon="@drawable/ic_delete"
+            app:iconGravity="textStart"
+            app:iconTint="?attr/colorError"
             android:visibility="gone"
             app:strokeColor="?attr/colorError"
             app:layout_constraintEnd_toEndOf="parent"
