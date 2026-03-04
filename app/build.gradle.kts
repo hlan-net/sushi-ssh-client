@@ -1,6 +1,6 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+
 }
 
 val versionCodeOverride = (project.findProperty("versionCode") as String?)?.toIntOrNull()
@@ -91,11 +91,6 @@ android {
     }
 }
 
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-    }
-}
 
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
@@ -127,5 +122,5 @@ dependencies {
     implementation("androidx.concurrent:concurrent-futures:1.3.0")
     androidTestImplementation("androidx.concurrent:concurrent-futures:1.3.0")
     androidTestImplementation("com.google.guava:guava:31.1-jre")
-    androidTestImplementation("org.jetbrains.kotlin:kotlin-stdlib:2.3.10")
+
 }

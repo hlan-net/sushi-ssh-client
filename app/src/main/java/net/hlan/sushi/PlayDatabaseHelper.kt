@@ -205,5 +205,13 @@ class PlayDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
                 instance
             }
         }
+
+        @androidx.annotation.VisibleForTesting
+        fun resetInstance() {
+            synchronized(this) {
+                INSTANCE?.close()
+                INSTANCE = null
+            }
+        }
     }
 }

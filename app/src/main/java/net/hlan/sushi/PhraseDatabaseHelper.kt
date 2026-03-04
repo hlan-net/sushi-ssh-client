@@ -155,6 +155,14 @@ class PhraseDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
                 instance
             }
         }
+
+        @androidx.annotation.VisibleForTesting
+        fun resetInstance() {
+            synchronized(this) {
+                INSTANCE?.close()
+                INSTANCE = null
+            }
+        }
     }
 }
 
