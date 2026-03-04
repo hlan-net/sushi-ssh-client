@@ -333,4 +333,23 @@
         <item quantity="one">Imported %d phrase</item>
         <item quantity="other">Imported %d phrases</item>
     </plurals>
+
+    <string name="share_activity_title">Share to Sushi</string>
+    <string name="share_select_host_title">Send to host</string>
+    <string name="share_host_item_active">%1$s (active)</string>
+    <string name="share_remote_path_label">Remote file path</string>
+    <string name="share_upload_to_host">Upload to %1$s</string>
+    <string name="share_upload_button">Upload</string>
+    <string name="share_path_required">Remote path is required.</string>
+    <string name="share_preparing">Preparing\u2026</string>
+    <string name="share_uploading">Uploading\u2026</string>
+    <string name="share_upload_success">Uploaded to %1$s</string>
+    <string name="share_upload_failed">Upload failed: %1$s</string>
+    <string name="share_no_hosts">No hosts configured. Add one in Sushi settings.</string>
+    <string name="share_nothing_to_share">Nothing to share.</string>
+    <string name="share_could_not_read">Could not read shared content.</string>
+
+    <string name="gemini_transcript_label">Conversation history</string>
+    <string name="gemini_transcript_you_label">You</string>
+    <string name="gemini_transcript_gemini_label">Gemini</string>
 </resources>

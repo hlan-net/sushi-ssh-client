@@ -62,6 +62,16 @@
             android:exported="false"
             android:label="@string/about_title" />
         <activity
+            android:name=".ShareActivity"
+            android:exported="true"
+            android:label="@string/share_activity_title">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".TerminalActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:exported="false"

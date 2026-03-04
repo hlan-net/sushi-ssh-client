@@ -18,6 +18,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.tabs.TabLayoutMediator
@@ -51,6 +52,8 @@ class MainActivity : AppCompatActivity() {
     private var lastGeminiPrompt = ""
     private var lastGeminiOutput = ""
     private var isGeminiRequestRunning = false
+    private val geminiTranscript = mutableListOf<GeminiTranscriptEntry>()
+    private var transcriptAdapter: GeminiTranscriptAdapter? = null
     private var playsPageBinding: PageMainPlaysBinding? = null
     private var terminalPageBinding: PageMainTerminalBinding? = null
     private var toolsTabMediator: TabLayoutMediator? = null
@@ -346,6 +349,16 @@ class MainActivity : AppCompatActivity() {
                 lastGeminiOutput = result.message
                 updateGeminiDialogState()
                 appendSessionLog(getString(R.string.gemini_log_entry, voiceText, result.message))
+
+                geminiTranscript.add(GeminiTranscriptEntry(prompt = voiceText, response = result.message))
+                transcriptAdapter?.let { adapter ->
+                    adapter.notifyItemInserted(geminiTranscript.size - 1)
+                    geminiDialogBinding?.geminiTranscriptLabel?.visibility = View.VISIBLE
+                    geminiDialogBinding?.geminiTranscriptRecycler?.apply {
+                        visibility = View.VISIBLE
+                        scrollToPosition(geminiTranscript.size - 1)
+                    }
+                }
             }
         }
     }
@@ -368,6 +381,16 @@ class MainActivity : AppCompatActivity() {
             copyGeminiCommand()
         }
 
+        val adapter = GeminiTranscriptAdapter(geminiTranscript)
+        transcriptAdapter = adapter
+        dialogBinding.geminiTranscriptRecycler.layoutManager =
+            LinearLayoutManager(this).also { it.stackFromEnd = true }
+        dialogBinding.geminiTranscriptRecycler.adapter = adapter
+        if (geminiTranscript.isNotEmpty()) {
+            dialogBinding.geminiTranscriptLabel.visibility = View.VISIBLE
+            dialogBinding.geminiTranscriptRecycler.visibility = View.VISIBLE
+        }
+
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .setNegativeButton(R.string.phrase_cancel, null)
@@ -375,6 +398,7 @@ class MainActivity : AppCompatActivity() {
         dialog.setOnDismissListener {
             geminiDialog = null
             geminiDialogBinding = null
+            transcriptAdapter = null
         }
         geminiDialog = dialog
         updateGeminiState()
@@ -384,16 +408,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateGeminiDialogState() {
         val dialogBinding = geminiDialogBinding ?: return
-        dialogBinding.geminiDialogPromptText.text = if (lastGeminiPrompt.isBlank()) {
-            getString(R.string.gemini_prompt_placeholder)
-        } else {
-            lastGeminiPrompt
-        }
-        dialogBinding.geminiDialogOutputText.text = if (lastGeminiOutput.isBlank()) {
-            getString(R.string.gemini_output_placeholder)
-        } else {
-            lastGeminiOutput
-        }
         dialogBinding.geminiDialogProgressBar.visibility = if (isGeminiRequestRunning) {
             View.VISIBLE
         } else {
@@ -418,27 +432,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showPhraseCopyPicker() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val phrases = phraseDb.getAllPhrases()
-            withContext(Dispatchers.Main) {
-                if (phrases.isEmpty()) {
-                    Toast.makeText(this@MainActivity, getString(R.string.phrases_empty_toast), Toast.LENGTH_SHORT).show()
-                    return@withContext
-                }
-                val labels = phrases.map { "${it.name}\n${it.command}" }.toTypedArray()
-                AlertDialog.Builder(this@MainActivity)
-                    .setTitle(getString(R.string.action_phrases_short))
-                    .setItems(labels) { _, which ->
-                        val phrase = phrases[which]
-                        val clipboard = getSystemService(ClipboardManager::class.java)
-                        clipboard?.setPrimaryClip(
-                            ClipData.newPlainText(phrase.name, phrase.command)
-                        )
-                        Toast.makeText(this@MainActivity, getString(R.string.phrase_copied_toast, phrase.name), Toast.LENGTH_SHORT).show()
-                    }
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .show()
-            }
+        PhrasePickerHelper.showPicker(this, phraseDb) { phrase ->
+            val clipboard = getSystemService(ClipboardManager::class.java)
+            clipboard?.setPrimaryClip(
+                ClipData.newPlainText(phrase.name, phrase.command)
+            )
+            Toast.makeText(this, getString(R.string.phrase_copied_toast, phrase.name), Toast.LENGTH_SHORT).show()
         }
     }
 
