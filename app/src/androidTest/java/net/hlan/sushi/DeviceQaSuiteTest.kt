@@ -19,6 +19,8 @@ class DeviceQaSuiteTest {
             .edit()
             .remove("latest_log")
             .commit()
+        PhraseDatabaseHelper.resetInstance()
+        PlayDatabaseHelper.resetInstance()
         context.deleteDatabase("sushi_phrases.db")
         context.deleteDatabase("sushi_plays.db")
     }
@@ -81,7 +83,7 @@ class DeviceQaSuiteTest {
 
         ActivityScenario.launch(SettingsActivity::class.java).use { settingsScenario ->
             settingsScenario.onActivity { activity ->
-                activity.findViewById<android.view.View>(R.id.manageKeysButton).performClick()
+                activity.findViewById<android.view.View>(R.id.quickGenerateKeyButton).performClick()
             }
         }
 
