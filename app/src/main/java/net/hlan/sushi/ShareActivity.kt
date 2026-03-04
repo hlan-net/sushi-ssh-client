@@ -166,19 +166,19 @@ class ShareActivity : AppCompatActivity() {
             )
             val client = SshClient(resolvedConfig)
 
-            val inputStream = when (payload) {
-                is SharePayload.TextPayload ->
-                    ByteArrayInputStream(payload.text.toByteArray(Charsets.UTF_8))
-                is SharePayload.FilePayload ->
-                    contentResolver.openInputStream(payload.uri)
-            }
-
-            val result = if (inputStream != null) {
-                inputStream.use { stream ->
-                    client.sftpUpload(remotePath, stream)
+            val result = when (payload) {
+                is SharePayload.TextPayload -> {
+                    val inputStream = ByteArrayInputStream(payload.text.toByteArray(Charsets.UTF_8))
+                    inputStream.use { client.sftpUpload(remotePath, it) }
                 }
-            } else {
-                SftpUploadResult(false, getString(R.string.share_could_not_read))
+                is SharePayload.FilePayload -> {
+                    val inputStream = contentResolver.openInputStream(payload.uri)
+                    if (inputStream != null) {
+                        inputStream.use { client.sftpUpload(remotePath, it) }
+                    } else {
+                        SftpUploadResult(false, getString(R.string.share_could_not_read))
+                    }
+                }
             }
 
             withContext(Dispatchers.Main) {
