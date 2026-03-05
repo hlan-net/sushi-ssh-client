@@ -25,7 +25,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = versionCodeOverride ?: 13
-        versionName = versionNameOverride ?: "0.4.0"
+        versionName = versionNameOverride ?: "0.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -108,7 +108,7 @@ dependencies {
     implementation("com.google.http-client:google-http-client-android:1.43.3")
     implementation("com.google.apis:google-api-services-drive:v3-rev20230815-2.0.0")
 
-    val coroutines_version = "1.10.2"
+    val coroutines_version = "1.9.0"
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines_version")
 
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
@@ -117,6 +117,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
+    androidTestImplementation("androidx.test.espresso:espresso-contrib:3.7.0")
     // Force 1.3.0 in the main classpath so consistent resolution does not pin it to 1.1.0,
     // which conflicts with the androidTest dependencies (espresso/junit/concurrent-futures-ktx).
     implementation("androidx.concurrent:concurrent-futures:1.3.0")
