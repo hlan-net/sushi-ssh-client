@@ -29,8 +29,11 @@ class DeviceQaSuiteTest {
 
     @Before
     fun clearState() {
-        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_WAKEUP").close()
-        instrumentation.uiAutomation.executeShellCommand("wm dismiss-keyguard").close()
+        wakeAndUnlock()
+        // Disable autofill to prevent Google Password Manager from stealing focus.
+        instrumentation.uiAutomation.executeShellCommand(
+            "settings put secure autofill_service null"
+        ).close()
         Thread.sleep(500)
 
         val context = instrumentation.targetContext
@@ -122,8 +125,7 @@ class DeviceQaSuiteTest {
             onView(withId(R.id.githubButton)).check(matches(isDisplayed()))
         }
 
-        // Verify host was saved via SshSettings (avoids relaunching MainActivity
-        // which can crash due to a pre-existing coroutines compat issue)
+        // Verify host was saved via SshSettings
         val context = instrumentation.targetContext
         val sshSettings = SshSettings(context)
         val activeHost = sshSettings.getActiveHostId()?.let { id ->
@@ -208,14 +210,24 @@ class DeviceQaSuiteTest {
     private fun <T : AppCompatActivity> launchActivity(
         activityClass: Class<T>
     ): ActivityScenario<T> {
-        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_WAKEUP").close()
-        instrumentation.uiAutomation.executeShellCommand("wm dismiss-keyguard").close()
+        wakeAndUnlock()
+        Thread.sleep(400)
         val scenario = ActivityScenario.launch(activityClass)
         scenario.onActivity { activity ->
             activity.window.addFlags(
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                    @Suppress("DEPRECATION")
                     WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
             )
+        }
+        // Wait for the activity to gain window focus, re-dismissing keyguard if needed.
+        val deadline = System.currentTimeMillis() + 5_000
+        while (System.currentTimeMillis() < deadline) {
+            var hasFocus = false
+            scenario.onActivity { activity -> hasFocus = activity.hasWindowFocus() }
+            if (hasFocus) return scenario
+            wakeAndUnlock()
+            Thread.sleep(250)
         }
         return scenario
     }
@@ -267,6 +279,11 @@ class DeviceQaSuiteTest {
             Thread.sleep(250)
         }
         throw AssertionError(timeoutMessage)
+    }
+
+    private fun wakeAndUnlock() {
+        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_WAKEUP").close()
+        instrumentation.uiAutomation.executeShellCommand("wm dismiss-keyguard").close()
     }
 
     companion object {
