@@ -117,6 +117,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
+    androidTestImplementation("androidx.test.espresso:espresso-contrib:3.7.0")
     // Force 1.3.0 in the main classpath so consistent resolution does not pin it to 1.1.0,
     // which conflicts with the androidTest dependencies (espresso/junit/concurrent-futures-ktx).
     implementation("androidx.concurrent:concurrent-futures:1.3.0")

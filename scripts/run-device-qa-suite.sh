@@ -37,6 +37,15 @@ else
 fi
 
 echo "Using test build versionCode=${TARGET_VERSION_CODE}"
+
+# Espresso requires the device screen to be on and unlocked.
+for device in "${DEVICES[@]}"; do
+  adb -s "${device}" shell settings put global stay_on_while_plugged_in 3
+  adb -s "${device}" shell input keyevent KEYCODE_WAKEUP
+  adb -s "${device}" shell wm dismiss-keyguard
+done
+sleep 1
+
 echo "Running comprehensive QA suite..."
 
 ./gradlew connectedDebugAndroidTest \
