@@ -254,11 +254,21 @@ class TerminalActivity : AppCompatActivity() {
 
     private fun connectWithClient(config: SshConnectionConfig): Pair<SshClient, SshConnectResult> {
         val client = SshClient(config)
-        val result = client.connect(streamMode = true, onLine = { line ->
-            runOnUiThread {
-                binding.terminalOutputText.appendLog(line)
+        val result = client.connect(
+            streamMode = true,
+            onLine = { line ->
+                runOnUiThread {
+                    binding.terminalOutputText.appendLog(line)
+                }
+            },
+            onConnectionClosed = {
+                runOnUiThread {
+                    if (!isConnecting && sshClient != null) {
+                        handleUnexpectedDisconnect()
+                    }
+                }
             }
-        })
+        )
         return client to result
     }
 

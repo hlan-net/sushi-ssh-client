@@ -83,7 +83,11 @@ class SshClient(private val config: SshConnectionConfig) {
         val forwardedPort: Int
     )
 
-    fun connect(onLine: (String) -> Unit, streamMode: Boolean = false): SshConnectResult {
+    fun connect(
+        onLine: (String) -> Unit,
+        streamMode: Boolean = false,
+        onConnectionClosed: (() -> Unit)? = null
+    ): SshConnectResult {
         var newChannel: ChannelShell? = null
         var sessionPair: ConnectedSessionPair? = null
         return runCatching {
@@ -103,7 +107,7 @@ class SshClient(private val config: SshConnectionConfig) {
             session = pair.targetSession
             shellChannel = createdChannel
             shellInput = outputStream
-            startShellReader(inputStream, onLine, streamMode)
+            startShellReader(inputStream, onLine, streamMode, onConnectionClosed)
             SshConnectResult(true, "Connected")
         }.getOrElse { error ->
             newChannel?.disconnect()
@@ -185,6 +189,7 @@ class SshClient(private val config: SshConnectionConfig) {
         val channel = createdSession.openChannel("shell") as? ChannelShell
             ?: throw IllegalStateException("Unable to open shell channel")
         channel.setPty(true)
+        channel.setPtyType("xterm")
         channel.connect(SHELL_CONNECT_TIMEOUT_MS)
         return channel
     }
@@ -330,7 +335,7 @@ class SshClient(private val config: SshConnectionConfig) {
         private const val CONNECTION_TIMEOUT_MS = 10000
         private const val SHELL_CONNECT_TIMEOUT_MS = 10000
         private const val SFTP_CONNECT_TIMEOUT_MS = 10000
-        private const val SERVER_ALIVE_INTERVAL_MS = 15000
+        private const val SERVER_ALIVE_INTERVAL_MS = 10000
         private const val SERVER_ALIVE_COUNT_MAX = 3
         private const val CTRL_C_ETX = 3
         private const val CTRL_D_EOT = 4
@@ -339,13 +344,18 @@ class SshClient(private val config: SshConnectionConfig) {
     private fun startShellReader(
         inputStream: InputStream,
         onLine: (String) -> Unit,
-        streamMode: Boolean
+        streamMode: Boolean,
+        onConnectionClosed: (() -> Unit)? = null
     ) {
         shellReaderThread = Thread {
-            if (streamMode) {
-                readShellOutputStream(inputStream, onLine)
-            } else {
-                readShellOutput(inputStream, onLine)
+            try {
+                if (streamMode) {
+                    readShellOutputStream(inputStream, onLine)
+                } else {
+                    readShellOutput(inputStream, onLine)
+                }
+            } finally {
+                onConnectionClosed?.invoke()
             }
         }.apply {
             isDaemon = true
