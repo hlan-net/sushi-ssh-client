@@ -500,6 +500,168 @@ class LocalSshIntegrationTest {
         }
     }
 
+    @Test
+    fun connectionStaysAliveAfterTerminalUiConnect() {
+        val credentials = readCredentialsOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        resetAppState(context)
+
+        val sshSettings = SshSettings(context)
+        val testHost = SshConnectionConfig(
+            alias = "Stability Host",
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password,
+            privateKey = credentials.privateKey,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
+        )
+        sshSettings.saveHost(testHost)
+        sshSettings.setActiveHostId(testHost.id)
+
+        val logBuilder = StringBuilder()
+        fun log(msg: String) {
+            val ts = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.US)
+                .format(java.util.Date())
+            logBuilder.appendLine("[$ts] $msg")
+        }
+
+        log("Test start — host=${credentials.host}:${credentials.port} user=${credentials.username}")
+
+        var failureMessage: String? = null
+
+        ActivityScenario.launch(TerminalActivity::class.java).use { scenario ->
+            log("TerminalActivity launched, clicking connect")
+            scenario.onActivity { activity ->
+                activity.findViewById<android.view.View>(R.id.terminalConnectButton).performClick()
+            }
+
+            waitForCondition(
+                scenario = scenario,
+                timeoutMs = 20_000,
+                timeoutMessage = "Session did not reach connected state"
+            ) { activity ->
+                val statusView = activity.findViewById<TextView>(R.id.terminalStatusText)
+                activity.getString(R.string.terminal_status_connected) == statusView.text.toString()
+            }
+
+            log("Connected — cycling soft keyboard to reproduce issue #51")
+
+            // Simulate keyboard open/close cycles — the user reports the
+            // connection drops when the virtual keyboard is dismissed.
+            for (cycle in 1..KEYBOARD_CYCLES) {
+                // Open keyboard by focusing the terminal view.
+                scenario.onActivity { activity ->
+                    val terminalView = activity.findViewById<TerminalView>(R.id.terminalOutputText)
+                    terminalView.requestFocus()
+                    val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                        as? android.view.inputmethod.InputMethodManager
+                    imm?.showSoftInput(terminalView, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                }
+                log("Keyboard cycle $cycle/$KEYBOARD_CYCLES — opened")
+                Thread.sleep(1_500)
+
+                // Close keyboard.
+                scenario.onActivity { activity ->
+                    val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                        as? android.view.inputmethod.InputMethodManager
+                    imm?.hideSoftInputFromWindow(activity.window.decorView.windowToken, 0)
+                }
+                log("Keyboard cycle $cycle/$KEYBOARD_CYCLES — closed")
+                Thread.sleep(1_500)
+
+                // Check connection is still alive after keyboard dismiss.
+                val checkResult = assertStillConnected(
+                    scenario, context, "keyboard close (cycle $cycle/$KEYBOARD_CYCLES)", log = ::log
+                )
+                if (checkResult != null) {
+                    failureMessage = checkResult
+                    break
+                }
+            }
+
+            // Send commands one at a time, waiting for a new prompt after each.
+            if (failureMessage == null) {
+                val commands = listOf(
+                    "cd /tmp",
+                    "touch sushi_test_file.tmp",
+                    "ls sushi_test_file.tmp",
+                    "cat /etc/hostname",
+                    "rm sushi_test_file.tmp",
+                    "echo SUSHI_STABLE_DONE"
+                )
+
+                for ((index, cmd) in commands.withIndex()) {
+                    val promptsBefore = countPrompts(scenario)
+                    log("Command ${index + 1}/${commands.size}: '$cmd' (prompts before: $promptsBefore)")
+
+                    scenario.onActivity { activity ->
+                        val sendRawMethod = TerminalActivity::class.java.getDeclaredMethod("sendRaw", String::class.java)
+                        sendRawMethod.isAccessible = true
+                        sendRawMethod.invoke(activity, "$cmd\n")
+                    }
+
+                    try {
+                        waitForCondition(
+                            scenario = scenario,
+                            timeoutMs = 10_000,
+                            timeoutMessage = "No new prompt after command '${cmd}'"
+                        ) { _ ->
+                            countPrompts(scenario) > promptsBefore
+                        }
+                        val promptsAfter = countPrompts(scenario)
+                        log("  -> prompt received (prompts after: $promptsAfter)")
+                    } catch (e: AssertionError) {
+                        var terminalLog = ""
+                        scenario.onActivity { activity ->
+                            terminalLog = activity.findViewById<TerminalView>(R.id.terminalOutputText).getRawText()
+                        }
+                        log("FAIL after command '$cmd'. Terminal log:\n$terminalLog")
+                        failureMessage = e.message
+                        break
+                    }
+
+                    // Verify still connected after each command.
+                    val checkResult = assertStillConnected(
+                        scenario, context, "command '$cmd'", log = ::log
+                    )
+                    if (checkResult != null) {
+                        failureMessage = checkResult
+                        break
+                    }
+                }
+            }
+
+            // Capture final terminal log regardless of outcome.
+            var finalLog = ""
+            scenario.onActivity { activity ->
+                finalLog = activity.findViewById<TerminalView>(R.id.terminalOutputText).getRawText()
+            }
+            log("Final terminal log:\n$finalLog")
+
+            // Disconnect if still connected.
+            scenario.onActivity { activity ->
+                val statusView = activity.findViewById<TextView>(R.id.terminalStatusText)
+                if (activity.getString(R.string.terminal_status_connected) == statusView.text.toString()) {
+                    activity.findViewById<android.view.View>(R.id.terminalConnectButton).performClick()
+                }
+            }
+        }
+
+        // Emit the test log to logcat so it can be captured by the run script.
+        for (line in logBuilder.lines()) {
+            android.util.Log.i(STABILITY_LOG_TAG, line)
+        }
+
+        if (failureMessage != null) {
+            assertTrue("$failureMessage\n\nTerminal log:\n$logBuilder", false)
+        }
+    }
+
     @Ignore("Enable after custom phrases are supported in automation.")
     @Test
     fun removesSushiKeysViaPhraseThenFailsReconnect() {
@@ -786,6 +948,52 @@ class LocalSshIntegrationTest {
         assertTrue(timeoutMessage, false)
     }
 
+    /**
+     * Checks the terminal is still connected. Returns null on success,
+     * or a failure message string if the connection dropped.
+     */
+    private fun <T : androidx.fragment.app.FragmentActivity> assertStillConnected(
+        scenario: ActivityScenario<T>,
+        context: android.content.Context,
+        label: String,
+        log: (String) -> Unit
+    ): String? {
+        var statusText = ""
+        var terminalLog = ""
+        scenario.onActivity { activity ->
+            statusText = activity.findViewById<TextView>(R.id.terminalStatusText).text.toString()
+            terminalLog = activity.findViewById<TerminalView>(R.id.terminalOutputText).getRawText()
+        }
+        log("Connection check after $label — status='$statusText'")
+        val connectedLabel = context.getString(R.string.terminal_status_connected)
+        if (statusText != connectedLabel) {
+            log("FAIL — disconnected after $label. Terminal log:\n$terminalLog")
+            return "Connection dropped after $label (status='$statusText')"
+        }
+        return null
+    }
+
+    /**
+     * Counts shell prompt occurrences (`$ ` or `# `) in the terminal display text.
+     * Used to detect when a new prompt has appeared after a command completes.
+     * Avoids Kotlin Regex/Sequence APIs that ProGuard strips in minified builds.
+     */
+    private fun <T : androidx.fragment.app.FragmentActivity> countPrompts(
+        scenario: ActivityScenario<T>
+    ): Int {
+        var count = 0
+        scenario.onActivity { activity ->
+            val text = activity.findViewById<TextView>(R.id.terminalOutputText).text?.toString().orEmpty()
+            for (i in 0 until text.length - 1) {
+                val ch = text[i]
+                if ((ch == '$' || ch == '#') && text[i + 1] == ' ') {
+                    count++
+                }
+            }
+        }
+        return count
+    }
+
     private data class LocalSshCredentials(
         val host: String,
         val port: Int,
@@ -823,5 +1031,9 @@ class LocalSshIntegrationTest {
         private const val ARG_JUMP_PORT = "sshJumpPort"
         private const val ARG_JUMP_USERNAME = "sshJumpUsername"
         private const val ARG_JUMP_PASSWORD = "sshJumpPassword"
+
+        private const val KEYBOARD_CYCLES = 3
+        private const val STABILITY_LOG_TAG = "SushiStabilityTest"
+
     }
 }

@@ -53,7 +53,10 @@ class TerminalActivity : AppCompatActivity() {
         binding.terminalOutputText.textSize = appThemeSettings.getTerminalFontSize().sp
 
         binding.terminalOutputText.onSizeChangedListener = { col, row, wp, hp ->
-            sshClient?.resizePty(col, row, wp, hp)
+            val client = sshClient
+            if (client != null) {
+                lifecycleScope.launch(Dispatchers.IO) { client.resizePty(col, row, wp, hp) }
+            }
         }
 
         binding.terminalConnectButton.setOnClickListener {
