@@ -575,18 +575,11 @@ class LocalSshIntegrationTest {
                 Thread.sleep(1_500)
 
                 // Check connection is still alive after keyboard dismiss.
-                var statusText = ""
-                var terminalLog = ""
-                scenario.onActivity { activity ->
-                    statusText = activity.findViewById<TextView>(R.id.terminalStatusText).text.toString()
-                    terminalLog = activity.findViewById<TerminalView>(R.id.terminalOutputText).getRawText()
-                }
-                log("Keyboard cycle $cycle/$KEYBOARD_CYCLES — status='$statusText'")
-                val connectedLabel = context.getString(R.string.terminal_status_connected)
-                if (statusText != connectedLabel) {
-                    log("FAIL — connection dropped after keyboard close. Terminal log:\n$terminalLog")
-                    failureMessage = "Connection dropped after keyboard close (cycle $cycle/$KEYBOARD_CYCLES, " +
-                        "status='$statusText')"
+                val checkResult = assertStillConnected(
+                    scenario, context, "keyboard close (cycle $cycle/$KEYBOARD_CYCLES)", log = ::log
+                )
+                if (checkResult != null) {
+                    failureMessage = checkResult
                     break
                 }
             }
@@ -633,18 +626,11 @@ class LocalSshIntegrationTest {
                     }
 
                     // Verify still connected after each command.
-                    var statusText = ""
-                    scenario.onActivity { activity ->
-                        statusText = activity.findViewById<TextView>(R.id.terminalStatusText).text.toString()
-                    }
-                    val connectedLabel = context.getString(R.string.terminal_status_connected)
-                    if (statusText != connectedLabel) {
-                        var terminalLog = ""
-                        scenario.onActivity { activity ->
-                            terminalLog = activity.findViewById<TerminalView>(R.id.terminalOutputText).getRawText()
-                        }
-                        log("FAIL — disconnected after command '$cmd' (status='$statusText'). Terminal log:\n$terminalLog")
-                        failureMessage = "Connection dropped after command '${cmd}' (status='$statusText')"
+                    val checkResult = assertStillConnected(
+                        scenario, context, "command '$cmd'", log = ::log
+                    )
+                    if (checkResult != null) {
+                        failureMessage = checkResult
                         break
                     }
                 }
@@ -960,6 +946,31 @@ class LocalSshIntegrationTest {
             Thread.sleep(250)
         }
         assertTrue(timeoutMessage, false)
+    }
+
+    /**
+     * Checks the terminal is still connected. Returns null on success,
+     * or a failure message string if the connection dropped.
+     */
+    private fun <T : androidx.fragment.app.FragmentActivity> assertStillConnected(
+        scenario: ActivityScenario<T>,
+        context: android.content.Context,
+        label: String,
+        log: (String) -> Unit
+    ): String? {
+        var statusText = ""
+        var terminalLog = ""
+        scenario.onActivity { activity ->
+            statusText = activity.findViewById<TextView>(R.id.terminalStatusText).text.toString()
+            terminalLog = activity.findViewById<TerminalView>(R.id.terminalOutputText).getRawText()
+        }
+        log("Connection check after $label — status='$statusText'")
+        val connectedLabel = context.getString(R.string.terminal_status_connected)
+        if (statusText != connectedLabel) {
+            log("FAIL — disconnected after $label. Terminal log:\n$terminalLog")
+            return "Connection dropped after $label (status='$statusText')"
+        }
+        return null
     }
 
     /**

@@ -55,7 +55,7 @@ class TerminalActivity : AppCompatActivity() {
         binding.terminalOutputText.onSizeChangedListener = { col, row, wp, hp ->
             val client = sshClient
             if (client != null) {
-                Thread { client.resizePty(col, row, wp, hp) }.start()
+                lifecycleScope.launch(Dispatchers.IO) { client.resizePty(col, row, wp, hp) }
             }
         }
 
