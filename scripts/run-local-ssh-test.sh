@@ -63,4 +63,25 @@ if [[ "${SSH_JUMP_ENABLED}" == "true" || "${SSH_JUMP_ENABLED}" == "1" ]]; then
   fi
 fi
 
+STABILITY_LOG_TAG="SushiStabilityTest"
+
+# Clear logcat before the test run so we only capture this session.
+for device in $(adb devices | awk 'NR>1 && $2=="device" {print $1}'); do
+  adb -s "${device}" logcat -c 2>/dev/null || true
+done
+
 ./gradlew connectedDebugAndroidTest --no-daemon "${args[@]}"
+test_exit=$?
+
+# Dump stability test log from logcat.
+for device in $(adb devices | awk 'NR>1 && $2=="device" {print $1}'); do
+  log_lines="$(adb -s "${device}" logcat -d -s "${STABILITY_LOG_TAG}:I" 2>/dev/null | grep "${STABILITY_LOG_TAG}" || true)"
+  if [[ -n "${log_lines}" ]]; then
+    echo ""
+    echo "=== Terminal stability log (${device}) ==="
+    echo "${log_lines}" | sed "s/^.*${STABILITY_LOG_TAG}: //"
+    echo "=== End log ==="
+  fi
+done
+
+exit ${test_exit}
