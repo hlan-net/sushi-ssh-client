@@ -103,8 +103,8 @@ dependencies {
     implementation("com.jcraft:jzlib:1.1.3")
     implementation("androidx.security:security-crypto:1.0.0")
     implementation("com.google.android.gms:play-services-auth:21.5.1")
-    implementation("com.google.api-client:google-api-client-android:2.2.0")
-    implementation("com.google.api-client:google-api-client-gson:2.2.0")
+    implementation("com.google.api-client:google-api-client-android:2.9.0")
+    implementation("com.google.api-client:google-api-client-gson:2.9.0")
     implementation("com.google.http-client:google-http-client-android:1.43.3")
     implementation("com.google.apis:google-api-services-drive:v3-rev20230815-2.0.0")
 
