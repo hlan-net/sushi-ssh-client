@@ -101,6 +101,8 @@ dependencies {
     // Use maintained JSch fork for modern host key/kex support (OpenSSH 9+/10+).
     implementation("com.github.mwiede:jsch:2.27.8")
     implementation("com.jcraft:jzlib:1.1.3")
+    // Bouncy Castle provides Ed25519 on Android API < 33 (JCE lacks EdDSA before API 33).
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     implementation("androidx.security:security-crypto:1.0.0")
     implementation("com.google.android.gms:play-services-auth:21.5.1")
     implementation("com.google.api-client:google-api-client-android:2.2.0")
