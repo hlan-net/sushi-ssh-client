@@ -215,6 +215,11 @@ class SshClient(private val config: SshConnectionConfig) {
 
     private fun configureSession(session: Session) {
         session.setConfig("StrictHostKeyChecking", "no")
+        // Use Bouncy Castle for Ed25519 so ssh-ed25519 host keys work on all Android
+        // versions. Android JCE only supports EdDSA from API 33; the BC implementation
+        // works from the app's minSdk (26) onward.
+        session.setConfig("ssh-ed25519", "com.jcraft.jsch.bc.SignatureEd25519")
+        session.setConfig("keypairgen.eddsa", "com.jcraft.jsch.bc.KeyPairGenEdDSA")
         session.serverAliveInterval = SERVER_ALIVE_INTERVAL_MS
         session.serverAliveCountMax = SERVER_ALIVE_COUNT_MAX
     }
