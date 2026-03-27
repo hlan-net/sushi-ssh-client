@@ -185,7 +185,7 @@ jobs:
           sdkmanager "platforms;android-36"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Setup Android signing (if keystore available)
         if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
