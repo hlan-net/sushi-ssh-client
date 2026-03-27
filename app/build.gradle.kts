@@ -93,13 +93,13 @@ android {
 
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.viewpager2:viewpager2:1.1.0")
     implementation("com.google.android.material:material:1.13.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     // Use maintained JSch fork for modern host key/kex support (OpenSSH 9+/10+).
-    implementation("com.github.mwiede:jsch:0.2.21")
+    implementation("com.github.mwiede:jsch:2.27.8")
     implementation("com.jcraft:jzlib:1.1.3")
     // Bouncy Castle provides Ed25519 on Android API < 33 (JCE lacks EdDSA before API 33).
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
@@ -113,7 +113,7 @@ dependencies {
     val coroutines_version = "1.9.0"
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines_version")
 
-    implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta1")
 
     testImplementation("junit:junit:4.13.2")
