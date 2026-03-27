@@ -4,6 +4,33 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
+## [0.4.3] - 2026-03-27
+
+### Fixed
+- Fixed terminal mode duplicate virtual keyboard input where short commands could be sent twice (for example `cd` becoming `cdCD`).
+
+### Changed
+- Updated terminal IME flags to reduce transformed/replayed text commits from virtual keyboards.
+
+## [0.4.2] - 2026-03-06
+
+### Fixed
+- Fixed connection dropping when the soft keyboard opened/closed by moving PTY resize off the UI thread.
+- Improved SSH session stability with `xterm` PTY type and more frequent keepalive.
+- Improved disconnect detection by triggering connection-closed handling directly from shell reader callbacks.
+
+### Added
+- Added `connectionStaysAliveAfterTerminalUiConnect` instrumented test for keyboard open/close stability.
+
+## [0.4.1] - 2026-03-05
+
+### Fixed
+- Fixed crash from coroutine binary incompatibility by pinning `kotlinx-coroutines` to `1.9.0` for ML Kit compatibility.
+
+### Changed
+- Migrated to AGP `9.0.1` and Gradle `9.1.0`.
+- Improved Espresso device QA stability by disabling autofill overlays and adding focus retry handling.
+
 ## [0.4.0] - 2026-03-04
 
 ### Added
