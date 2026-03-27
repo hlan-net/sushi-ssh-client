@@ -38,6 +38,9 @@
 -keep class com.jcraft.jsch.jcraft.** { *; }
 # Bouncy Castle implementations used by JSch for Ed25519 on Android API < 33.
 -keep class com.jcraft.jsch.bc.** { *; }
+# JSch BC adapter references optional PQC classes (ML-KEM) that are not required for
+# current host-key authentication paths used by the app.
+-dontwarn org.bouncycastle.pqc.crypto.mlkem.**
 
 # ML Kit GenAI Prompt API — keep all classes to prevent stripping of AICore bindings.
 -keep class com.google.mlkit.** { *; }
