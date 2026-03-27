@@ -32,6 +32,8 @@ class TerminalActivity : AppCompatActivity() {
     private var didLoseConnection = false
     private var lastRawInput: String = ""
     private var lastRawInputAtMs: Long = 0L
+    private var lastPrintableChunk: String = ""
+    private var lastPrintableChunkAtMs: Long = 0L
     private val connectionMonitorHandler = Handler(Looper.getMainLooper())
     private val connectionMonitorRunnable = Runnable {
         monitorConnection()
@@ -213,6 +215,11 @@ class TerminalActivity : AppCompatActivity() {
         if (input == "\n" && lastRawInput == "\n" && now - lastRawInputAtMs < INPUT_DEDUP_WINDOW_MS) {
             return
         }
+
+        if (shouldDropDuplicatePrintableChunk(input, now)) {
+            return
+        }
+
         lastRawInput = input
         lastRawInputAtMs = now
 
@@ -224,6 +231,25 @@ class TerminalActivity : AppCompatActivity() {
                 }
             }
         }.start()
+    }
+
+    private fun shouldDropDuplicatePrintableChunk(input: String, now: Long): Boolean {
+        if (input.length < 2) {
+            return false
+        }
+
+        if (input.any { it == '\n' || it == '\t' || it == '\b' || it.code < 0x20 }) {
+            return false
+        }
+
+        val previous = lastPrintableChunk
+        val isImmediateDuplicate = now - lastPrintableChunkAtMs < INPUT_DEDUP_WINDOW_MS &&
+            previous.isNotEmpty() &&
+            input.equals(previous, ignoreCase = true)
+
+        lastPrintableChunk = input
+        lastPrintableChunkAtMs = now
+        return isImmediateDuplicate
     }
 
     private fun updateUi() {
