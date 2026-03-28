@@ -88,6 +88,46 @@ class GeminiNanoClient(private val context: Context) {
     }
 
     /**
+     * Generate a conversational response using SUSHI.md context from target system.
+     * 
+     * @param userMessage The user's message/query
+     * @param sushiMdContext The SUSHI.md content from the target system
+     * @param conversationHistory Recent conversation turns for context
+     * @return GeminiResult with the system's response (may include EXECUTE: directive)
+     */
+    suspend fun generateConversationalResponse(
+        userMessage: String,
+        sushiMdContext: String,
+        conversationHistory: List<ConversationTurn> = emptyList()
+    ): GeminiResult {
+        return try {
+            val prompt = buildConversationalPrompt(userMessage, sushiMdContext, conversationHistory)
+            val requestBuilder = GenerateContentRequest.Builder(TextPart(prompt))
+            requestBuilder.temperature = 0.7f
+            requestBuilder.maxOutputTokens = 500
+            val request = requestBuilder.build()
+
+            val response: GenerateContentResponse = model.generateContent(request)
+            val text = response.candidates
+                .firstOrNull()
+                ?.text
+                ?.trim()
+
+            if (text.isNullOrBlank()) {
+                GeminiResult(false, context.getString(R.string.gemini_output_error))
+            } else {
+                GeminiResult(true, text)
+            }
+        } catch (e: GenAiException) {
+            Log.e(TAG, "Nano conversational inference failed: ${e.message}")
+            GeminiResult(false, context.getString(R.string.gemini_output_error))
+        } catch (e: Exception) {
+            Log.e(TAG, "Nano generateConversationalResponse error: ${e.message}")
+            GeminiResult(false, e.message ?: context.getString(R.string.gemini_output_error))
+        }
+    }
+
+    /**
      * Generates a shell command from [userPrompt] using on-device Gemini Nano.
      * Returns a [GeminiResult] with the same contract as [GeminiClient.generateCommand].
      *
@@ -130,6 +170,59 @@ class GeminiNanoClient(private val context: Context) {
         } catch (e: Exception) {
             Log.w(TAG, "Nano close error: ${e.message}")
         }
+    }
+
+    private fun buildConversationalPrompt(
+        userMessage: String,
+        sushiMdContext: String,
+        conversationHistory: List<ConversationTurn>
+    ): String {
+        val historyText = if (conversationHistory.isNotEmpty()) {
+            val recent = conversationHistory.takeLast(5)
+            recent.joinToString("\n\n") { turn ->
+                "User: ${turn.userMessage}\nSystem: ${turn.systemResponse}"
+            }
+        } else {
+            "(No conversation history yet)"
+        }
+
+        return """
+$sushiMdContext
+
+---
+
+## Conversation Context
+
+Recent conversation:
+$historyText
+
+---
+
+## Current User Message
+
+User: $userMessage
+
+---
+
+## Response Instructions
+
+Respond naturally as this computer system in first person.
+
+If you need to execute a command:
+1. Explain what you're doing in natural language
+2. On a new line, write: EXECUTE: <command>
+3. The command will be run and you'll see the result
+4. Then provide a natural language interpretation of the result
+
+Example response format:
+"Let me check my current temperature.
+
+EXECUTE: vcgencmd measure_temp"
+
+If the user's request is unclear, ask a clarifying question naturally.
+
+Your response:
+        """.trimIndent()
     }
 
     private fun buildPrompt(userPrompt: String): String {

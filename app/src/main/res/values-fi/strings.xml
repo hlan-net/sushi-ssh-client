@@ -334,5 +334,16 @@
     <string name="gemini_transcript_label">Keskusteluhistoria</string>
     <string name="gemini_transcript_you_label">Sinä</string>
     <string name="gemini_transcript_gemini_label">Gemini</string>
+    
+    <!-- Conversation UI -->
+    <string name="conversation_input_hint">Kysy järjestelmältä...</string>
+    <string name="action_send_message">Lähetä viesti</string>
+    <string name="conversation_confirm_command_title">Vahvista komento</string>
+    <string name="conversation_confirm_command_message">Suoritetaanko tämä komento?\n\n%1$s</string>
+    <string name="conversation_command_blocked">Komento estetty turvallisuussyistä</string>
+    <string name="conversation_executing">Suoritetaan...</string>
+    <string name="conversation_initializing">Yhdistetään järjestelmään...</string>
+    <string name="conversation_init_failed">Keskustelun alustaminen epäonnistui: %1$s</string>
+    <string name="conversation_connected_to">Yhdistetty: %1$s</string>
 
 </resources>

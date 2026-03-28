@@ -4,6 +4,32 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
+## [0.5.0] - 2026-03-28
+
+### Added
+- **Conversational AI with target system**: Talk directly to your connected Raspberry Pi/Linux system using Gemini.
+  - System persona configured via `~/.config/sushi/SUSHI.md` on target (auto-generated on first use).
+  - Star Trek computer-style responses where the system responds in first person.
+  - Three-tier command safety model: SAFE (auto-execute), CONFIRM (ask user first), BLOCKED (never allow).
+  - Support for both text and voice input in conversation dialog.
+  - Conversation logs saved to `~/.sushi_logs/` on target system with timestamps.
+  - Works with both Gemini Cloud (Flash/Pro) and on-device Gemini Nano.
+- Added `PersonaClient` for reading and managing SUSHI.md persona configuration from target.
+- Added `CommandSafety` classifier with comprehensive regex patterns for safe/confirm/blocked commands.
+- Added `ConversationManager` to orchestrate AI conversation flow, command execution, and safety checks.
+- Added `SshConnectionHolder` singleton to share SSH connection state between Terminal and Main activities.
+- Added `ConversationTurn` data class for conversation history tracking.
+- Added "Initialize AI Persona" managed Play to install persona framework on target systems.
+- Added conversational response methods to `GeminiClient` and `GeminiNanoClient`.
+- Added conversation UI elements in Gemini dialog: text input field, send button, IME action support.
+- Added 9 new conversation-related strings with full localization (de, fi, sv, es).
+
+### Changed
+- Enhanced Gemini dialog to support dual input modes: voice (existing) and text (new).
+- Updated `TerminalActivity` to track connection state via `SshConnectionHolder`.
+- Updated `MainActivity` with ~260 lines of conversation integration logic.
+- Conversation only becomes available after SSH connection is established (connection-first architecture).
+
 ## [0.4.3] - 2026-03-27
 
 ### Fixed

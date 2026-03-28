@@ -334,5 +334,16 @@
     <string name="gemini_transcript_label">Gesprächsverlauf</string>
     <string name="gemini_transcript_you_label">Du</string>
     <string name="gemini_transcript_gemini_label">Gemini</string>
+    
+    <!-- Conversation UI -->
+    <string name="conversation_input_hint">Frag das System...</string>
+    <string name="action_send_message">Nachricht senden</string>
+    <string name="conversation_confirm_command_title">Befehl bestätigen</string>
+    <string name="conversation_confirm_command_message">Diesen Befehl ausführen?\n\n%1$s</string>
+    <string name="conversation_command_blocked">Befehl aus Sicherheitsgründen blockiert</string>
+    <string name="conversation_executing">Wird ausgeführt...</string>
+    <string name="conversation_initializing">Verbinde mit System...</string>
+    <string name="conversation_init_failed">Konversation konnte nicht initialisiert werden: %1$s</string>
+    <string name="conversation_connected_to">Verbunden mit: %1$s</string>
 
 </resources>

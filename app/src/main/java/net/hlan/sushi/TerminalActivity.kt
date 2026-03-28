@@ -152,6 +152,9 @@ class TerminalActivity : AppCompatActivity() {
                     didLoseConnection = false
                     binding.terminalOutputText.appendLog(getString(R.string.session_connected_to, config.displayTarget()))
                     binding.terminalOutputText.requestFocus()
+                    
+                    // Notify MainActivity that SSH connection is active
+                    SshConnectionHolder.setActiveConnection(client, config)
                 } else {
                     client.disconnect()
                     binding.terminalOutputText.appendLog(getString(R.string.terminal_connect_failed_log, result.message))
@@ -167,6 +170,9 @@ class TerminalActivity : AppCompatActivity() {
         sshClient?.disconnect()
         sshClient = null
         isConnecting = false
+        
+        // Notify MainActivity that SSH connection is gone
+        SshConnectionHolder.clearActiveConnection()
         didLoseConnection = false
         updateUi()
     }

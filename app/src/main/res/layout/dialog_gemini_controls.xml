@@ -22,25 +22,69 @@
         android:layout_marginTop="8dp"
         android:text="@string/gemini_status_disabled" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/geminiDialogVoiceButton"
-        style="@style/Widget.Sushi.PrimaryButton"
+    <!-- Text Input Section -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
-        android:text="@string/action_gemini_voice"
-        app:icon="@drawable/ic_mic"
-        app:iconGravity="textStart" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:hint="@string/conversation_input_hint"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+            
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/geminiDialogTextInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="3"
+                android:imeOptions="actionSend"
+                android:inputType="textCapSentences|textMultiLine" />
+        </com.google.android.material.textfield.TextInputLayout>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/geminiDialogSettingsButton"
-        style="@style/Widget.Material3.Button.OutlinedButton"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/geminiDialogSendButton"
+            style="@style/Widget.Material3.Button.IconButton.Filled"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            app:icon="@drawable/ic_send"
+            android:contentDescription="@string/action_send_message" />
+    </LinearLayout>
+
+    <!-- Voice and Settings Buttons -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="@string/action_gemini_settings"
-        app:icon="@drawable/ic_settings"
-        app:iconGravity="textStart" />
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+        
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/geminiDialogVoiceButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="@string/action_gemini_voice"
+            app:icon="@drawable/ic_mic"
+            app:iconGravity="textStart" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/geminiDialogSettingsButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/action_gemini_settings"
+            app:icon="@drawable/ic_settings"
+            app:iconGravity="textStart" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/geminiTranscriptLabel"

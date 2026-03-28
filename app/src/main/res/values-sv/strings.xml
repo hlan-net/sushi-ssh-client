@@ -334,5 +334,16 @@
     <string name="gemini_transcript_label">Konversationshistorik</string>
     <string name="gemini_transcript_you_label">Du</string>
     <string name="gemini_transcript_gemini_label">Gemini</string>
+    
+    <!-- Conversation UI -->
+    <string name="conversation_input_hint">Fråga systemet...</string>
+    <string name="action_send_message">Skicka meddelande</string>
+    <string name="conversation_confirm_command_title">Bekräfta kommando</string>
+    <string name="conversation_confirm_command_message">Kör det här kommandot?\n\n%1$s</string>
+    <string name="conversation_command_blocked">Kommando blockerat av säkerhetsskäl</string>
+    <string name="conversation_executing">Kör...</string>
+    <string name="conversation_initializing">Ansluter till systemet...</string>
+    <string name="conversation_init_failed">Kunde inte initiera konversation: %1$s</string>
+    <string name="conversation_connected_to">Ansluten till: %1$s</string>
 
 </resources>

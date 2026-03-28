@@ -4,8 +4,24 @@ An open source Android SSH client focused on fast connections, clean session man
 
 ## Status
 - Active development with working SSH session flow and host management.
+- **NEW**: Conversational AI mode - talk directly to your connected system using Gemini.
 - Optional Gemini voice command mode (user-provided API key).
 - Optional Google Drive log uploads (Google sign-in required).
+
+## v0.5.0 highlights
+- **Conversational AI with your target system**:
+  - Talk directly TO your connected Raspberry Pi/Linux system via Gemini
+  - System persona configured via `~/.config/sushi/SUSHI.md` on target
+  - Star Trek computer-style responses ("I am running at 52°C")
+  - Three-tier command safety: SAFE (auto-execute), CONFIRM (ask first), BLOCKED (never allow)
+  - Support for both text and voice input
+  - Conversation logs saved to `~/.sushi_logs/` on target system
+  - One-click persona initialization via managed Play
+  - Works with both Gemini Cloud and on-device Gemini Nano
+- Enhanced connection architecture:
+  - `SshConnectionHolder` singleton shares connection state between activities
+  - Conversation only available after SSH connection established
+- Target-side logging for AI conversations
 
 ## v0.3.0 highlights
 - Main screen reorganization:

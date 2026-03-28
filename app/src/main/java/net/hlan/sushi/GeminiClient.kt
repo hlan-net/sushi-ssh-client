@@ -28,6 +28,79 @@ class GeminiClient(
         return AuthMode.NONE
     }
 
+    /**
+     * Generate a conversational response using SUSHI.md context from target system.
+     * The system will respond AS the target system (first person).
+     * 
+     * @param userMessage The user's message/query
+     * @param sushiMdContext The SUSHI.md content from the target system
+     * @param conversationHistory Recent conversation turns for context
+     * @return GeminiResult with the system's response (may include EXECUTE: directive)
+     */
+    fun generateConversationalResponse(
+        userMessage: String,
+        sushiMdContext: String,
+        conversationHistory: List<ConversationTurn> = emptyList()
+    ): GeminiResult {
+        val authMode = getAuthMode()
+        if (authMode == AuthMode.NONE) {
+            return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
+        }
+
+        val modelId = settings.getCloudModel()
+        val baseUrl = BASE_URL_TEMPLATE.format(modelId)
+
+        val connection = when (authMode) {
+            AuthMode.GOOGLE_ACCOUNT -> {
+                val token = authManager?.getGeminiAccessToken()
+                if (token == null) {
+                    val apiKey = settings.getApiKey().trim()
+                    if (apiKey.isEmpty()) {
+                        return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
+                    }
+                    createApiKeyConnection(apiKey, baseUrl)
+                } else {
+                    createOAuthConnection(token, baseUrl)
+                }
+            }
+            AuthMode.API_KEY -> {
+                createApiKeyConnection(settings.getApiKey().trim(), baseUrl)
+            }
+            AuthMode.NONE -> {
+                return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
+            }
+        }
+
+        val requestBody = JSONObject().apply {
+            put("contents", JSONArray().put(buildConversationalContent(userMessage, sushiMdContext, conversationHistory)))
+            put(
+                "generationConfig",
+                JSONObject().apply {
+                    put("temperature", 0.7)
+                    put("maxOutputTokens", 500)
+                }
+            )
+        }
+
+        return try {
+            connection.outputStream.use { outputStream ->
+                outputStream.write(requestBody.toString().toByteArray(Charsets.UTF_8))
+            }
+
+            val responseText = readResponse(connection)
+            val parsed = parseCommand(responseText)
+            if (parsed.isNullOrBlank()) {
+                GeminiResult(false, context.getString(R.string.gemini_output_error))
+            } else {
+                GeminiResult(true, parsed)
+            }
+        } catch (ex: Exception) {
+            GeminiResult(false, ex.message ?: context.getString(R.string.gemini_output_error))
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     fun generateCommand(userPrompt: String): GeminiResult {
         val authMode = getAuthMode()
         if (authMode == AuthMode.NONE) {
@@ -119,6 +192,76 @@ class GeminiClient(
             put("role", "user")
             put("parts", JSONArray().put(part))
         }
+    }
+
+    private fun buildConversationalContent(
+        userMessage: String,
+        sushiMdContext: String,
+        conversationHistory: List<ConversationTurn>
+    ): JSONObject {
+        val prompt = buildConversationalPrompt(userMessage, sushiMdContext, conversationHistory)
+        val part = JSONObject().put("text", prompt)
+        return JSONObject().apply {
+            put("role", "user")
+            put("parts", JSONArray().put(part))
+        }
+    }
+
+    private fun buildConversationalPrompt(
+        userMessage: String,
+        sushiMdContext: String,
+        conversationHistory: List<ConversationTurn>
+    ): String {
+        val historyText = if (conversationHistory.isNotEmpty()) {
+            val recent = conversationHistory.takeLast(5)
+            recent.joinToString("\n\n") { turn ->
+                "User: ${turn.userMessage}\nSystem: ${turn.systemResponse}"
+            }
+        } else {
+            "(No conversation history yet)"
+        }
+
+        return """
+$sushiMdContext
+
+---
+
+## Conversation Context
+
+Recent conversation:
+$historyText
+
+---
+
+## Current User Message
+
+User: $userMessage
+
+---
+
+## Response Instructions
+
+Respond naturally as this computer system in first person.
+
+If you need to execute a command:
+1. Explain what you're doing in natural language
+2. On a new line, write: EXECUTE: <command>
+3. The command will be run and you'll see the result
+4. Then provide a natural language interpretation of the result
+
+Example response format:
+"Let me check my current temperature.
+
+EXECUTE: vcgencmd measure_temp
+
+(After seeing result: temp=52.0'C)
+
+I am running at 52 degrees Celsius. Operating within normal parameters."
+
+If the user's request is unclear, ask a clarifying question naturally.
+
+Your response:
+        """.trimIndent()
     }
 
     private fun buildPrompt(userPrompt: String): String {

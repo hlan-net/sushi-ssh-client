@@ -335,5 +335,16 @@
     <string name="gemini_transcript_label">Historial de conversación</string>
     <string name="gemini_transcript_you_label">Tú</string>
     <string name="gemini_transcript_gemini_label">Gemini</string>
+    
+    <!-- Conversation UI -->
+    <string name="conversation_input_hint">Pregunta al sistema...</string>
+    <string name="action_send_message">Enviar mensaje</string>
+    <string name="conversation_confirm_command_title">Confirmar comando</string>
+    <string name="conversation_confirm_command_message">¿Ejecutar este comando?\n\n%1$s</string>
+    <string name="conversation_command_blocked">Comando bloqueado por seguridad</string>
+    <string name="conversation_executing">Ejecutando...</string>
+    <string name="conversation_initializing">Conectando al sistema...</string>
+    <string name="conversation_init_failed">No se pudo iniciar la conversación: %1$s</string>
+    <string name="conversation_connected_to">Conectado a: %1$s</string>
 
 </resources>
