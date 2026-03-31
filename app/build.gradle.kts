@@ -106,7 +106,7 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     // JSch BC integration references ML-KEM classes shipped in bcprov-ext.
     implementation("org.bouncycastle:bcprov-ext-jdk18on:1.78.1")
-    implementation("androidx.security:security-crypto:1.0.0")
+    implementation("androidx.security:security-crypto:1.1.0")
     implementation("com.google.android.gms:play-services-auth:21.5.1")
     implementation("com.google.api-client:google-api-client-android:2.2.0")
     implementation("com.google.api-client:google-api-client-gson:2.9.0")
