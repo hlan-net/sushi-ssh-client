@@ -4,7 +4,8 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:paddingTop="8dp"
-    android:paddingBottom="8dp">
+    android:paddingBottom="8dp"
+    android:descendantFocusability="blocksDescendants">
 
     <TextView
         android:id="@+id/transcriptPromptLabel"
@@ -12,14 +13,26 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/gemini_transcript_you_label"
+        android:textAlignment="viewEnd"
         android:textStyle="bold" />
 
     <TextView
         android:id="@+id/transcriptPromptContent"
         style="@style/TextAppearance.Sushi.Body"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp" />
+        android:layout_gravity="end"
+        android:layout_marginTop="4dp"
+        android:layout_marginStart="48dp"
+        android:background="@drawable/bg_gemini_user_bubble"
+        android:lineSpacingExtra="2dp"
+        android:maxWidth="280dp"
+        android:paddingLeft="12dp"
+        android:paddingTop="10dp"
+        android:paddingRight="12dp"
+        android:paddingBottom="10dp"
+        android:textAlignment="viewEnd"
+        android:textColor="@color/sushi_mist" />
 
     <TextView
         android:id="@+id/transcriptResponseLabel"
@@ -33,15 +46,23 @@
     <TextView
         android:id="@+id/transcriptResponseContent"
         style="@style/TextAppearance.Sushi.Body"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="start"
         android:layout_marginTop="2dp"
-        android:fontFamily="monospace" />
+        android:background="@drawable/bg_gemini_assistant_bubble"
+        android:lineSpacingExtra="2dp"
+        android:maxWidth="280dp"
+        android:paddingLeft="12dp"
+        android:paddingTop="10dp"
+        android:paddingRight="12dp"
+        android:paddingBottom="10dp"
+        android:textColor="@color/sushi_terminal_text" />
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="8dp"
-        android:background="?android:attr/listDivider" />
+        android:background="@color/sushi_card_stroke" />
 
 </LinearLayout>
