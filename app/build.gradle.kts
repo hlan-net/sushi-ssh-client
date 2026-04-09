@@ -127,6 +127,6 @@ dependencies {
     // which conflicts with the androidTest dependencies (espresso/junit/concurrent-futures-ktx).
     implementation("androidx.concurrent:concurrent-futures:1.3.0")
     androidTestImplementation("androidx.concurrent:concurrent-futures:1.3.0")
-    androidTestImplementation("com.google.guava:guava:31.1-jre")
+    androidTestImplementation("com.google.guava:guava:33.5.0-jre")
 
 }
