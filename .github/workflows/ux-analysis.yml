@@ -1,0 +1,56 @@
+name: UX Analysis
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  analyze:
+    name: Generate UX analysis for user story
+    if: github.event.label.name == 'user-story'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate UX analysis
+        id: analysis
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          PROMPT=$(cat scripts/prompts/ux-analysis.md)
+
+          # Append the issue content to the prompt
+          FULL_PROMPT="${PROMPT}
+
+          ---
+          Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
+
+          ${ISSUE_BODY}"
+
+          # Run Claude in non-interactive mode
+          OUTPUT=$(claude -p "$FULL_PROMPT" --output-format text 2>/dev/null)
+
+          # Write to file to safely pass multiline output between steps
+          echo "$OUTPUT" > /tmp/ux-analysis.md
+          echo "done=true" >> "$GITHUB_OUTPUT"
+
+      - name: Post UX analysis comment
+        if: steps.analysis.outputs.done == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          BODY=$(cat /tmp/ux-analysis.md)
+          gh issue comment "$ISSUE_NUMBER" --body "$BODY" --repo "$GITHUB_REPOSITORY"
