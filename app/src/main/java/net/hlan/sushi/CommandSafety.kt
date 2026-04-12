@@ -20,25 +20,32 @@ object CommandSafety {
 
     /**
      * Classify a command's safety level.
-     * 
+     *
+     * Blocked patterns are matched against the full command string so that
+     * multi-token patterns (e.g. the fork-bomb `:(){ :|:& };:`) remain
+     * detectable even though they contain shell operators.
+     *
+     * After the blocked check the command is split on `;`, `&&`, `||`, and `|`
+     * so that a safe-looking first segment cannot hide a non-safe second one
+     * (e.g. `ls && apt-get install foo` is CONFIRM, not SAFE).
+     *
      * @param command The shell command to classify
      * @return SafetyLevel indicating whether the command is safe, needs confirmation, or is blocked
      */
     fun classify(command: String): SafetyLevel {
         val normalized = command.trim().lowercase(Locale.ROOT)
 
-        // Check blocked patterns first (highest priority)
-        if (isBlocked(normalized)) {
-            return SafetyLevel.BLOCKED
-        }
+        // Blocked check runs on the whole string first (highest priority).
+        if (isBlocked(normalized)) return SafetyLevel.BLOCKED
 
-        // Check safe patterns
-        if (isSafe(normalized)) {
-            return SafetyLevel.SAFE
-        }
+        // Split on common shell operators and require every segment to be safe.
+        val segments = normalized
+            .split(Regex("&&|\\|\\||[;|]"))
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
 
-        // Default to CONFIRM for anything not explicitly safe or blocked
-        return SafetyLevel.CONFIRM
+        if (segments.any { !isSafe(it) }) return SafetyLevel.CONFIRM
+        return SafetyLevel.SAFE
     }
 
     /**
@@ -177,7 +184,7 @@ object CommandSafety {
             Regex("^docker\\s+inspect")
         )
 
-        return safePatterns.any { pattern -> pattern.matches(command) }
+        return safePatterns.any { pattern -> pattern.containsMatchIn(command) }
     }
 
     /**
