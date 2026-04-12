@@ -662,6 +662,100 @@ class LocalSshIntegrationTest {
         }
     }
 
+    @Test
+    fun execCommandCapturesRealOutput() {
+        val credentials = readCredentialsOrSkip()
+        val marker = "EXEC_OUT_${System.currentTimeMillis()}"
+        val config = SshConnectionConfig(
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password,
+            privateKey = credentials.privateKey,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
+        )
+        val client = SshClient(config)
+        val connectResult = client.connect(onLine = {})
+        assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
+
+        try {
+            val result = client.execCommand("echo $marker")
+            assertTrue("execCommand should succeed: ${result.message}", result.success)
+            assertEquals("Exit status should be 0", 0, result.exitStatus)
+            assertTrue(
+                "Output should contain the echoed marker, got: '${result.message}'",
+                result.message.contains(marker)
+            )
+        } finally {
+            client.disconnect()
+        }
+    }
+
+    @Test
+    fun execCommandReportsNonZeroExit() {
+        val credentials = readCredentialsOrSkip()
+        val config = SshConnectionConfig(
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password,
+            privateKey = credentials.privateKey,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
+        )
+        val client = SshClient(config)
+        val connectResult = client.connect(onLine = {})
+        assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
+
+        try {
+            // `false` is a POSIX standard command that always exits with status 1.
+            val result = client.execCommand("false")
+            assertFalse("execCommand for 'false' should report failure", result.success)
+            assertEquals("Exit status should be 1", 1, result.exitStatus)
+        } finally {
+            client.disconnect()
+        }
+    }
+
+    @Test
+    fun execCommandCapturesStderr() {
+        val credentials = readCredentialsOrSkip()
+        val config = SshConnectionConfig(
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password,
+            privateKey = credentials.privateKey,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
+        )
+        val client = SshClient(config)
+        val connectResult = client.connect(onLine = {})
+        assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
+
+        try {
+            // ls on a non-existent path writes an error message to stderr.
+            val result = client.execCommand("ls /path/that/does/not/exist/sushi_test_12345")
+            assertFalse("Command should fail", result.success)
+            assertTrue(
+                "stderr output should be captured in message, got: '${result.message}'",
+                result.message.isNotBlank()
+            )
+        } finally {
+            client.disconnect()
+        }
+    }
+
     @Ignore("Enable after custom phrases are supported in automation.")
     @Test
     fun removesSushiKeysViaPhraseThenFailsReconnect() {

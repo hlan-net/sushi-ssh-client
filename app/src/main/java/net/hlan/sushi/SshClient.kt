@@ -1,12 +1,15 @@
 package net.hlan.sushi
 
+import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
+import java.util.concurrent.atomic.AtomicReference
 
 enum class SshAuthPreference(val value: String) {
     AUTO("auto"),
@@ -255,6 +258,91 @@ class SshClient(private val config: SshConnectionConfig) {
 
     fun getConfig(): SshConnectionConfig = config
 
+    /**
+     * Execute a command on the remote host via a dedicated exec channel and return its output.
+     *
+     * Unlike [sendCommand] (which writes to the PTY shell and captures nothing), this method
+     * opens a separate JSch exec channel, waits for the command to complete, and captures
+     * both stdout and stderr. Use this for AI-driven command execution where the output must
+     * be read back.
+     *
+     * @param command Shell command to run on the remote host.
+     * @param timeoutMs Maximum time to wait for the command to finish before aborting.
+     * @return [SshCommandResult] with [SshCommandResult.success] reflecting exit code 0,
+     *   [SshCommandResult.exitStatus] set to the process exit code, and
+     *   [SshCommandResult.message] containing the combined stdout/stderr output.
+     */
+    fun execCommand(command: String, timeoutMs: Long = EXEC_DEFAULT_TIMEOUT_MS): SshCommandResult {
+        val activeSession = session
+        if (activeSession == null || !activeSession.isConnected) {
+            return SshCommandResult(false, null, "Not connected")
+        }
+
+        var channel: ChannelExec? = null
+        return runCatching {
+            channel = activeSession.openChannel("exec") as ChannelExec
+            val ch = channel!!
+            ch.setCommand(command)
+
+            val stderrBuffer = ByteArrayOutputStream()
+            ch.setErrStream(stderrBuffer)
+
+            // inputStream must be obtained before connect()
+            val stdout = ch.inputStream
+            ch.connect(EXEC_CONNECT_TIMEOUT_MS)
+
+            // Read output in a daemon thread so we can enforce a wall-clock timeout.
+            // AtomicReference provides safe cross-thread exception propagation without
+            // requiring the reader thread to hold any lock.
+            val outputBuffer = ByteArrayOutputStream()
+            val readerError = AtomicReference<Exception?>(null)
+            val readerThread = Thread {
+                try {
+                    stdout.copyTo(outputBuffer)
+                } catch (e: Exception) {
+                    readerError.set(e)
+                }
+            }.apply {
+                isDaemon = true
+                name = "SshExecReader"
+                start()
+            }
+
+            readerThread.join(timeoutMs)
+
+            if (readerThread.isAlive) {
+                // Timed out — disconnect to unblock the read.
+                ch.disconnect()
+                readerThread.join(1000)
+                return@runCatching SshCommandResult(
+                    false,
+                    null,
+                    "Command timed out after ${timeoutMs}ms"
+                )
+            }
+
+            readerError.get()?.let { throw it }
+
+            val exitStatus = ch.exitStatus
+            val stdoutStr = outputBuffer.toString(Charsets.UTF_8).trim()
+            val stderrStr = stderrBuffer.toString(Charsets.UTF_8).trim()
+
+            val fullOutput = when {
+                stdoutStr.isNotBlank() && stderrStr.isNotBlank() -> "$stdoutStr\n$stderrStr"
+                stdoutStr.isNotBlank() -> stdoutStr
+                stderrStr.isNotBlank() -> stderrStr
+                else -> ""
+            }
+
+            SshCommandResult(exitStatus == 0, exitStatus, fullOutput)
+        }.getOrElse { error ->
+            val message = error.message?.takeIf { it.isNotBlank() } ?: "Exec failed"
+            SshCommandResult(false, null, message)
+        }.also {
+            runCatching { channel?.disconnect() }
+        }
+    }
+
     fun sendCommand(command: String): SshCommandResult {
         val activeChannel = shellChannel
         val output = shellInput
@@ -340,6 +428,8 @@ class SshClient(private val config: SshConnectionConfig) {
         private const val CONNECTION_TIMEOUT_MS = 10000
         private const val SHELL_CONNECT_TIMEOUT_MS = 10000
         private const val SFTP_CONNECT_TIMEOUT_MS = 10000
+        private const val EXEC_CONNECT_TIMEOUT_MS = 10000
+        const val EXEC_DEFAULT_TIMEOUT_MS = 30_000L
         private const val SERVER_ALIVE_INTERVAL_MS = 10000
         private const val SERVER_ALIVE_COUNT_MAX = 3
         private const val CTRL_C_ETX = 3

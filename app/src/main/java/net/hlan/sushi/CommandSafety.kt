@@ -18,6 +18,13 @@ object CommandSafety {
         BLOCKED     // Never allow
     }
 
+    // Shell interpreters are blocked as the target of a pipe or any chained segment because
+    // piping arbitrary data into a shell (e.g. `curl … | bash`) is unrestricted code execution.
+    private val shellInterpreters = setOf(
+        "bash", "sh", "zsh", "fish", "ksh", "dash", "csh", "tcsh",
+        "python", "python2", "python3", "perl", "ruby", "node", "nodejs"
+    )
+
     /**
      * Classify a command's safety level.
      *
@@ -27,7 +34,9 @@ object CommandSafety {
      *
      * After the blocked check the command is split on `;`, `&&`, `||`, and `|`
      * so that a safe-looking first segment cannot hide a non-safe second one
-     * (e.g. `ls && apt-get install foo` is CONFIRM, not SAFE).
+     * (e.g. `ls && apt-get install foo` → CONFIRM, not SAFE).
+     * Any segment whose first word is a shell interpreter is BLOCKED regardless
+     * of how it was reached (catches `curl … | bash` patterns).
      *
      * @param command The shell command to classify
      * @return SafetyLevel indicating whether the command is safe, needs confirmation, or is blocked
@@ -38,11 +47,20 @@ object CommandSafety {
         // Blocked check runs on the whole string first (highest priority).
         if (isBlocked(normalized)) return SafetyLevel.BLOCKED
 
-        // Split on common shell operators and require every segment to be safe.
+        // Split on common shell operators and inspect each segment.
         val segments = normalized
             .split(Regex("&&|\\|\\||[;|]"))
             .map { it.trim() }
             .filter { it.isNotEmpty() }
+
+        for (segment in segments) {
+            // A segment that is itself blocked (catches e.g. `echo x; shutdown now`).
+            if (isBlocked(segment)) return SafetyLevel.BLOCKED
+            // Shell interpreter as pipe/chain target → unrestricted code execution.
+            val firstWord = segment.split(Regex("\\s+")).firstOrNull() ?: continue
+            if (firstWord in shellInterpreters) return SafetyLevel.BLOCKED
+        }
+
 
         if (segments.any { !isSafe(it) }) return SafetyLevel.CONFIRM
         return SafetyLevel.SAFE

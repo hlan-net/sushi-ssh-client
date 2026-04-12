@@ -176,7 +176,10 @@ class ConversationManager(
     }
 
     /**
-     * Execute command via SSH and generate final conversational response.
+     * Execute command via SSH exec channel and generate final conversational response.
+     *
+     * Uses [SshClient.execCommand] (not [SshClient.sendCommand]) so that actual stdout/stderr
+     * is captured and returned to the LLM for interpretation.
      */
     private suspend fun executeCommandAndRespond(
         userMessage: String,
@@ -184,16 +187,17 @@ class ConversationManager(
         command: String
     ): ConversationResult {
         return try {
-            // Execute command
-            val cmdResult = sshClient.sendCommand(command)
-            
-            if (!cmdResult.success) {
+            // Use execCommand so we get real output back, not just "Command sent".
+            val cmdResult = sshClient.execCommand(command)
+
+            if (!cmdResult.success && cmdResult.exitStatus == null) {
+                // execCommand itself failed (e.g. not connected, timed out).
                 val errorResponse = initialResponse.replace(
                     Regex("EXECUTE:.+"),
                     "[Command failed: ${cmdResult.message}]"
                 )
                 addToHistory(userMessage, errorResponse, command, null, false)
-                
+
                 return ConversationResult(
                     success = true,
                     systemResponse = errorResponse,
@@ -204,10 +208,11 @@ class ConversationManager(
                 )
             }
 
-            // Command succeeded - ask LLM to interpret result
-            val output = cmdResult.message
+            // Command ran — use the captured output (may be empty for commands with no output).
+            val output = cmdResult.message.ifEmpty { "(no output)" }
             val interpretPrompt = """
-The command was executed successfully. Here is the output:
+The command was executed. Exit code: ${cmdResult.exitStatus ?: "unknown"}.
+Output:
 
 $output
 
@@ -326,27 +331,31 @@ Provide a natural language interpretation of this result, responding as the syst
     fun isInitialized(): Boolean = isInitialized
 
     /**
-     * Initialize a new log file for this conversation session.
+     * Initialize a new log file for this conversation session on the remote host.
+     *
+     * Uses [SshClient.execCommand] so we can detect failures. Commands are chained with
+     * `&&` so the first failure short-circuits and [currentLogFilePath] is cleared.
      */
     private suspend fun initializeLogFile() {
         withContext(Dispatchers.IO) {
-            try {
+            runCatching {
                 val timestamp = SimpleDateFormat("yyyy-MM-dd-HH_mm", Locale.US).format(Date())
-                currentLogFilePath = "~/.sushi_logs/$timestamp.log"
-                
-                // Ensure log directory exists and create log file with header
-                val initCommands = """
-                    mkdir -p ~/.sushi_logs
-                    echo "=== Sushi AI Conversation Log ===" > $currentLogFilePath
-                    echo "Session started: $(date)" >> $currentLogFilePath
-                    echo "System: $systemIdentity" >> $currentLogFilePath
-                    echo "========================================" >> $currentLogFilePath
-                    echo "" >> $currentLogFilePath
-                """.trimIndent()
-                
-                sshClient.sendCommand(initCommands)
-                Log.d(TAG, "Initialized log file: $currentLogFilePath")
-            } catch (e: Exception) {
+                val logPath = "~/.sushi_logs/$timestamp.log"
+                currentLogFilePath = logPath
+
+                val safeIdentity = (systemIdentity ?: "Unknown").replace("'", "'\\''")
+                val cmd = "mkdir -p ~/.sushi_logs && " +
+                    "printf '=== Sushi AI Conversation Log ===\\n" +
+                    "========================================\\n\\n' > '" + logPath + "'"
+
+                val result = sshClient.execCommand(cmd)
+                if (!result.success) {
+                    Log.w(TAG, "Failed to initialize log file: ${result.message}")
+                    currentLogFilePath = null
+                } else {
+                    Log.d(TAG, "Initialized log file: $logPath")
+                }
+            }.onFailure { e ->
                 Log.w(TAG, "Failed to initialize log file", e)
                 currentLogFilePath = null
             }
@@ -382,11 +391,12 @@ Provide a natural language interpretation of this result, responding as the syst
                     append("\n")
                 }
                 
-                // Escape single quotes for shell
+                // Escape single quotes for POSIX shell single-quote strings.
                 val escapedEntry = logEntry.replace("'", "'\\''")
-                
-                // Append to log file
-                sshClient.sendCommand("echo '$escapedEntry' >> $logPath")
+
+                // Use execCommand so that append failures surface as errors rather than
+                // silently mixing into the interactive PTY stream.
+                sshClient.execCommand("printf '%s' '$escapedEntry' >> '$logPath'")
                 
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to write to log file", e)

@@ -83,7 +83,7 @@ class MainActivity : AppCompatActivity() {
 
         // Use conversation manager if connected, otherwise fall back to old behavior
         if (conversationManager != null && conversationManager!!.isInitialized()) {
-            handleUserMessage(voiceText, isVoice = true)
+            handleUserMessage(voiceText)
         } else {
             // Fallback to old command generation for backwards compatibility
             lastGeminiPrompt = voiceText
@@ -404,7 +404,7 @@ class MainActivity : AppCompatActivity() {
             if (!text.isNullOrEmpty()) {
                 dialogBinding.geminiDialogTextInput.text?.clear()
                 if (conversationManager != null && conversationManager!!.isInitialized()) {
-                    handleUserMessage(text, isVoice = false)
+                    handleUserMessage(text)
                 } else {
                     // Fallback to old behavior
                     lastGeminiPrompt = text
@@ -921,7 +921,7 @@ class MainActivity : AppCompatActivity() {
             ?: getString(R.string.gemini_status_disabled)
     }
 
-    private fun handleUserMessage(message: String, isVoice: Boolean) {
+    private fun handleUserMessage(message: String) {
         if (conversationManager == null || !conversationManager!!.isInitialized()) {
             Toast.makeText(
                 this,
