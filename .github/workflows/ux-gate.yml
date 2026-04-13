@@ -33,13 +33,18 @@ jobs:
           echo "ui_changed=$UI_CHANGED" >> "$GITHUB_OUTPUT"
           echo "Changed UI files: $UI_CHANGED"
 
-      - name: Check for Figma link in PR body
+      - name: Check for Figma link or explicit no-UI declaration in PR body
         id: figma_check
         if: steps.ui_changes.outputs.ui_changed != '0'
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
+          # Pass if a real Figma URL is present.
           if echo "$PR_BODY" | grep -qiE 'figma\.com/design/|figma\.com/proto/|figma\.com/board/'; then
+            echo "has_figma=true" >> "$GITHUB_OUTPUT"
+          # Also pass if the "No — purely logic/backend change" checkbox is explicitly checked.
+          # This covers Activity.kt edits that touch only logic, not layout or visible behaviour.
+          elif echo "$PR_BODY" | grep -qiE '\[x\]\s*No\s*—\s*purely\s*logic'; then
             echo "has_figma=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_figma=false" >> "$GITHUB_OUTPUT"
