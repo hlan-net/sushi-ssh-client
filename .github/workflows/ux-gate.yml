@@ -33,13 +33,18 @@ jobs:
           echo "ui_changed=$UI_CHANGED" >> "$GITHUB_OUTPUT"
           echo "Changed UI files: $UI_CHANGED"
 
-      - name: Check for Figma link in PR body
+      - name: Check for Figma link or explicit no-UI declaration in PR body
         id: figma_check
         if: steps.ui_changes.outputs.ui_changed != '0'
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
+          # Pass if a real Figma URL is present.
           if echo "$PR_BODY" | grep -qiE 'figma\.com/design/|figma\.com/proto/|figma\.com/board/'; then
+            echo "has_figma=true" >> "$GITHUB_OUTPUT"
+          # Also pass if the "No — purely logic/backend change" checkbox is explicitly checked.
+          # This covers Activity.kt edits that touch only logic, not layout or visible behaviour.
+          elif echo "$PR_BODY" | grep -qiE '\[x\]\s*No\s*—\s*purely\s*logic'; then
             echo "has_figma=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_figma=false" >> "$GITHUB_OUTPUT"
@@ -54,18 +59,18 @@ jobs:
           script: |
             const body = `### ⚠️ UX Gate — Figma link missing
 
-            This PR modifies UI files but the description doesn't include a Figma link.
+            This PR modifies UI files but the description doesn't include a Figma link
+            or an explicit confirmation that no visible behaviour changed.
 
-            **Why this matters:** Reviewing UX in Figma before merging helps catch usability issues early and keeps the design file in sync with the app.
+            **Why this matters:** Catching unintended UI changes early is especially
+            important with AI-assisted coding — models may touch layouts incidentally.
 
-            **What to do:**
-            1. Open the [Sushi Figma file](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi)
-            2. Add a frame to the **Proposals** page showing the intended UX for this change
-            3. Paste the frame link into the PR description under **Figma frame**
+            **What to do — pick one:**
+            1. Add a frame to the [Sushi Figma file](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi) (Proposals page) and paste the frame link into the PR description under **Figma frame**. Use a frame-level link, not the file root URL, to keep the file ID out of public history.
+            2. Or check **No — purely logic/backend change** in the PR template if the Activity.kt change is purely logic with no visible effect.
 
-            _This is a soft warning — you can merge without it, but please add the link when you can._`;
+            _This is a soft warning — you can merge without it, but please resolve it when you can._`;
 
-            // Only post if no existing warning comment from this bot
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -92,6 +97,4 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // Resolve any previous warning by checking if one exists — no action needed,
-            // the Figma link is present. Just log for visibility.
-            console.log('Figma link found in PR body. UX gate passed.');
+            console.log('UX gate passed — Figma link present or no-UI change confirmed.');
