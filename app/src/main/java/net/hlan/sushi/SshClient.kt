@@ -323,6 +323,14 @@ class SshClient(private val config: SshConnectionConfig) {
 
             readerError.get()?.let { throw it }
 
+            // Wait for the channel to close so that SSH_MSG_CHANNEL_REQUEST (which carries
+            // the exit status) has been processed. Without this, ch.exitStatus may return
+            // the placeholder -1 even after the reader thread has finished.
+            val closeDeadline = System.currentTimeMillis() + 1000
+            while (!ch.isClosed && System.currentTimeMillis() < closeDeadline) {
+                Thread.sleep(20)
+            }
+
             val exitStatus = ch.exitStatus
             val stdoutStr = outputBuffer.toString(Charsets.UTF_8).trim()
             val stderrStr = stderrBuffer.toString(Charsets.UTF_8).trim()

@@ -344,9 +344,12 @@ Provide a natural language interpretation of this result, responding as the syst
                 currentLogFilePath = logPath
 
                 val safeIdentity = (systemIdentity ?: "Unknown").replace("'", "'\\''")
+                // Keep tilde unquoted so the shell expands it; single-quote only the
+                // remainder of the path to guard against special characters in the timestamp.
+                val shellLogPath = "~/'${logPath.removePrefix("~/")}'"
                 val cmd = "mkdir -p ~/.sushi_logs && " +
-                    "printf '=== Sushi AI Conversation Log ===\\n" +
-                    "========================================\\n\\n' > '" + logPath + "'"
+                    "printf '=== Sushi AI Conversation Log ===\\nSystem: %s\\n" +
+                    "========================================\\n\\n' '$safeIdentity' > $shellLogPath"
 
                 val result = sshClient.execCommand(cmd)
                 if (!result.success) {
@@ -394,9 +397,13 @@ Provide a natural language interpretation of this result, responding as the syst
                 // Escape single quotes for POSIX shell single-quote strings.
                 val escapedEntry = logEntry.replace("'", "'\\''")
 
+                // Keep tilde unquoted so the shell expands it; single-quote only the
+                // remainder of the path. See initializeLogFile() for the same pattern.
+                val shellLogPath = "~/'${logPath.removePrefix("~/")}'"
+
                 // Use execCommand so that append failures surface as errors rather than
                 // silently mixing into the interactive PTY stream.
-                sshClient.execCommand("printf '%s' '$escapedEntry' >> '$logPath'")
+                sshClient.execCommand("printf '%s' '$escapedEntry' >> $shellLogPath")
                 
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to write to log file", e)
