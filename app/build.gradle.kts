@@ -117,7 +117,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines_version")
 
     implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
-    implementation("com.google.mlkit:genai-prompt:1.0.0-beta1")
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta2")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
