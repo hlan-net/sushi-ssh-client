@@ -54,7 +54,7 @@ jobs:
         if: >
           steps.ui_changes.outputs.ui_changed != '0' &&
           steps.figma_check.outputs.has_figma == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const body = `### ⚠️ UX Gate — Figma link missing
@@ -94,7 +94,7 @@ jobs:
         if: >
           steps.ui_changes.outputs.ui_changed != '0' &&
           steps.figma_check.outputs.has_figma == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             console.log('UX gate passed — Figma link present or no-UI change confirmed.');
