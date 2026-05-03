@@ -26,7 +26,7 @@ class TerminalActivity : AppCompatActivity() {
     private val driveLogUploader by lazy { DriveLogUploader(this) }
     private val phraseDb by lazy { PhraseDatabaseHelper.getInstance(this) }
 
-    private var sshClient: SshClient? = null
+    private var sshClient: TerminalBackend? = null
     private var isConnecting = false
     private var isRetrying = false
     private var didLoseConnection = false
@@ -153,8 +153,8 @@ class TerminalActivity : AppCompatActivity() {
                     binding.terminalOutputText.appendLog(getString(R.string.session_connected_to, config.displayTarget()))
                     binding.terminalOutputText.requestFocus()
                     
-                    // Notify MainActivity that SSH connection is active
-                    SshConnectionHolder.setActiveConnection(client, config)
+                    // Notify MainActivity that a terminal session is active
+                    TerminalSessionHolder.setActiveConnection(client, config)
                 } else {
                     client.disconnect()
                     binding.terminalOutputText.appendLog(getString(R.string.terminal_connect_failed_log, result.message))
@@ -171,8 +171,8 @@ class TerminalActivity : AppCompatActivity() {
         sshClient = null
         isConnecting = false
         
-        // Notify MainActivity that SSH connection is gone
-        SshConnectionHolder.clearActiveConnection()
+        // Notify MainActivity that the terminal session is gone
+        TerminalSessionHolder.clearActiveConnection()
         didLoseConnection = false
         updateUi()
     }
@@ -287,8 +287,8 @@ class TerminalActivity : AppCompatActivity() {
         binding.terminalPhrasesButton.isEnabled = canInput
     }
 
-    private fun connectWithClient(config: SshConnectionConfig): Pair<SshClient, SshConnectResult> {
-        val client = SshClient(config)
+    private fun connectWithClient(config: SshConnectionConfig): Pair<TerminalBackend, SshConnectResult> {
+        val client: TerminalBackend = SshClient(config)
         val result = client.connect(
             streamMode = true,
             onLine = { line ->
