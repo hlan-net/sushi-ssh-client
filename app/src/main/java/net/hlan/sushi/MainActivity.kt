@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
     
     // Conversation management
     private var conversationManager: ConversationManager? = null
-    private var connectionListener: SshConnectionHolder.ConnectionListener? = null
+    private var connectionListener: TerminalSessionHolder.ConnectionListener? = null
 
     private val voiceResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -164,7 +164,7 @@ class MainActivity : AppCompatActivity() {
         nanoClient.close()
         
         // Clean up connection listener
-        connectionListener?.let { SshConnectionHolder.removeListener(it) }
+        connectionListener?.let { TerminalSessionHolder.removeListener(it) }
         connectionListener = null
     }
 
@@ -849,7 +849,7 @@ class MainActivity : AppCompatActivity() {
     // ========== Conversation Management ==========
 
     private fun setupConnectionListener() {
-        connectionListener = object : SshConnectionHolder.ConnectionListener {
+        connectionListener = object : TerminalSessionHolder.ConnectionListener {
             override fun onConnected() {
                 lifecycleScope.launch {
                     initializeConversation()
@@ -864,10 +864,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        SshConnectionHolder.addListener(connectionListener!!)
-        
+        TerminalSessionHolder.addListener(connectionListener!!)
+
         // Check if already connected
-        if (SshConnectionHolder.isConnected()) {
+        if (TerminalSessionHolder.isConnected()) {
             lifecycleScope.launch {
                 initializeConversation()
             }
@@ -875,7 +875,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private suspend fun initializeConversation() {
-        val sshClient = SshConnectionHolder.getActiveClient() ?: return
+        val sshClient = TerminalSessionHolder.getActiveSshClient() ?: return
 
         withContext(Dispatchers.Main) {
             updateConversationStatus(getString(R.string.conversation_initializing))

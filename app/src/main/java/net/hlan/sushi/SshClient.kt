@@ -68,7 +68,7 @@ data class SftpUploadResult(
     val message: String
 )
 
-class SshClient(private val config: SshConnectionConfig) {
+class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
     private var session: Session? = null
     private var jumpSession: Session? = null
     private var jumpForwardPort: Int? = null
@@ -86,10 +86,10 @@ class SshClient(private val config: SshConnectionConfig) {
         val forwardedPort: Int
     )
 
-    fun connect(
+    override fun connect(
         onLine: (String) -> Unit,
-        streamMode: Boolean = false,
-        onConnectionClosed: (() -> Unit)? = null
+        streamMode: Boolean,
+        onConnectionClosed: (() -> Unit)?
     ): SshConnectResult {
         var newChannel: ChannelShell? = null
         var sessionPair: ConnectedSessionPair? = null
@@ -227,7 +227,7 @@ class SshClient(private val config: SshConnectionConfig) {
         session.serverAliveCountMax = SERVER_ALIVE_COUNT_MAX
     }
 
-    fun disconnect() {
+    override fun disconnect() {
         shellChannel?.disconnect()
         shellChannel = null
         runCatching { shellInput?.close() }
@@ -245,13 +245,13 @@ class SshClient(private val config: SshConnectionConfig) {
         shellReaderThread = null
     }
 
-    fun isConnected(): Boolean = session?.isConnected == true && shellChannel?.isConnected == true
+    override fun isConnected(): Boolean = session?.isConnected == true && shellChannel?.isConnected == true
 
-    fun resizePty(col: Int, row: Int, wp: Int, hp: Int) {
+    override fun resizePty(col: Int, row: Int, widthPx: Int, heightPx: Int) {
         val activeChannel = shellChannel
         if (activeChannel != null && activeChannel.isConnected) {
             runCatching {
-                activeChannel.setPtySize(col, row, wp, hp)
+                activeChannel.setPtySize(col, row, widthPx, heightPx)
             }
         }
     }
@@ -351,7 +351,7 @@ class SshClient(private val config: SshConnectionConfig) {
         }
     }
 
-    fun sendCommand(command: String): SshCommandResult {
+    override fun sendCommand(command: String): SshCommandResult {
         val activeChannel = shellChannel
         val output = shellInput
         if (activeChannel == null || !activeChannel.isConnected || output == null) {
@@ -369,7 +369,7 @@ class SshClient(private val config: SshConnectionConfig) {
         }
     }
 
-    fun sendText(text: String): SshCommandResult {
+    override fun sendText(text: String): SshCommandResult {
         val activeChannel = shellChannel
         val output = shellInput
         if (activeChannel == null || !activeChannel.isConnected || output == null) {
@@ -390,7 +390,7 @@ class SshClient(private val config: SshConnectionConfig) {
         }
     }
 
-    fun sendCtrlC() {
+    override fun sendCtrlC() {
         runCatching {
             shellInput?.apply {
                 write(CTRL_C_ETX) // ETX (End of Text)
@@ -399,7 +399,7 @@ class SshClient(private val config: SshConnectionConfig) {
         }
     }
 
-    fun sendCtrlD() {
+    override fun sendCtrlD() {
         runCatching {
             shellInput?.apply {
                 write(CTRL_D_EOT) // EOT (End of Transmission)

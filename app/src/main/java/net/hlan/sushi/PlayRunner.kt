@@ -40,7 +40,7 @@ object PlayRunner {
         val lines = Collections.synchronizedList(mutableListOf<String>())
         val marker = "SUSHI_PLAY_DONE_${System.currentTimeMillis()}"
         val markerLatch = CountDownLatch(1)
-        val client = SshClient(hostConfig)
+        val client: TerminalBackend = SshClient(hostConfig)
 
         val connectResult = client.connect(onLine = { line ->
             lines.add(line)
