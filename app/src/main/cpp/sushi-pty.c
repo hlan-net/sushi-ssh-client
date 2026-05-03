@@ -19,6 +19,46 @@ typedef struct {
     pid_t child_pid;
 } PtySession;
 
+/*
+ * Copy a Java String[] into a NULL-terminated C string array.
+ * Each element is strdup'd and the JNI local ref is released in the same
+ * iteration to avoid accumulating references (limit ~512).
+ */
+static char **copy_jstring_array(JNIEnv *env, jobjectArray arr, jsize len) {
+    char **out = calloc(len + 1, sizeof(char *));
+    if (!out) return NULL;
+    for (jsize i = 0; i < len; i++) {
+        jstring s = (jstring)(*env)->GetObjectArrayElement(env, arr, i);
+        if (s) {
+            const char *utf = (*env)->GetStringUTFChars(env, s, NULL);
+            if (utf) {
+                out[i] = strdup(utf);
+                (*env)->ReleaseStringUTFChars(env, s, utf);
+            }
+            (*env)->DeleteLocalRef(env, s);
+        }
+    }
+    return out;
+}
+
+static void free_string_array(char **arr, jsize len) {
+    if (!arr) return;
+    for (jsize i = 0; i < len; i++) free(arr[i]);
+    free(arr);
+}
+
+/* Apply KEY=VALUE pairs from envp to the process environment. */
+static void apply_env(char **envp, jsize envc) {
+    for (jsize i = 0; i < envc; i++) {
+        if (!envp[i]) continue;
+        char *kv = strdup(envp[i]);
+        if (!kv) continue;
+        char *eq = strchr(kv, '=');
+        if (eq) { *eq = '\0'; setenv(kv, eq + 1, 1); }
+        /* intentionally not freed — exec replaces the address space */
+    }
+}
+
 JNIEXPORT jlong JNICALL
 Java_net_hlan_sushi_LocalShellBackend_nativeStart(
         JNIEnv *env, jclass clazz,
@@ -34,40 +74,13 @@ Java_net_hlan_sushi_LocalShellBackend_nativeStart(
     jsize argc = (*env)->GetArrayLength(env, argv);
     jsize envc = (*env)->GetArrayLength(env, envp);
 
-    char **c_argv = calloc(argc + 1, sizeof(char *));
-    char **c_envp = calloc(envc + 1, sizeof(char *));
+    char **c_argv = copy_jstring_array(env, argv, argc);
+    char **c_envp = copy_jstring_array(env, envp, envc);
     if (!c_argv || !c_envp) {
-        free(c_argv); free(c_envp); free(cmd_str);
+        free_string_array(c_argv, argc);
+        free_string_array(c_envp, envc);
+        free(cmd_str);
         return 0L;
-    }
-
-    /*
-     * strdup each string immediately after GetStringUTFChars so we can
-     * ReleaseStringUTFChars + DeleteLocalRef inside the same iteration.
-     * This avoids accumulating JNI local references (limit ~512) and
-     * eliminates a second GetObjectArrayElement pass in the parent cleanup.
-     */
-    for (jsize i = 0; i < argc; i++) {
-        jstring s = (jstring)(*env)->GetObjectArrayElement(env, argv, i);
-        if (s) {
-            const char *utf = (*env)->GetStringUTFChars(env, s, NULL);
-            if (utf) {
-                c_argv[i] = strdup(utf);
-                (*env)->ReleaseStringUTFChars(env, s, utf);
-            }
-            (*env)->DeleteLocalRef(env, s);
-        }
-    }
-    for (jsize i = 0; i < envc; i++) {
-        jstring s = (jstring)(*env)->GetObjectArrayElement(env, envp, i);
-        if (s) {
-            const char *utf = (*env)->GetStringUTFChars(env, s, NULL);
-            if (utf) {
-                c_envp[i] = strdup(utf);
-                (*env)->ReleaseStringUTFChars(env, s, utf);
-            }
-            (*env)->DeleteLocalRef(env, s);
-        }
     }
 
     int master_fd;
@@ -75,31 +88,24 @@ Java_net_hlan_sushi_LocalShellBackend_nativeStart(
 
     if (child_pid < 0) {
         LOGE("forkpty failed: %s", strerror(errno));
-        for (jsize i = 0; i < argc; i++) free(c_argv[i]);
-        for (jsize i = 0; i < envc; i++) free(c_envp[i]);
-        free(c_argv); free(c_envp); free(cmd_str);
+        free_string_array(c_argv, argc);
+        free_string_array(c_envp, envc);
+        free(cmd_str);
         return 0L;
     }
 
     if (child_pid == 0) {
         /* child: apply env then exec; _exit on failure so atexit is skipped */
-        for (jsize i = 0; i < envc; i++) {
-            if (!c_envp[i]) continue;
-            char *kv = strdup(c_envp[i]);
-            if (!kv) continue;
-            char *eq = strchr(kv, '=');
-            if (eq) { *eq = '\0'; setenv(kv, eq + 1, 1); }
-            /* intentionally not freed — exec replaces the address space */
-        }
+        apply_env(c_envp, envc);
         execvp(cmd_str, c_argv);
         _exit(127);
     }
 
     /* parent: FD_CLOEXEC so master_fd doesn't leak into later forks */
     fcntl(master_fd, F_SETFD, FD_CLOEXEC);
-    for (jsize i = 0; i < argc; i++) free(c_argv[i]);
-    for (jsize i = 0; i < envc; i++) free(c_envp[i]);
-    free(c_argv); free(c_envp); free(cmd_str);
+    free_string_array(c_argv, argc);
+    free_string_array(c_envp, envc);
+    free(cmd_str);
 
     PtySession *sess = malloc(sizeof(PtySession));
     if (!sess) {

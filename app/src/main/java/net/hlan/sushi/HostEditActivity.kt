@@ -104,68 +104,68 @@ class HostEditActivity : AppCompatActivity() {
 
     private fun saveHost() {
         val alias = binding.hostAliasInput.text?.toString()?.trim().orEmpty()
-
         val config = if (currentKind == HostKind.LOCAL) {
-            SshConnectionConfig(
-                kind = HostKind.LOCAL,
-                id = hostId ?: java.util.UUID.randomUUID().toString(),
-                alias = alias,
-                host = "",
-                port = 0,
-                username = "",
-                password = "",
-            )
+            buildLocalConfig(alias)
         } else {
-            val host = binding.sshHostInput.text?.toString()?.trim().orEmpty()
-            val username = binding.sshUsernameInput.text?.toString()?.trim().orEmpty()
-
-            if (host.isBlank() || username.isBlank()) {
-                Toast.makeText(this, "Host and Username are required", Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            val portInput = binding.sshPortInput.text?.toString()?.trim().orEmpty()
-            val parsedPort = portInput.toIntOrNull()
-            val port = if (parsedPort != null && parsedPort in 1..65535) {
-                parsedPort
-            } else {
-                Toast.makeText(this, getString(R.string.ssh_invalid_port), Toast.LENGTH_SHORT).show()
-                binding.sshPortInput.setText("22")
-                return
-            }
-
-            val jumpEnabled = binding.jumpEnabledSwitch.isChecked && jumpOptions.isNotEmpty()
-            if (jumpEnabled && selectedJumpHostId.isNullOrBlank()) {
-                Toast.makeText(this, getString(R.string.jump_required_selection), Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            SshConnectionConfig(
-                kind = HostKind.SSH,
-                id = hostId ?: java.util.UUID.randomUUID().toString(),
-                alias = alias,
-                host = host,
-                port = port,
-                username = username,
-                password = binding.sshPasswordInput.text?.toString().orEmpty(),
-                authPreference = authValueFromInput(),
-                jumpEnabled = jumpEnabled,
-                jumpHostId = if (jumpEnabled) selectedJumpHostId else null,
-                jumpHost = "",
-                jumpPort = 22,
-                jumpUsername = "",
-                jumpPassword = ""
-            )
+            buildSshConfig(alias) ?: return
         }
-
         sshSettings.saveHost(config)
-
         if (sshSettings.getActiveHostId() == null) {
             sshSettings.setActiveHostId(config.id)
         }
-
         Toast.makeText(this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
         finish()
+    }
+
+    private fun buildLocalConfig(alias: String): SshConnectionConfig =
+        SshConnectionConfig(
+            kind = HostKind.LOCAL,
+            id = hostId ?: java.util.UUID.randomUUID().toString(),
+            alias = alias,
+            host = "",
+            port = 0,
+            username = "",
+            password = "",
+        )
+
+    private fun buildSshConfig(alias: String): SshConnectionConfig? {
+        val host = binding.sshHostInput.text?.toString()?.trim().orEmpty()
+        val username = binding.sshUsernameInput.text?.toString()?.trim().orEmpty()
+        if (host.isBlank() || username.isBlank()) {
+            Toast.makeText(this, "Host and Username are required", Toast.LENGTH_SHORT).show()
+            return null
+        }
+
+        val portInput = binding.sshPortInput.text?.toString()?.trim().orEmpty()
+        val parsedPort = portInput.toIntOrNull()
+        if (parsedPort == null || parsedPort !in 1..65535) {
+            Toast.makeText(this, getString(R.string.ssh_invalid_port), Toast.LENGTH_SHORT).show()
+            binding.sshPortInput.setText("22")
+            return null
+        }
+
+        val jumpEnabled = binding.jumpEnabledSwitch.isChecked && jumpOptions.isNotEmpty()
+        if (jumpEnabled && selectedJumpHostId.isNullOrBlank()) {
+            Toast.makeText(this, getString(R.string.jump_required_selection), Toast.LENGTH_SHORT).show()
+            return null
+        }
+
+        return SshConnectionConfig(
+            kind = HostKind.SSH,
+            id = hostId ?: java.util.UUID.randomUUID().toString(),
+            alias = alias,
+            host = host,
+            port = parsedPort,
+            username = username,
+            password = binding.sshPasswordInput.text?.toString().orEmpty(),
+            authPreference = authValueFromInput(),
+            jumpEnabled = jumpEnabled,
+            jumpHostId = if (jumpEnabled) selectedJumpHostId else null,
+            jumpHost = "",
+            jumpPort = 22,
+            jumpUsername = "",
+            jumpPassword = ""
+        )
     }
 
     private fun setupAuthPreferenceOptions() {
