@@ -11,6 +11,7 @@ class HostEditActivity : AppCompatActivity() {
     private lateinit var binding: ActivityHostEditBinding
     private val sshSettings by lazy { SshSettings(this) }
     private var hostId: String? = null
+    private var currentKind: HostKind = HostKind.SSH
     private var jumpOptions: List<SshConnectionConfig> = emptyList()
     private var selectedJumpHostId: String? = null
     private var authPreferenceOptions: List<Pair<String, String>> = emptyList()
@@ -28,7 +29,6 @@ class HostEditActivity : AppCompatActivity() {
 
         if (isEditMode) {
             binding.editHostTitle.text = getString(R.string.edit_host_title)
-            binding.deleteButton.visibility = View.VISIBLE
             loadHostData(hostId!!)
         } else {
             binding.editHostTitle.text = getString(R.string.add_host_title)
@@ -62,70 +62,104 @@ class HostEditActivity : AppCompatActivity() {
             return
         }
 
+        currentKind = host.kind
         binding.hostAliasInput.setText(host.alias)
-        binding.sshHostInput.setText(host.host)
-        binding.sshPortInput.setText(host.port.toString())
-        binding.sshUsernameInput.setText(host.username)
-        binding.sshPasswordInput.setText(host.password)
-        binding.authPreferenceInput.setText(authLabelForValue(host.authPreference), false)
 
-        val jumpHostId = host.jumpHostId
-        if (!jumpHostId.isNullOrBlank()) {
-            val index = jumpOptions.indexOfFirst { option -> option.id == jumpHostId }
-            if (index >= 0) {
-                selectedJumpHostId = jumpOptions[index].id
-                binding.jumpServerInput.setText(buildJumpLabel(jumpOptions[index]), false)
+        if (host.kind == HostKind.LOCAL) {
+            applySshFieldVisibility(visible = false)
+            binding.deleteButton.visibility = View.GONE
+        } else {
+            applySshFieldVisibility(visible = true)
+            binding.deleteButton.visibility = View.VISIBLE
+            binding.sshHostInput.setText(host.host)
+            binding.sshPortInput.setText(host.port.toString())
+            binding.sshUsernameInput.setText(host.username)
+            binding.sshPasswordInput.setText(host.password)
+            binding.authPreferenceInput.setText(authLabelForValue(host.authPreference), false)
+
+            val jumpHostId = host.jumpHostId
+            if (!jumpHostId.isNullOrBlank()) {
+                val index = jumpOptions.indexOfFirst { option -> option.id == jumpHostId }
+                if (index >= 0) {
+                    selectedJumpHostId = jumpOptions[index].id
+                    binding.jumpServerInput.setText(buildJumpLabel(jumpOptions[index]), false)
+                }
             }
+            binding.jumpEnabledSwitch.isChecked = host.jumpEnabled && selectedJumpHostId != null
+            updateJumpSectionVisibility(binding.jumpEnabledSwitch.isChecked)
         }
+    }
 
-        binding.jumpEnabledSwitch.isChecked = host.jumpEnabled && selectedJumpHostId != null
-        updateJumpSectionVisibility(binding.jumpEnabledSwitch.isChecked)
+    private fun applySshFieldVisibility(visible: Boolean) {
+        val v = if (visible) View.VISIBLE else View.GONE
+        binding.sshHostLayout.visibility = v
+        binding.sshPortLayout.visibility = v
+        binding.sshUsernameLayout.visibility = v
+        binding.sshPasswordLayout.visibility = v
+        binding.authPreferenceLayout.visibility = v
+        binding.jumpEnabledSwitch.visibility = v
+        binding.jumpServerLayout.visibility = View.GONE
+        binding.jumpHelperText.visibility = View.GONE
     }
 
     private fun saveHost() {
-        val host = binding.sshHostInput.text?.toString()?.trim().orEmpty()
-        val username = binding.sshUsernameInput.text?.toString()?.trim().orEmpty()
-        
-        if (host.isBlank() || username.isBlank()) {
-            Toast.makeText(this, "Host and Username are required", Toast.LENGTH_SHORT).show()
-            return
-        }
+        val alias = binding.hostAliasInput.text?.toString()?.trim().orEmpty()
 
-        val portInput = binding.sshPortInput.text?.toString()?.trim().orEmpty()
-        val parsedPort = portInput.toIntOrNull()
-        val port = if (parsedPort != null && parsedPort in 1..65535) {
-            parsedPort
+        val config = if (currentKind == HostKind.LOCAL) {
+            SshConnectionConfig(
+                kind = HostKind.LOCAL,
+                id = hostId ?: java.util.UUID.randomUUID().toString(),
+                alias = alias,
+                host = "",
+                port = 0,
+                username = "",
+                password = "",
+            )
         } else {
-            Toast.makeText(this, getString(R.string.ssh_invalid_port), Toast.LENGTH_SHORT).show()
-            binding.sshPortInput.setText("22")
-            return
-        }
+            val host = binding.sshHostInput.text?.toString()?.trim().orEmpty()
+            val username = binding.sshUsernameInput.text?.toString()?.trim().orEmpty()
 
-        val jumpEnabled = binding.jumpEnabledSwitch.isChecked && jumpOptions.isNotEmpty()
-        if (jumpEnabled && selectedJumpHostId.isNullOrBlank()) {
-            Toast.makeText(this, getString(R.string.jump_required_selection), Toast.LENGTH_SHORT).show()
-            return
-        }
+            if (host.isBlank() || username.isBlank()) {
+                Toast.makeText(this, "Host and Username are required", Toast.LENGTH_SHORT).show()
+                return
+            }
 
-        val config = SshConnectionConfig(
-            id = hostId ?: java.util.UUID.randomUUID().toString(),
-            alias = binding.hostAliasInput.text?.toString()?.trim().orEmpty(),
-            host = host,
-            port = port,
-            username = username,
-            password = binding.sshPasswordInput.text?.toString().orEmpty(),
-            authPreference = authValueFromInput(),
-            jumpEnabled = jumpEnabled,
-            jumpHostId = if (jumpEnabled) selectedJumpHostId else null,
-            jumpHost = "",
-            jumpPort = 22,
-            jumpUsername = "",
-            jumpPassword = ""
-        )
+            val portInput = binding.sshPortInput.text?.toString()?.trim().orEmpty()
+            val parsedPort = portInput.toIntOrNull()
+            val port = if (parsedPort != null && parsedPort in 1..65535) {
+                parsedPort
+            } else {
+                Toast.makeText(this, getString(R.string.ssh_invalid_port), Toast.LENGTH_SHORT).show()
+                binding.sshPortInput.setText("22")
+                return
+            }
+
+            val jumpEnabled = binding.jumpEnabledSwitch.isChecked && jumpOptions.isNotEmpty()
+            if (jumpEnabled && selectedJumpHostId.isNullOrBlank()) {
+                Toast.makeText(this, getString(R.string.jump_required_selection), Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            SshConnectionConfig(
+                kind = HostKind.SSH,
+                id = hostId ?: java.util.UUID.randomUUID().toString(),
+                alias = alias,
+                host = host,
+                port = port,
+                username = username,
+                password = binding.sshPasswordInput.text?.toString().orEmpty(),
+                authPreference = authValueFromInput(),
+                jumpEnabled = jumpEnabled,
+                jumpHostId = if (jumpEnabled) selectedJumpHostId else null,
+                jumpHost = "",
+                jumpPort = 22,
+                jumpUsername = "",
+                jumpPassword = ""
+            )
+        }
 
         sshSettings.saveHost(config)
-        
-        // Auto-select if it's the first host or just created
+
         if (sshSettings.getActiveHostId() == null) {
             sshSettings.setActiveHostId(config.id)
         }
@@ -159,7 +193,7 @@ class HostEditActivity : AppCompatActivity() {
     private fun setupJumpOptions() {
         jumpOptions = sshSettings
             .getHosts()
-            .filter { host -> host.id != hostId }
+            .filter { host -> host.id != hostId && host.kind == HostKind.SSH }
 
         val labels = jumpOptions.map { option -> buildJumpLabel(option) }
         val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)

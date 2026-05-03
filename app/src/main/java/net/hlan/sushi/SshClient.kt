@@ -11,6 +11,8 @@ import java.io.InputStreamReader
 import java.io.OutputStream
 import java.util.concurrent.atomic.AtomicReference
 
+enum class HostKind { SSH, LOCAL }
+
 enum class SshAuthPreference(val value: String) {
     AUTO("auto"),
     PASSWORD("password"),
@@ -24,6 +26,7 @@ enum class SshAuthPreference(val value: String) {
 }
 
 data class SshConnectionConfig(
+    val kind: HostKind = HostKind.SSH,
     val id: String = java.util.UUID.randomUUID().toString(),
     val alias: String = "",
     val host: String,
@@ -45,10 +48,14 @@ data class SshConnectionConfig(
 
     fun resolvedAuthPreference(): SshAuthPreference = SshAuthPreference.from(authPreference)
 
-    fun displayTarget(): String = if (alias.isNotBlank()) {
-        "$alias ($username@$host:$port)"
-    } else {
-        "$username@$host:$port"
+    fun displayTarget(): String {
+        val core = when {
+            kind == HostKind.LOCAL -> alias.ifBlank { "Local shell" }
+            alias.isNotBlank() -> "$alias ($username@$host:$port)"
+            else -> "$username@$host:$port"
+        }
+        val kindLabel = if (kind == HostKind.LOCAL) "local" else "ssh"
+        return "$core · $kindLabel"
     }
 }
 

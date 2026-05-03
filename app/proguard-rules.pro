@@ -46,6 +46,12 @@
 -keep class com.google.mlkit.** { *; }
 -dontwarn com.google.mlkit.**
 
+# Native methods must keep their JNI-resolvable names.
+-keepclasseswithmembernames class * { native <methods>; }
+
+# LocalShellBackend is referenced by JNI symbol names (Java_net_hlan_sushi_LocalShellBackend_native*).
+-keep class net.hlan.sushi.LocalShellBackend { *; }
+
 # ListAdapter.getCurrentList() is called from instrumented tests against the minified build.
 -keepclassmembers class * extends androidx.recyclerview.widget.ListAdapter {
     public java.util.List getCurrentList();

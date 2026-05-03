@@ -6,5 +6,6 @@ class SushiApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         AppThemeSettings(this).applyThemeMode()
+        SshSettings(this).seedLocalHostIfMissing()
     }
 }
