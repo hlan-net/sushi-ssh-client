@@ -1,6 +1,9 @@
 package net.hlan.sushi
 
 import android.content.Context
+import java.nio.ByteBuffer
+import java.nio.CharBuffer
+import java.nio.charset.CodingErrorAction
 
 class LocalShellBackend(private val context: Context) : TerminalBackend {
     private var nativeHandle: Long = 0L
@@ -72,12 +75,29 @@ class LocalShellBackend(private val context: Context) : TerminalBackend {
         val h = nativeHandle
         readerThread = Thread {
             val buf = ByteArray(4096)
+            // CharsetDecoder accumulates bytes across read() calls so that
+            // multi-byte UTF-8 sequences split at a read boundary are decoded
+            // correctly instead of producing replacement characters.
+            val decoder = Charsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPLACE)
+                .onUnmappableCharacter(CodingErrorAction.REPLACE)
+            val charBuf = CharBuffer.allocate(8192)
             val lineBuffer = StringBuilder()
+            var pending = ByteArray(0)
             try {
                 while (true) {
                     val n = nativeRead(h, buf)
                     if (n <= 0) break
-                    val chunk = String(buf, 0, n, Charsets.UTF_8)
+                    val input = if (pending.isEmpty()) buf.copyOf(n) else pending + buf.copyOf(n)
+                    val inBuf = ByteBuffer.wrap(input)
+                    charBuf.clear()
+                    decoder.decode(inBuf, charBuf, false)
+                    pending = if (inBuf.hasRemaining()) {
+                        ByteArray(inBuf.remaining()).also { inBuf.get(it) }
+                    } else ByteArray(0)
+                    charBuf.flip()
+                    if (!charBuf.hasRemaining()) continue
+                    val chunk = charBuf.toString()
                     if (streamMode) {
                         onLine(chunk)
                     } else {
@@ -90,6 +110,15 @@ class LocalShellBackend(private val context: Context) : TerminalBackend {
                             lineBuffer.append(text.substring(lastNl + 1))
                         }
                     }
+                }
+                // Flush any bytes that form a valid sequence at end-of-stream
+                charBuf.clear()
+                decoder.decode(ByteBuffer.wrap(pending), charBuf, true)
+                decoder.flush(charBuf)
+                charBuf.flip()
+                if (charBuf.hasRemaining()) {
+                    val tail = charBuf.toString()
+                    if (streamMode) onLine(tail) else lineBuffer.append(tail)
                 }
                 if (!streamMode && lineBuffer.isNotEmpty()) {
                     onLine(lineBuffer.toString())
