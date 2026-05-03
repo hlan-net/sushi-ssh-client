@@ -564,7 +564,7 @@ class SettingsActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             val startedAt = System.currentTimeMillis()
             val outputLines = mutableListOf<String>()
-            val client = SshClient(config)
+            val client: TerminalBackend = SshClient(config)
             val connectResult = client.connect(onLine = { line ->
                 synchronized(outputLines) {
                     if (outputLines.size < 6) {

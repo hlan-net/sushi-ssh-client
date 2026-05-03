@@ -88,8 +88,8 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
 
     override fun connect(
         onLine: (String) -> Unit,
-        streamMode: Boolean = false,
-        onConnectionClosed: (() -> Unit)? = null
+        streamMode: Boolean,
+        onConnectionClosed: (() -> Unit)?
     ): SshConnectResult {
         var newChannel: ChannelShell? = null
         var sessionPair: ConnectedSessionPair? = null
