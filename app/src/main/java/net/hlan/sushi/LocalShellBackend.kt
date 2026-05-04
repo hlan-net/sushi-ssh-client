@@ -5,6 +5,7 @@ import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.CharsetDecoder
 import java.nio.charset.CodingErrorAction
+import java.util.concurrent.TimeUnit
 
 class LocalShellBackend(private val context: Context) : TerminalBackend {
     private var nativeHandle: Long = 0L
@@ -66,6 +67,29 @@ class LocalShellBackend(private val context: Context) : TerminalBackend {
         nativeHandle = 0L
         if (h != 0L) runCatching { nativeClose(h) }
         readerThread = null
+    }
+
+    /**
+     * Runs [command] in a fresh subprocess (not the interactive PTY) and captures its output.
+     * This mirrors how [SshClient.execCommand] opens a separate exec channel so that the
+     * interactive terminal session is not affected.
+     */
+    override fun execCommand(command: String, timeoutMs: Long): SshCommandResult {
+        return runCatching {
+            val process = ProcessBuilder("sh", "-c", command)
+                .redirectErrorStream(true)
+                .start()
+            val output = process.inputStream.bufferedReader().readText()
+            val finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)
+            if (!finished) {
+                process.destroyForcibly()
+                return SshCommandResult(false, null, "Command timed out after ${timeoutMs}ms")
+            }
+            val exitCode = process.exitValue()
+            SshCommandResult(exitCode == 0, exitCode, output.trim())
+        }.getOrElse { e ->
+            SshCommandResult(false, null, e.message ?: "Exec failed")
+        }
     }
 
     private fun startReader(

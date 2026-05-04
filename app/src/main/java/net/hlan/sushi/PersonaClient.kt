@@ -10,7 +10,7 @@ import kotlinx.coroutines.withContext
  * The persona is defined by ~/.config/sushi/SUSHI.md on the target system.
  * This client reads that file on connection and uses it as context for LLM interactions.
  */
-class PersonaClient(private val sshClient: SshClient) {
+class PersonaClient(private val sshClient: TerminalBackend) {
 
     private var sushiMdContent: String? = null
     private var systemIdentity: String? = null

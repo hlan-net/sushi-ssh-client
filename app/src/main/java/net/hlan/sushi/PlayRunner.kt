@@ -1,9 +1,5 @@
 package net.hlan.sushi
 
-import java.util.Collections
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-
 data class PlayRunResult(
     val success: Boolean,
     val message: String,
@@ -14,9 +10,25 @@ data class PlayRunResult(
 object PlayRunner {
     private val placeholderRegex = Regex("\\{\\{\\s*([A-Za-z0-9_]+)\\s*\\}\\}")
 
+    /**
+     * Execute [play] against [backend].
+     *
+     * The backend is provided by the caller; PlayRunner does not create or own the connection.
+     * For SSH hosts the caller passes a connected [SshClient]; for LOCAL hosts a
+     * [LocalShellBackend]. Each case uses [TerminalBackend.execCommand] which runs the
+     * rendered script in an isolated channel/subprocess so the interactive PTY session is
+     * not affected.
+     *
+     * @param play The play to execute.
+     * @param backend A [TerminalBackend] that has been connected (or can exec without connecting,
+     *   as [LocalShellBackend] does via ProcessBuilder).
+     * @param values Parameter values keyed by [PlayParameter.key].
+     * @param timeoutSec Maximum seconds to wait for the script to finish.
+     * @param onLine Called for each line of script output (delivered after completion).
+     */
     fun execute(
         play: Play,
-        hostConfig: SshConnectionConfig,
+        backend: TerminalBackend,
         values: Map<String, String>,
         timeoutSec: Long = 30,
         onLine: (String) -> Unit
@@ -37,47 +49,14 @@ object PlayRunner {
             return PlayRunResult(false, "Rendered command is empty")
         }
 
-        val lines = Collections.synchronizedList(mutableListOf<String>())
-        val marker = "SUSHI_PLAY_DONE_${System.currentTimeMillis()}"
-        val markerLatch = CountDownLatch(1)
-        val client: TerminalBackend = SshClient(hostConfig)
+        val result = backend.execCommand(rendered, timeoutSec * 1_000L)
+        val lines = result.message.lines().filter { it.isNotEmpty() }
+        lines.forEach { onLine(it) }
 
-        val connectResult = client.connect(onLine = { line ->
-            lines.add(line)
-            onLine(line)
-            if (line.trim() == marker) {
-                markerLatch.countDown()
-            }
-        })
-        if (!connectResult.success) {
-            return PlayRunResult(false, connectResult.message, renderedCommand = rendered)
-        }
-
-        try {
-            val commandResult = client.sendCommand("$rendered; printf '\\n$marker\\n'")
-            if (!commandResult.success) {
-                return PlayRunResult(false, commandResult.message, renderedCommand = rendered)
-            }
-
-            val seenMarker = markerLatch.await(timeoutSec, TimeUnit.SECONDS)
-            if (!seenMarker) {
-                if (!client.isConnected()) {
-                    return PlayRunResult(
-                        success = true,
-                        message = "Play completed (remote session closed)",
-                        outputLines = synchronized(lines) { lines.toList() },
-                        renderedCommand = rendered
-                    )
-                }
-                return PlayRunResult(false, "Play timed out", renderedCommand = rendered)
-            }
-
-            val snapshot = synchronized(lines) { lines.toList() }
-            val markerIndex = snapshot.indexOfFirst { it.trim() == marker }
-            val output = if (markerIndex >= 0) snapshot.subList(0, markerIndex) else snapshot
-            return PlayRunResult(true, "Play completed", outputLines = output, renderedCommand = rendered)
-        } finally {
-            client.disconnect()
+        return if (result.success) {
+            PlayRunResult(true, "Play completed", outputLines = lines, renderedCommand = rendered)
+        } else {
+            PlayRunResult(false, result.message.ifBlank { "Play failed" }, outputLines = lines, renderedCommand = rendered)
         }
     }
 
