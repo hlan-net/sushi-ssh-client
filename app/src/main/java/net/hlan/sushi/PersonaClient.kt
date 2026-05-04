@@ -23,8 +23,8 @@ class PersonaClient(private val sshClient: TerminalBackend) {
      */
     suspend fun initialize(): PersonaInitResult = withContext(Dispatchers.IO) {
         return@withContext try {
-            // Try to read SUSHI.md
-            val readResult = sshClient.sendCommand("cat ~/.config/sushi/SUSHI.md 2>/dev/null || echo 'SUSHI_NOT_FOUND'")
+            // Use execCommand so we capture actual stdout, not just "Command sent".
+            val readResult = sshClient.execCommand("cat ~/.config/sushi/SUSHI.md 2>/dev/null || echo 'SUSHI_NOT_FOUND'")
             
             if (!readResult.success) {
                 Log.w(TAG, "Failed to read SUSHI.md: ${readResult.message}")
@@ -91,14 +91,14 @@ class PersonaClient(private val sshClient: TerminalBackend) {
     suspend fun profileSystem(): SystemProfile? = withContext(Dispatchers.IO) {
         return@withContext try {
             val scriptPath = "~/.config/sushi/scripts/profile_system.sh"
-            val checkResult = sshClient.sendCommand("test -x $scriptPath && echo 'EXISTS' || echo 'NOT_FOUND'")
-            
+            val checkResult = sshClient.execCommand("test -x $scriptPath && echo 'EXISTS' || echo 'NOT_FOUND'")
+
             if (checkResult.message.contains("NOT_FOUND")) {
                 Log.w(TAG, "Profile script not found")
                 return@withContext null
             }
 
-            val result = sshClient.sendCommand("$scriptPath 2>/dev/null")
+            val result = sshClient.execCommand("$scriptPath 2>/dev/null")
             if (!result.success) {
                 Log.w(TAG, "Profile script execution failed: ${result.message}")
                 return@withContext null
