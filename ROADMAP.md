@@ -26,22 +26,23 @@ The conversational foundation is complete:
 
 Solidify the terminal layer first — the conversational features all sit on top of it.
 
-### Terminal foundation (sequential — each PR depends on the previous)
+### Terminal foundation ✅ (all merged — 2026-05-04)
 
 | PR | Branch | Scope | User-visible? |
 |----|--------|-------|--------------|
-| 1 | `refactor/terminal-backend` | Extract `TerminalBackend` interface from `SshClient`; `SshConnectionHolder` → `TerminalSessionHolder` | No |
-| 2 | `feature/local-shell` | JNI PTY shim (`sushi-pty`), `LocalShellBackend`, `HostKind` discriminator, synthetic "Local shell" host, `HostEditActivity` field toggle | Yes |
-| 3 | `feature/host-selection-ux` | One-tap connect from host list; active host in terminal title bar; drop silent first-host auto-select; remove duplicate "Manage Hosts" in Settings | Yes |
+| 1 | ~~`refactor/terminal-backend`~~ | Extract `TerminalBackend` interface from `SshClient`; `ConversationManager` + `PlayRunner` decoupled from `SshClient`; `LocalShellBackend` works with AI and Plays | No |
+| 2 | ~~`feature/local-shell`~~ | `LocalShellBackend`, `HostKind` discriminator, synthetic "Local shell" host, `HostEditActivity` field toggle | Yes |
+| 3 | ~~`feature/host-selection-ux`~~ | One-tap connect from host list; active host in terminal title bar; drop silent first-host auto-select; remove duplicate "Manage Hosts" in Settings | Yes |
 
-### Conversation depth (can run in parallel after PR 1 merges)
+### Conversation depth
 
-| PR | Branch | Scope |
-|----|--------|-------|
-| 4 | `feature/raw-terminal-mode` | [Raw Terminal Mode toggle](docs/raw-terminal-mode.md) — switch between AI conversation and direct shell |
-| 5 | `feature/output-streaming` | Command output streaming — token-by-token delivery for long-running commands |
-| 6 | `feature/full-transcript` | Full conversation transcript — voice + reply + command + raw output in one scrollable log |
-| 7 | `feature/first-run-onboarding` | [First-run onboarding](docs/first-run-onboarding.md) — guide user through `SUSHI.md` setup on first connect |
+| PR | Branch | Scope | Status |
+|----|--------|-------|--------|
+| — | ~~`feature/play-parameter-ux`~~ | Play parameter defaults, descriptions, examples; live preview in run dialog; required-vs-optional distinction | ✅ |
+| 6 | `feature/gemini-transcript` | Gemini transcript persistence — SQLite-backed session history with command/output entries, browsable history UI | 🔄 in progress |
+| 4 | `feature/raw-terminal-mode` | [Raw Terminal Mode toggle](docs/raw-terminal-mode.md) — switch between AI conversation and direct shell | — |
+| 5 | `feature/output-streaming` | Command output streaming — token-by-token delivery for long-running commands | — |
+| 7 | `feature/first-run-onboarding` | [First-run onboarding](docs/first-run-onboarding.md) — guide user through `SUSHI.md` setup on first connect | — |
 
 ---
 
@@ -101,4 +102,4 @@ Interesting directions that depend on the conversational core being solid first.
 
 ---
 
-*Last updated: 2026-05-03*
+*Last updated: 2026-05-04*
