@@ -540,7 +540,7 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.plays_title)
             .setItems(playNames) { _, which ->
                 val play = plays[which]
-                promptPlayParametersAndRun(play, host)
+                promptPlayParametersAndRun(play, host, onBack = { showPlaySelectionDialog(plays, host) })
             }
             .setPositiveButton(R.string.action_manage) { _, _ ->
                 startActivity(Intent(this, PlaysActivity::class.java))
@@ -549,7 +549,11 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun promptPlayParametersAndRun(play: Play, host: SshConnectionConfig) {
+    private fun promptPlayParametersAndRun(
+        play: Play,
+        host: SshConnectionConfig,
+        onBack: (() -> Unit)? = null
+    ) {
         val parameters = PlayParameters.decode(play.parametersJson).ifEmpty {
             PlayParameters.inferFromTemplate(play.scriptTemplate)
         }
@@ -559,31 +563,79 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        val dp = resources.displayMetrics.density
+        val pad = (16 * dp).toInt()
+        val smallGap = (8 * dp).toInt()
+
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 16, 32, 0)
+            setPadding(pad, smallGap, pad, 0)
         }
+
+        // Live command preview
+        val previewView = android.widget.TextView(this).apply {
+            typeface = android.graphics.Typeface.MONOSPACE
+            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodySmall)
+            setBackgroundColor(
+                android.graphics.Color.argb(20, 128, 128, 128)
+            )
+            setPadding(smallGap, smallGap, smallGap, smallGap)
+            text = play.scriptTemplate
+        }
+        container.addView(previewView, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).also { it.bottomMargin = smallGap })
+
         val fields = linkedMapOf<PlayParameter, TextInputEditText>()
 
         parameters.forEachIndexed { index, parameter ->
             addParameterField(container, fields, parameter, index > 0)
         }
 
+        // Helper that re-renders preview from current field values
+        fun refreshPreview() {
+            val current = fields.entries.associate { (param, input) ->
+                val typed = input.text?.toString().orEmpty()
+                param.key to typed.ifBlank { param.default.orEmpty() }.ifBlank { "…" }
+            }
+            val placeholderRegex = Regex("\\{\\{\\s*([A-Za-z0-9_]+)\\s*\\}\\}")
+            previewView.text = placeholderRegex.replace(play.scriptTemplate) { match ->
+                current[match.groupValues[1]] ?: match.value
+            }
+        }
+
+        // Attach TextWatchers after all fields are created
+        fields.values.forEach { input ->
+            input.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                override fun afterTextChanged(s: android.text.Editable?) { refreshPreview() }
+            })
+        }
+        refreshPreview()
+
         val content = ScrollView(this).apply { addView(container) }
 
+        val negLabel = if (onBack != null) R.string.play_param_back else R.string.phrase_cancel
         val dialog = AlertDialog.Builder(this)
             .setTitle(getString(R.string.play_prompt_title, play.name))
             .setView(content)
             .setPositiveButton(R.string.action_run_play, null)
-            .setNegativeButton(R.string.phrase_cancel, null)
+            .setNegativeButton(negLabel, null)
             .create()
 
         dialog.setOnShowListener {
-            val runButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-            runButton.setOnClickListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val values = collectAndValidatePlayValues(fields) ?: return@setOnClickListener
                 dialog.dismiss()
                 runPlay(play, host, values)
+            }
+            if (onBack != null) {
+                dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
+                    dialog.dismiss()
+                    onBack()
+                }
             }
         }
         dialog.show()
@@ -595,8 +647,16 @@ class MainActivity : AppCompatActivity() {
         parameter: PlayParameter,
         withTopMargin: Boolean
     ) {
+        val dp = resources.displayMetrics.density
+        val hint = if (parameter.required && parameter.default.isNullOrBlank()) {
+            "${parameter.label} *"
+        } else {
+            parameter.label
+        }
         val layout = TextInputLayout(this).apply {
-            hint = parameter.label
+            this.hint = hint
+            parameter.description?.let { helperText = it }
+                ?: parameter.example?.let { helperText = getString(R.string.play_param_example_prefix, it) }
         }
         val input = TextInputEditText(this).apply {
             inputType = if (parameter.secret) {
@@ -604,18 +664,15 @@ class MainActivity : AppCompatActivity() {
             } else {
                 android.text.InputType.TYPE_CLASS_TEXT
             }
+            parameter.default?.let { setText(it) }
         }
         layout.addView(input)
-        if (withTopMargin) {
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.topMargin = 12
-            container.addView(layout, params)
-        } else {
-            container.addView(layout)
-        }
+        val lp = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        if (withTopMargin) lp.topMargin = (12 * dp).toInt()
+        container.addView(layout, lp)
         fields[parameter] = input
     }
 
@@ -628,7 +685,8 @@ class MainActivity : AppCompatActivity() {
             val value = input.text?.toString().orEmpty()
             val layout = input.parent.parent as? TextInputLayout
             layout?.error = null
-            if (parameter.required && value.isBlank()) {
+            // Required with no value AND no default → show error (PlayRunner would also reject).
+            if (parameter.required && value.isBlank() && parameter.default.isNullOrBlank()) {
                 layout?.error = getString(R.string.play_parameter_required)
                 hasError = true
             } else {

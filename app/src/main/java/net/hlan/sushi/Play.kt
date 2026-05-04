@@ -16,7 +16,10 @@ data class PlayParameter(
     val key: String,
     val label: String,
     val required: Boolean = true,
-    val secret: Boolean = false
+    val secret: Boolean = false,
+    val default: String? = null,
+    val description: String? = null,
+    val example: String? = null
 )
 
 object PlayParameters {
@@ -41,7 +44,10 @@ object PlayParameters {
                             key = key,
                             label = label,
                             required = item.optBoolean("required", true),
-                            secret = item.optBoolean("secret", false)
+                            secret = item.optBoolean("secret", false),
+                            default = item.optString("default").takeIf { it.isNotEmpty() },
+                            description = item.optString("description").takeIf { it.isNotEmpty() },
+                            example = item.optString("example").takeIf { it.isNotEmpty() }
                         )
                     )
                 }
@@ -57,6 +63,9 @@ object PlayParameters {
                 .put("label", parameter.label)
                 .put("required", parameter.required)
                 .put("secret", parameter.secret)
+            parameter.default?.let { obj.put("default", it) }
+            parameter.description?.let { obj.put("description", it) }
+            parameter.example?.let { obj.put("example", it) }
             array.put(obj)
         }
         return array.toString()
