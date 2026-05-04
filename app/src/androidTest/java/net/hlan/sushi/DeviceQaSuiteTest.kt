@@ -1,5 +1,6 @@
 package net.hlan.sushi
 
+import android.content.Intent
 import android.view.View
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
@@ -204,6 +205,69 @@ class DeviceQaSuiteTest {
                     targetPosition, click()
                 )
             )
+        }
+    }
+
+    @Test
+    fun localShellHostIsSeededAndAppearsInHostList() {
+        val context = instrumentation.targetContext
+        // clearState() wiped prefs; re-seed as Application.onCreate() would on first launch.
+        SshSettings(context).seedLocalHostIfMissing()
+
+        val sshSettings = SshSettings(context)
+        val localHosts = sshSettings.getHosts().filter { it.kind == HostKind.LOCAL }
+        assertTrue("At least one LOCAL host should exist after seeding", localHosts.isNotEmpty())
+        assertTrue(
+            "Seeded LOCAL host alias should not be blank",
+            localHosts.first().alias.isNotBlank()
+        )
+
+        // Verify the seeded host appears in HostsActivity list
+        launchActivity(HostsActivity::class.java).use { scenario ->
+            waitForCondition(scenario) { activity ->
+                val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(
+                    R.id.hostsRecyclerView
+                )
+                recycler.adapter?.itemCount ?: 0 > 0
+            }
+            onView(withId(R.id.hostsRecyclerView))
+                .check(matches(isDisplayed()))
+        }
+    }
+
+    @Test
+    fun localHostEditShowsOnlyAliasField() {
+        val context = instrumentation.targetContext
+        SshSettings(context).seedLocalHostIfMissing()
+
+        val localHost = SshSettings(context).getHosts().first { it.kind == HostKind.LOCAL }
+        val intent = Intent(context, HostEditActivity::class.java)
+            .putExtra(HostEditActivity.EXTRA_HOST_ID, localHost.id)
+
+        wakeAndUnlock()
+        Thread.sleep(400)
+        ActivityScenario.launch<HostEditActivity>(intent).use { scenario ->
+            scenario.onActivity { activity ->
+                activity.window.addFlags(
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                        @Suppress("DEPRECATION")
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                )
+            }
+
+            // Alias field must be visible and editable
+            onView(withId(R.id.hostAliasInput)).check(matches(isDisplayed()))
+
+            // SSH-specific fields must be hidden for LOCAL hosts
+            onView(withId(R.id.sshHostLayout)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.sshPortLayout)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.sshUsernameLayout)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.sshPasswordLayout)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.authPreferenceLayout)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.jumpEnabledSwitch)).check(matches(not(isDisplayed())))
+
+            // Delete button must be hidden so the synthetic host cannot be removed
+            onView(withId(R.id.deleteButton)).check(matches(not(isDisplayed())))
         }
     }
 

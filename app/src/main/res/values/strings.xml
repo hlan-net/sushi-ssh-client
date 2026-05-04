@@ -106,6 +106,7 @@
     <string name="jump_required_selection">Select a jump server from the host list.</string>
     <string name="jump_invalid_port">Jump server port must be a number. Using 22.</string>
     <string name="ssh_missing_config">Add SSH details in Settings to connect.</string>
+    <string name="local_shell_default_alias">Local shell</string>
     <string name="ssh_invalid_port">Port must be a number. Using 22.</string>
     
     <string name="action_manage_hosts">Manage Hosts</string>

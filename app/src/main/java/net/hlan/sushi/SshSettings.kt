@@ -5,7 +5,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
-class SshSettings(context: Context) {
+class SshSettings(private val context: Context) {
     private val prefs = SecurePrefs.get(context)
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
     private val listType = Types.newParameterizedType(List::class.java, SshConnectionConfig::class.java)
@@ -109,6 +109,19 @@ class SshSettings(context: Context) {
             jumpUsername = jumpHostConfig.username,
             jumpPassword = jumpHostConfig.password
         )
+    }
+
+    fun seedLocalHostIfMissing() {
+        if (getHosts().any { it.kind == HostKind.LOCAL }) return
+        val local = SshConnectionConfig(
+            kind = HostKind.LOCAL,
+            alias = context.getString(R.string.local_shell_default_alias),
+            host = "",
+            port = 0,
+            username = "",
+            password = "",
+        )
+        saveHost(local)
     }
 
     // Migration function for old settings

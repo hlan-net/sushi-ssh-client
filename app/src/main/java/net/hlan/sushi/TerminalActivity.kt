@@ -124,11 +124,16 @@ class TerminalActivity : AppCompatActivity() {
         binding.terminalOutputText.appendLog(getString(R.string.terminal_connect_attempt_log))
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val firstAttempt = connectWithClient(config)
+            val backend: TerminalBackend = when (config.kind) {
+                HostKind.LOCAL -> LocalShellBackend(applicationContext)
+                HostKind.SSH -> SshClient(config)
+            }
+
+            val firstAttempt = connectWith(backend, config)
             var client = firstAttempt.first
             var result = firstAttempt.second
 
-            if (!result.success) {
+            if (!result.success && config.kind == HostKind.SSH) {
                 withContext(Dispatchers.Main) {
                     isRetrying = true
                     updateUi()
@@ -139,7 +144,8 @@ class TerminalActivity : AppCompatActivity() {
 
                 delay(CONNECT_RETRY_DELAY_MS)
 
-                val secondAttempt = connectWithClient(config)
+                val retryBackend: TerminalBackend = SshClient(config)
+                val secondAttempt = connectWith(retryBackend, config)
                 client = secondAttempt.first
                 result = secondAttempt.second
             }
@@ -287,9 +293,8 @@ class TerminalActivity : AppCompatActivity() {
         binding.terminalPhrasesButton.isEnabled = canInput
     }
 
-    private fun connectWithClient(config: SshConnectionConfig): Pair<TerminalBackend, SshConnectResult> {
-        val client: TerminalBackend = SshClient(config)
-        val result = client.connect(
+    private fun connectWith(backend: TerminalBackend, config: SshConnectionConfig): Pair<TerminalBackend, SshConnectResult> {
+        val result = backend.connect(
             streamMode = true,
             onLine = { line ->
                 runOnUiThread {
@@ -304,7 +309,7 @@ class TerminalActivity : AppCompatActivity() {
                 }
             }
         )
-        return client to result
+        return backend to result
     }
 
     private fun showPhrasePicker() {
