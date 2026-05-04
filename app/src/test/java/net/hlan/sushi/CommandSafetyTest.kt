@@ -213,8 +213,18 @@ class CommandSafetyTest {
     }
 
     @Test
+    fun chain_threeSafeSegments() {
+        assertEquals(SafetyLevel.SAFE, CommandSafety.classify("pwd && ls -la && whoami"))
+    }
+
+    @Test
     fun safePattern_vcgencmdConfig() {
         assertEquals(SafetyLevel.SAFE, CommandSafety.classify("vcgencmd get_config int"))
+    }
+
+    @Test
+    fun safePattern_vcgencmdConfig_rejectsSubshell() {
+        assertEquals(SafetyLevel.CONFIRM, CommandSafety.classify("vcgencmd get_config \$(touch /tmp/pwned)"))
     }
 
     @Test
