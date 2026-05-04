@@ -110,9 +110,6 @@ class HostEditActivity : AppCompatActivity() {
             buildSshConfig(alias) ?: return
         }
         sshSettings.saveHost(config)
-        if (sshSettings.getActiveHostId() == null) {
-            sshSettings.setActiveHostId(config.id)
-        }
         Toast.makeText(this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
         finish()
     }

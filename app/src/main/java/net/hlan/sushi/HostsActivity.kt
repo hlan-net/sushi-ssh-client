@@ -20,6 +20,7 @@ class HostsActivity : AppCompatActivity() {
         adapter = HostAdapter(
             onHostClick = { host ->
                 sshSettings.setActiveHostId(host.id)
+                startActivity(TerminalActivity.createIntent(this, autoConnect = true))
                 finish()
             },
             onEditClick = { host ->
