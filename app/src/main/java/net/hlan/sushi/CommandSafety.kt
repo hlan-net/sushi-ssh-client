@@ -179,6 +179,7 @@ object CommandSafety {
             Regex("^vcgencmd\\s+measure_temp"),
             Regex("^vcgencmd\\s+measure_volts"),
             Regex("^vcgencmd\\s+get_throttled"),
+            Regex("^vcgencmd\\s+get_config"),
             Regex("^vcgencmd\\s+get_mem"),
             Regex("^pinout"),
             Regex("^gpio\\s+readall"),
