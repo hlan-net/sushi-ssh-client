@@ -5,6 +5,7 @@ import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.CharsetDecoder
 import java.nio.charset.CodingErrorAction
+import java.util.concurrent.TimeUnit
 
 class LocalShellBackend(private val context: Context) : TerminalBackend {
     private var nativeHandle: Long = 0L
@@ -66,6 +67,46 @@ class LocalShellBackend(private val context: Context) : TerminalBackend {
         nativeHandle = 0L
         if (h != 0L) runCatching { nativeClose(h) }
         readerThread = null
+    }
+
+    /**
+     * Runs [command] in a fresh subprocess (not the interactive PTY) and captures its output.
+     * This mirrors how [SshClient.execCommand] opens a separate exec channel so that the
+     * interactive terminal session is not affected.
+     *
+     * Output is read in a daemon thread so [timeoutMs] is enforced with [Process.waitFor]
+     * rather than blocking on [InputStream.read] — matching the pattern in [SshClient.execCommand].
+     */
+    override fun execCommand(command: String, timeoutMs: Long): SshCommandResult {
+        return runCatching {
+            val process = ProcessBuilder("sh", "-c", command)
+                .redirectErrorStream(true)
+                .start()
+
+            val outputRef = java.util.concurrent.atomic.AtomicReference("")
+            val readerThread = Thread {
+                try {
+                    outputRef.set(process.inputStream.bufferedReader().readText())
+                } catch (_: Exception) { }
+            }.apply {
+                isDaemon = true
+                name = "LocalExecReader"
+                start()
+            }
+
+            val finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)
+            if (!finished) {
+                process.destroyForcibly()
+                readerThread.join(500)
+                return SshCommandResult(false, null, "Command timed out after ${timeoutMs}ms")
+            }
+
+            readerThread.join(500)
+            val exitCode = process.exitValue()
+            SshCommandResult(exitCode == 0, exitCode, outputRef.get().trim())
+        }.getOrElse { e ->
+            SshCommandResult(false, null, e.message ?: "Exec failed")
+        }
     }
 
     private fun startReader(

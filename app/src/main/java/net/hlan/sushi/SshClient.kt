@@ -279,7 +279,7 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
      *   [SshCommandResult.exitStatus] set to the process exit code, and
      *   [SshCommandResult.message] containing the combined stdout/stderr output.
      */
-    fun execCommand(command: String, timeoutMs: Long = EXEC_DEFAULT_TIMEOUT_MS): SshCommandResult {
+    override fun execCommand(command: String, timeoutMs: Long): SshCommandResult {
         val activeSession = session
         if (activeSession == null || !activeSession.isConnected) {
             return SshCommandResult(false, null, "Not connected")

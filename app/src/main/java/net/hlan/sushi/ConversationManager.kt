@@ -14,12 +14,12 @@ import java.util.Locale
  */
 class ConversationManager(
     private val context: Context,
-    private val sshClient: SshClient,
+    private val backend: TerminalBackend,
     private val geminiClient: GeminiClient?,
     private val geminiNanoClient: GeminiNanoClient?,
     private val useNano: Boolean = false
 ) {
-    private val personaClient = PersonaClient(sshClient)
+    private val personaClient = PersonaClient(backend)
     private val conversationHistory = mutableListOf<ConversationTurn>()
     
     private var isInitialized = false
@@ -178,8 +178,8 @@ class ConversationManager(
     /**
      * Execute command via SSH exec channel and generate final conversational response.
      *
-     * Uses [SshClient.execCommand] (not [SshClient.sendCommand]) so that actual stdout/stderr
-     * is captured and returned to the LLM for interpretation.
+     * Uses [TerminalBackend.execCommand] (not [TerminalBackend.sendCommand]) so that actual
+     * stdout/stderr is captured and returned to the LLM for interpretation.
      */
     private suspend fun executeCommandAndRespond(
         userMessage: String,
@@ -188,7 +188,7 @@ class ConversationManager(
     ): ConversationResult {
         return try {
             // Use execCommand so we get real output back, not just "Command sent".
-            val cmdResult = sshClient.execCommand(command)
+            val cmdResult = backend.execCommand(command)
 
             if (!cmdResult.success && cmdResult.exitStatus == null) {
                 // execCommand itself failed (e.g. not connected, timed out).
@@ -333,7 +333,7 @@ Provide a natural language interpretation of this result, responding as the syst
     /**
      * Initialize a new log file for this conversation session on the remote host.
      *
-     * Uses [SshClient.execCommand] so we can detect failures. Commands are chained with
+     * Uses [TerminalBackend.execCommand] so we can detect failures. Commands are chained with
      * `&&` so the first failure short-circuits and [currentLogFilePath] is cleared.
      */
     private suspend fun initializeLogFile() {
@@ -351,7 +351,7 @@ Provide a natural language interpretation of this result, responding as the syst
                     "printf '=== Sushi AI Conversation Log ===\\nSystem: %s\\n" +
                     "========================================\\n\\n' '$safeIdentity' > $shellLogPath"
 
-                val result = sshClient.execCommand(cmd)
+                val result = backend.execCommand(cmd)
                 if (!result.success) {
                     Log.w(TAG, "Failed to initialize log file: ${result.message}")
                     currentLogFilePath = null
@@ -403,7 +403,7 @@ Provide a natural language interpretation of this result, responding as the syst
 
                 // Use execCommand so that append failures surface as errors rather than
                 // silently mixing into the interactive PTY stream.
-                sshClient.execCommand("printf '%s' '$escapedEntry' >> $shellLogPath")
+                backend.execCommand("printf '%s' '$escapedEntry' >> $shellLogPath")
                 
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to write to log file", e)

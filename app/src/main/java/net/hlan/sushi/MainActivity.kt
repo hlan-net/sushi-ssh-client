@@ -639,29 +639,54 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun runPlay(play: Play, host: SshConnectionConfig, values: Map<String, String>) {
-        val config = sshSettings.resolveJumpServer(host.copy(privateKey = sshSettings.getPrivateKey()))
         isPlayRunning = true
         updateSessionUi()
-        appendSessionLog(getString(R.string.play_run_started, play.name, config.displayTarget()))
+        appendSessionLog(getString(R.string.play_run_started, play.name, host.displayTarget()))
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val result = PlayRunner.execute(
-                play = play,
-                hostConfig = config,
-                values = values,
-                onLine = { line -> appendSessionLog("[Play] ${line.trimEnd()}") }
-            )
+            val isLocal = host.kind == HostKind.LOCAL
+            val backend: TerminalBackend = if (isLocal) {
+                LocalShellBackend(this@MainActivity)
+            } else {
+                val config = sshSettings.resolveJumpServer(host.copy(privateKey = sshSettings.getPrivateKey()))
+                SshClient(config)
+            }
 
-            withContext(Dispatchers.Main) {
-                isPlayRunning = false
-                if (result.success) {
-                    appendSessionLog(getString(R.string.play_run_finished, play.name))
-                } else {
-                    appendSessionLog(getString(R.string.play_run_failed, play.name, result.message))
-                    Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_SHORT).show()
+            // SSH backends require an active session before execCommand can be called.
+            // LOCAL backends use ProcessBuilder internally and don't need a PTY session.
+            if (!isLocal) {
+                val connectResult = backend.connect(onLine = {})
+                if (!connectResult.success) {
+                    withContext(Dispatchers.Main) {
+                        isPlayRunning = false
+                        appendSessionLog(getString(R.string.play_run_failed, play.name, connectResult.message))
+                        Toast.makeText(this@MainActivity, connectResult.message, Toast.LENGTH_SHORT).show()
+                        updateSessionUi()
+                    }
+                    return@launch
                 }
-                updateSessionUi()
-                uploadConsoleLogToDriveIfEnabled()
+            }
+
+            try {
+                val result = PlayRunner.execute(
+                    play = play,
+                    backend = backend,
+                    values = values,
+                    onLine = { line -> appendSessionLog("[Play] ${line.trimEnd()}") }
+                )
+                withContext(Dispatchers.Main) {
+                    isPlayRunning = false
+                    if (result.success) {
+                        appendSessionLog(getString(R.string.play_run_finished, play.name))
+                    } else {
+                        appendSessionLog(getString(R.string.play_run_failed, play.name, result.message))
+                        Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_SHORT).show()
+                    }
+                    updateSessionUi()
+                    uploadConsoleLogToDriveIfEnabled()
+                }
+            } finally {
+                if (!isLocal) backend.disconnect()
             }
         }
     }
@@ -875,7 +900,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private suspend fun initializeConversation() {
-        val sshClient = TerminalSessionHolder.getActiveSshClient() ?: return
+        val backend = TerminalSessionHolder.getActiveBackend() ?: return
 
         withContext(Dispatchers.Main) {
             updateConversationStatus(getString(R.string.conversation_initializing))
@@ -884,7 +909,7 @@ class MainActivity : AppCompatActivity() {
         val useNano = geminiSettings.getNanoPreferred() && isNanoAvailable()
         conversationManager = ConversationManager(
             context = this,
-            sshClient = sshClient,
+            backend = backend,
             geminiClient = geminiClient,
             geminiNanoClient = nanoClient,
             useNano = useNano
