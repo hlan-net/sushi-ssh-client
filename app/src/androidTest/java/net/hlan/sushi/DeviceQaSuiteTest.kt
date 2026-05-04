@@ -61,13 +61,13 @@ class DeviceQaSuiteTest {
             onView(withId(R.id.mainSettingsButton)).check(matches(isDisplayed()))
         }
 
-        // SettingsActivity — verify title and SSH page buttons
+        // SettingsActivity — verify title and SSH page generate-key button
         launchActivity(SettingsActivity::class.java).use { scenario ->
             onView(withId(R.id.settingsTitle))
                 .check(matches(withText(not(isEmptyOrNullString()))))
             onView(withText("SSH")).perform(click())
-            scrollIntoView(scenario, R.id.manageHostsButton)
-            onView(withId(R.id.manageHostsButton)).check(matches(isDisplayed()))
+            scrollIntoView(scenario, R.id.quickGenerateKeyButton)
+            onView(withId(R.id.quickGenerateKeyButton)).check(matches(isDisplayed()))
         }
 
         // HostsActivity — verify title and FAB
