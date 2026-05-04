@@ -35,7 +35,10 @@ class PlayDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // No schema migrations yet.
+        // v1 → v2: PlayParameter gained default/description/example fields.
+        // These are stored as JSON inside parameters_json, so the column schema is
+        // unchanged — the new fields are simply absent in old rows and default to null
+        // when decoded. No ALTER TABLE needed.
     }
 
     fun getAllPlays(): List<Play> {
@@ -185,7 +188,7 @@ class PlayDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
     }
 
     companion object {
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
         private const val DATABASE_NAME = "sushi_plays.db"
         private const val TABLE_PLAYS = "plays"
         private const val COLUMN_ID = "id"

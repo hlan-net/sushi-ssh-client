@@ -1,0 +1,164 @@
+name: Device Tests (RPi5 + Nokia 4.2G)
+
+# Optional workflow — never blocks PR merges.
+#
+# The runner is a Docker container (github-runner-arm64) that cannot access USB
+# directly. ADB connectivity is achieved via the host's ADB server:
+#
+#   One-time host setup on ergo (RPi5):
+#     sudo apt install adb
+#     adb start-server          # starts host ADB daemon
+#     adb devices               # confirm Nokia appears
+#   The container connects to the host daemon via the Docker bridge (172.17.0.1:5037
+#   by default, or host.docker.internal on Docker Desktop).
+#   Set ANDROID_ADB_SERVER_ADDRESS and ANDROID_ADB_SERVER_PORT as runner env vars
+#   in the container, or let the workflow use the defaults below.
+#
+#   Alternative — ADB over Wi-Fi (no USB passthrough needed either way):
+#     adb tcpip 5555            # run once while phone is USB-connected to host
+#     adb connect <nokia-ip>:5555
+#   Then set secret ANDROID_DEVICE_ADDRESS = <nokia-ip>:5555
+#
+# Triggers:
+#   1. Manual dispatch from the GitHub Actions UI (any branch).
+#   2. Automatically when the "run-device-tests" label is added to a PR.
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_class:
+        description: "Test class (empty = full DeviceQaSuiteTest)"
+        required: false
+        default: ""
+      branch:
+        description: "Branch to test (empty = current ref)"
+        required: false
+        default: ""
+
+  pull_request:
+    branches: ["main"]
+    types: [labeled]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  device-test:
+    name: Instrumented tests on Nokia 4.2G
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'run-device-tests')
+
+    runs-on: [self-hosted, Linux, ARM64, RPi5, usb-android-attached]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Connect to ADB (host server or Wi-Fi)
+        env:
+          # Host ADB server — reachable from inside the Docker container via the
+          # Docker bridge address. Override with runner env vars if the bridge IP
+          # differs on your setup.
+          ADB_HOST: ${{ vars.ADB_SERVER_HOST || '172.17.0.1' }}
+          ADB_PORT: ${{ vars.ADB_SERVER_PORT || '5037' }}
+          # Optional: explicit device address for Wi-Fi ADB (e.g. "192.168.1.42:5555").
+          # When set, the step connects via TCP instead of relying on the host server.
+          DEVICE_ADDRESS: ${{ secrets.ANDROID_DEVICE_ADDRESS }}
+        run: |
+          export ANDROID_ADB_SERVER_ADDRESS="$ADB_HOST"
+          export ANDROID_ADB_SERVER_PORT="$ADB_PORT"
+
+          if [ -n "$DEVICE_ADDRESS" ]; then
+            echo "Connecting to device at $DEVICE_ADDRESS via TCP..."
+            adb connect "$DEVICE_ADDRESS"
+          fi
+
+          adb devices -l
+
+          DEVICE_COUNT=$(adb devices | grep -v "^List" | grep "device$" | wc -l)
+          if [ "$DEVICE_COUNT" -eq 0 ]; then
+            echo "::error::No Android device found. Check USB/Wi-Fi connection, ADB authorisation, and that the host ADB server is running (adb start-server on ergo)."
+            exit 1
+          fi
+          echo "Found $DEVICE_COUNT device(s) — continuing."
+
+          # Persist ADB env for subsequent steps.
+          echo "ANDROID_ADB_SERVER_ADDRESS=$ADB_HOST" >> "$GITHUB_ENV"
+          echo "ANDROID_ADB_SERVER_PORT=$ADB_PORT"    >> "$GITHUB_ENV"
+          [ -n "$DEVICE_ADDRESS" ] && echo "ANDROID_SERIAL=$DEVICE_ADDRESS" >> "$GITHUB_ENV" || true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build instrumented test APK
+        run: ./gradlew assembleDebug assembleDebugAndroidTest
+
+      - name: Run instrumented tests
+        id: run_tests
+        run: |
+          if [ -n "${{ github.event.inputs.test_class }}" ]; then
+            CLASS_ARG="-Pandroid.testInstrumentationRunnerArguments.class=${{ github.event.inputs.test_class }}"
+          else
+            CLASS_ARG="-Pandroid.testInstrumentationRunnerArguments.class=net.hlan.sushi.DeviceQaSuiteTest"
+          fi
+          ./gradlew connectedDebugAndroidTest $CLASS_ARG --continue 2>&1 | tee test-output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-test-results-${{ github.run_number }}
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+            test-output.txt
+          retention-days: 14
+
+      - name: Post result comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const passed = '${{ steps.run_tests.outputs.exit_code }}' === '0';
+            const icon = passed ? '✅' : '❌';
+            const body = `### ${icon} Device Tests — Nokia 4.2G (RPi5 runner)
+
+            ${passed
+              ? 'All instrumented tests passed.'
+              : 'One or more tests failed — see the [test artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'}
+
+            _Triggered by label \`run-device-tests\` on this PR._`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Device Tests — Nokia 4.2G')
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail job if tests failed
+        if: steps.run_tests.outputs.exit_code != '0'
+        run: exit 1

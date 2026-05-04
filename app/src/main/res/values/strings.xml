@@ -312,6 +312,9 @@
     <string name="play_run_failed">[Play] Failed %1$s: %2$s</string>
     <string name="play_missing_hosts">Add at least one host before running plays.</string>
     <string name="play_parameter_required">This value is required</string>
+    <string name="play_script_hint_params">Use {{ NAME }} for parameters. Example: restart {{ service }}</string>
+    <string name="play_param_example_prefix">e.g. %1$s</string>
+    <string name="play_param_back">Back</string>
     <string name="play_status_running_toast">Wait for current play to finish.</string>
     <string name="action_run_play">Run play</string>
     <string name="play_param_username">Username</string>

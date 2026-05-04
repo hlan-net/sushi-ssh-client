@@ -37,14 +37,21 @@ object PlayRunner {
             PlayParameters.inferFromTemplate(play.scriptTemplate)
         }
 
+        // Resolve effective values: caller-supplied → parameter default → empty.
+        // Required parameters with no value (and no default) are rejected before execution.
+        val effectiveValues = parameters.associate { parameter ->
+            val supplied = values[parameter.key].orEmpty()
+            val effective = supplied.ifBlank { parameter.default.orEmpty() }
+            parameter.key to effective
+        }
+
         parameters.forEach { parameter ->
-            val value = values[parameter.key].orEmpty()
-            if (parameter.required && value.isBlank()) {
+            if (parameter.required && effectiveValues[parameter.key].isNullOrBlank()) {
                 return PlayRunResult(false, "Missing required value: ${parameter.label}")
             }
         }
 
-        val rendered = renderTemplate(play.scriptTemplate, values)
+        val rendered = renderTemplate(play.scriptTemplate, effectiveValues)
         if (rendered.isBlank()) {
             return PlayRunResult(false, "Rendered command is empty")
         }
