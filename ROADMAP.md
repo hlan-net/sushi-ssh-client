@@ -40,9 +40,9 @@ Solidify the terminal layer first — the conversational features all sit on top
 |----|--------|-------|--------|
 | — | ~~`feature/play-parameter-ux`~~ | Play parameter defaults, descriptions, examples; live preview in run dialog; required-vs-optional distinction | ✅ |
 | 6 | `feature/gemini-transcript` | Gemini transcript persistence — SQLite-backed session history with command/output entries, browsable history UI | 🔄 in progress |
-| 4 | `feature/raw-terminal-mode` | [Raw Terminal Mode toggle](docs/raw-terminal-mode.md) — switch between AI conversation and direct shell | — |
+| 4 | `feature/raw-terminal-mode` | [Raw Terminal Mode toggle](docs/features/raw-terminal-mode.md) — switch between AI conversation and direct shell | — |
 | 5 | `feature/output-streaming` | Command output streaming — token-by-token delivery for long-running commands | — |
-| 7 | `feature/first-run-onboarding` | [First-run onboarding](docs/first-run-onboarding.md) — guide user through `SUSHI.md` setup on first connect | — |
+| 7 | `feature/first-run-onboarding` | [First-run onboarding](docs/features/first-run-onboarding.md) — guide user through `SUSHI.md` setup on first connect | — |
 
 ---
 
@@ -50,8 +50,8 @@ Solidify the terminal layer first — the conversational features all sit on top
 
 Close the loop on persona editing and add the file operations that conversational users naturally ask for.
 
-- **[Remote SUSHI.md editor](docs/persona-editor.md)** — read and write `~/.config/sushi/SUSHI.md` from within the app; right now customizing the persona requires a separate SSH terminal
-- **[SFTP file operations](docs/file-operations.md)** — "download this log to my phone" is a natural conversational request; `SshClient` already handles upload via the Share target, download is the missing half *(B-17)*
+- **[Remote SUSHI.md editor](docs/features/persona-editor.md)** — read and write `~/.config/sushi/SUSHI.md` from within the app; right now customizing the persona requires a separate SSH terminal
+- **[SFTP file operations](docs/features/file-operations.md)** — "download this log to my phone" is a natural conversational request; `SshClient` already handles upload via the Share target, download is the missing half *(B-17)*
 - **Custom log location** — read `log_dir` from `~/.config/sushi/config.conf` and honour it; the config key exists, enforcement does not
 - **Connection keep-alive in background** *(T-8)* — session should only disconnect on explicit action, not when the app backgrounds
 
@@ -61,9 +61,9 @@ Close the loop on persona editing and add the file operations that conversationa
 
 Expand what the AI layer can do and scale to more than one host.
 
-- **[AI-powered troubleshooting](docs/ai-troubleshooting.md)** — structured diagnosis: check service → read logs → suggest fix → confirm → verify; builds on the existing safety model
-- **[Command history](docs/command-history.md)** — store past executed commands in SQLite; surface them in conversation ("run the same disk check as last time") and as a browsable list
-- **[Multiple host persona awareness](docs/multi-system.md)** — each host has its own `SUSHI.md`; conversation context should make clear which system is active and allow switching without losing state
+- **[AI-powered troubleshooting](docs/features/ai-troubleshooting.md)** — structured diagnosis: check service → read logs → suggest fix → confirm → verify; builds on the existing safety model
+- **[Command history](docs/features/command-history.md)** — store past executed commands in SQLite; surface them in conversation ("run the same disk check as last time") and as a browsable list
+- **[Multiple host persona awareness](docs/features/multi-system.md)** — each host has its own `SUSHI.md`; conversation context should make clear which system is active and allow switching without losing state
 
 ---
 
@@ -92,13 +92,13 @@ Solid SSH client features that are not core to the conversational goal but round
 
 Interesting directions that depend on the conversational core being solid first. No commitment on timing.
 
-- **[Voice I/O enhancements](docs/voice-io.md)** — wake word, text-to-speech responses, voice-only mode
-- **[Home Assistant integration](docs/home-assistant.md)** — control smart home devices through the Sushi conversation layer
-- **[Persona templates](docs/persona-templates.md)** — pre-made `SUSHI.md` starters for web server, dev environment, RetroPie, etc.
-- **[Visual system dashboard](docs/system-dashboard.md)** — live CPU, memory, temperature, and service status graphs
-- **[Proactive monitoring](docs/proactive-monitoring.md)** — target-side alerts surfaced on connect ("disk at 95%")
-- **[Conversation branching](docs/conversation-branching.md)** — fork a conversation to simulate what-if scenarios without executing
-- **[LLM-generated skills](docs/llm-generated-skills.md)** — ask the system to learn a new capability; generates and saves a script to the target
+- **[Voice I/O enhancements](docs/features/voice-io.md)** — wake word, text-to-speech responses, voice-only mode
+- **[Home Assistant integration](docs/features/home-assistant.md)** — control smart home devices through the Sushi conversation layer
+- **[Persona templates](docs/features/persona-templates.md)** — pre-made `SUSHI.md` starters for web server, dev environment, RetroPie, etc.
+- **[Visual system dashboard](docs/features/system-dashboard.md)** — live CPU, memory, temperature, and service status graphs
+- **[Proactive monitoring](docs/features/proactive-monitoring.md)** — target-side alerts surfaced on connect ("disk at 95%")
+- **[Conversation branching](docs/features/conversation-branching.md)** — fork a conversation to simulate what-if scenarios without executing
+- **[LLM-generated skills](docs/features/llm-generated-skills.md)** — ask the system to learn a new capability; generates and saves a script to the target
 
 ---
 
