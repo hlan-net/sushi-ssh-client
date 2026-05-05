@@ -367,4 +367,19 @@
     <string name="conversation_initializing">Connecting to system...</string>
     <string name="conversation_init_failed">Failed to initialize conversation: %1$s</string>
     <string name="conversation_connected_to">Connected to: %1$s</string>
+    <!-- Connection error banner -->
+    <string name="action_dismiss">Dismiss</string>
+    <string name="action_retry">Retry</string>
+    <string name="connect_error_network">Network error — check host address and connectivity.</string>
+    <string name="connect_error_timeout">Connection timed out — host may be unreachable or slow.</string>
+    <string name="connect_error_auth_key">Public-key authentication failed — key not accepted by host.</string>
+    <string name="connect_error_auth_password">Password authentication failed — wrong credentials.</string>
+    <string name="connect_error_host_key_mismatch">Host key mismatch — remote key has changed. Do not connect until verified.</string>
+    <string name="connect_error_jump_failed">Jump server connection failed — check bastion host settings.</string>
+    <string name="connect_error_channel_failed">Shell channel failed to open after authentication.</string>
+    <string name="connect_error_unknown">Connection failed: %1$s</string>
+    <string name="connect_error_action_try_password">Try password</string>
+    <string name="connect_error_action_edit_credentials">Edit credentials</string>
+    <string name="connect_error_action_edit_jump_host">Edit jump host</string>
+    <string name="connect_error_action_view_host_key">View host key</string>
 </resources>

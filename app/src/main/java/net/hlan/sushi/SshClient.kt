@@ -59,10 +59,29 @@ data class SshConnectionConfig(
     }
 }
 
+enum class ConnectFailure {
+    NETWORK,            // DNS / TCP refused / unreachable
+    TIMEOUT,            // TCP or SSH handshake timed out
+    AUTH_KEY,           // Public-key authentication rejected
+    AUTH_PASSWORD,      // Password authentication rejected
+    HOST_KEY_MISMATCH,  // Remote host key does not match known key
+    JUMP_FAILED,        // Jump / bastion server connection failed
+    CHANNEL_FAILED,     // Session authenticated but shell channel failed to open
+    UNKNOWN;            // Unclassified error
+
+    val isRetryable: Boolean get() = this == NETWORK || this == TIMEOUT || this == UNKNOWN
+}
+
 data class SshConnectResult(
     val success: Boolean,
-    val message: String
+    val message: String,
+    val reason: ConnectFailure = ConnectFailure.UNKNOWN
 )
+
+private class ConnectionFailureException(
+    val reason: ConnectFailure,
+    cause: Throwable
+) : Exception(cause.message, cause)
 
 data class SshCommandResult(
     val success: Boolean,
@@ -129,9 +148,11 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
             shellChannel = null
             shellInput = null
             shellReaderThread = null
+            val reason = (error as? ConnectionFailureException)?.reason
+                ?: classifyException(error)
             val message = error.message?.takeIf { it.isNotBlank() }
                 ?: "Unable to connect. Check host and credentials."
-            SshConnectResult(false, message)
+            SshConnectResult(false, message, reason)
         }
     }
 
@@ -215,12 +236,58 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
         val authPlan = resolveAuthPlan(config)
         addPrivateKeyIdentity(jsch, authPlan)
 
-        val jumpResult = establishJumpSession(jsch, authPlan)
+        val jumpResult = if (config.hasJumpServer()) {
+            try {
+                establishJumpSession(jsch, authPlan)
+            } catch (e: Exception) {
+                throw ConnectionFailureException(ConnectFailure.JUMP_FAILED, e)
+            }
+        } else null
+
         val targetHost = jumpResult?.let { "127.0.0.1" } ?: config.host
         val targetPort = jumpResult?.forwardedPort ?: config.port
-        val targetSession = establishTargetSession(jsch, targetHost, targetPort, authPlan)
+
+        val targetSession = try {
+            establishTargetSession(jsch, targetHost, targetPort, authPlan)
+        } catch (e: Exception) {
+            jumpResult?.session?.disconnect()
+            throw ConnectionFailureException(classifyException(e), e)
+        }
 
         return ConnectedSessionPair(targetSession, jumpResult?.session, jumpResult?.forwardedPort)
+    }
+
+    internal fun classifyException(e: Throwable): ConnectFailure {
+        val msg = e.message.orEmpty()
+        val cause = e.cause
+        return when {
+            msg.contains("HostKey", ignoreCase = true) && msg.contains("reject", ignoreCase = true) ->
+                ConnectFailure.HOST_KEY_MISMATCH
+            msg.contains("Auth fail", ignoreCase = true) ||
+            msg.contains("auth cancel", ignoreCase = true) ||
+            msg.contains("userauth fail", ignoreCase = true) -> {
+                if (msg.contains("publickey", ignoreCase = true) ||
+                    msg.contains("key", ignoreCase = true) && !msg.contains("password", ignoreCase = true))
+                    ConnectFailure.AUTH_KEY
+                else
+                    ConnectFailure.AUTH_PASSWORD
+            }
+            msg.contains("timeout", ignoreCase = true) ||
+            msg.contains("timed out", ignoreCase = true) ||
+            e is java.net.SocketTimeoutException || cause is java.net.SocketTimeoutException ->
+                ConnectFailure.TIMEOUT
+            msg.contains("Connection refused", ignoreCase = true) ||
+            msg.contains("ECONNREFUSED", ignoreCase = true) ||
+            msg.contains("UnknownHost", ignoreCase = true) ||
+            msg.contains("Unable to resolve", ignoreCase = true) ||
+            e is java.net.UnknownHostException || cause is java.net.UnknownHostException ||
+            e is java.net.ConnectException || cause is java.net.ConnectException ->
+                ConnectFailure.NETWORK
+            msg.contains("shell channel", ignoreCase = true) ||
+            msg.contains("channel is not opened", ignoreCase = true) ->
+                ConnectFailure.CHANNEL_FAILED
+            else -> ConnectFailure.UNKNOWN
+        }
     }
 
     private fun configureSession(session: Session) {

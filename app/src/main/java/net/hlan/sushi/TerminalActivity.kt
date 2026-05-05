@@ -30,6 +30,7 @@ class TerminalActivity : AppCompatActivity() {
     private var isConnecting = false
     private var isRetrying = false
     private var didLoseConnection = false
+    private var lastConnectFailure: ConnectFailure? = null
     private var lastRawInput: String = ""
     private var lastRawInputAtMs: Long = 0L
     private var lastPrintableChunk: String = ""
@@ -133,7 +134,7 @@ class TerminalActivity : AppCompatActivity() {
             var client = firstAttempt.first
             var result = firstAttempt.second
 
-            if (!result.success && config.kind == HostKind.SSH) {
+            if (!result.success && config.kind == HostKind.SSH && result.reason.isRetryable) {
                 withContext(Dispatchers.Main) {
                     isRetrying = true
                     updateUi()
@@ -156,19 +157,81 @@ class TerminalActivity : AppCompatActivity() {
                 if (result.success) {
                     sshClient = client
                     didLoseConnection = false
+                    lastConnectFailure = null
+                    hideErrorBanner()
                     binding.terminalOutputText.appendLog(getString(R.string.session_connected_to, config.displayTarget()))
                     binding.terminalOutputText.requestFocus()
-                    
+
                     // Notify MainActivity that a terminal session is active
                     TerminalSessionHolder.setActiveConnection(client, config)
                 } else {
                     client.disconnect()
+                    lastConnectFailure = result.reason
                     binding.terminalOutputText.appendLog(getString(R.string.terminal_connect_failed_log, result.message))
-                    Toast.makeText(this@TerminalActivity, result.message, Toast.LENGTH_SHORT).show()
+                    showErrorBanner(result.reason, result.message, config)
                 }
                 updateUi()
             }
         }
+    }
+
+    private fun showErrorBanner(reason: ConnectFailure, rawMessage: String, config: SshConnectionConfig) {
+        val message = when (reason) {
+            ConnectFailure.NETWORK -> getString(R.string.connect_error_network)
+            ConnectFailure.TIMEOUT -> getString(R.string.connect_error_timeout)
+            ConnectFailure.AUTH_KEY -> getString(R.string.connect_error_auth_key)
+            ConnectFailure.AUTH_PASSWORD -> getString(R.string.connect_error_auth_password)
+            ConnectFailure.HOST_KEY_MISMATCH -> getString(R.string.connect_error_host_key_mismatch)
+            ConnectFailure.JUMP_FAILED -> getString(R.string.connect_error_jump_failed)
+            ConnectFailure.CHANNEL_FAILED -> getString(R.string.connect_error_channel_failed)
+            ConnectFailure.UNKNOWN -> getString(R.string.connect_error_unknown, rawMessage)
+        }
+        binding.terminalErrorBannerText.text = message
+        binding.terminalErrorBanner.visibility = android.view.View.VISIBLE
+
+        val actionButton = binding.terminalErrorBannerAction
+        when (reason) {
+            ConnectFailure.NETWORK, ConnectFailure.TIMEOUT, ConnectFailure.UNKNOWN -> {
+                actionButton.setText(R.string.action_retry)
+                actionButton.visibility = android.view.View.VISIBLE
+                actionButton.setOnClickListener { hideErrorBanner(); connectTerminal() }
+            }
+            ConnectFailure.AUTH_KEY -> {
+                actionButton.setText(R.string.connect_error_action_try_password)
+                actionButton.visibility = android.view.View.VISIBLE
+                actionButton.setOnClickListener {
+                    hideErrorBanner()
+                    startActivity(Intent(this, HostEditActivity::class.java).putExtra(HostEditActivity.EXTRA_HOST_ID, config.id))
+                }
+            }
+            ConnectFailure.AUTH_PASSWORD -> {
+                actionButton.setText(R.string.connect_error_action_edit_credentials)
+                actionButton.visibility = android.view.View.VISIBLE
+                actionButton.setOnClickListener {
+                    hideErrorBanner()
+                    startActivity(Intent(this, HostEditActivity::class.java).putExtra(HostEditActivity.EXTRA_HOST_ID, config.id))
+                }
+            }
+            ConnectFailure.JUMP_FAILED -> {
+                actionButton.setText(R.string.connect_error_action_edit_jump_host)
+                actionButton.visibility = android.view.View.VISIBLE
+                actionButton.setOnClickListener {
+                    hideErrorBanner()
+                    startActivity(Intent(this, HostEditActivity::class.java).putExtra(HostEditActivity.EXTRA_HOST_ID, config.id))
+                }
+            }
+            ConnectFailure.HOST_KEY_MISMATCH -> {
+                actionButton.visibility = android.view.View.GONE
+            }
+            ConnectFailure.CHANNEL_FAILED -> {
+                actionButton.visibility = android.view.View.GONE
+            }
+        }
+        binding.terminalErrorBannerDismiss.setOnClickListener { hideErrorBanner() }
+    }
+
+    private fun hideErrorBanner() {
+        binding.terminalErrorBanner.visibility = android.view.View.GONE
     }
 
     private fun disconnectTerminal() {
