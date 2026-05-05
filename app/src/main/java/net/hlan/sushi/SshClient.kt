@@ -257,12 +257,12 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
         return ConnectedSessionPair(targetSession, jumpResult?.session, jumpResult?.forwardedPort)
     }
 
-    private fun classifyException(e: Throwable): ConnectFailure {
+    internal fun classifyException(e: Throwable): ConnectFailure {
         val msg = e.message.orEmpty()
         val cause = e.cause
         return when {
-            msg.contains("reject HostKey", ignoreCase = true) -> ConnectFailure.HOST_KEY_MISMATCH
-            msg.contains("HostKey", ignoreCase = true) && msg.contains("reject", ignoreCase = true) -> ConnectFailure.HOST_KEY_MISMATCH
+            msg.contains("HostKey", ignoreCase = true) && msg.contains("reject", ignoreCase = true) ->
+                ConnectFailure.HOST_KEY_MISMATCH
             msg.contains("Auth fail", ignoreCase = true) ||
             msg.contains("auth cancel", ignoreCase = true) ||
             msg.contains("userauth fail", ignoreCase = true) -> {
@@ -273,14 +273,19 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
                     ConnectFailure.AUTH_PASSWORD
             }
             msg.contains("timeout", ignoreCase = true) ||
-            msg.contains("timed out", ignoreCase = true) -> ConnectFailure.TIMEOUT
+            msg.contains("timed out", ignoreCase = true) ||
+            e is java.net.SocketTimeoutException || cause is java.net.SocketTimeoutException ->
+                ConnectFailure.TIMEOUT
             msg.contains("Connection refused", ignoreCase = true) ||
-            msg.contains("ECONNREFUSED", ignoreCase = true) -> ConnectFailure.NETWORK
+            msg.contains("ECONNREFUSED", ignoreCase = true) ||
             msg.contains("UnknownHost", ignoreCase = true) ||
-            msg.contains("Unable to resolve", ignoreCase = true) -> ConnectFailure.NETWORK
-            cause is java.net.UnknownHostException -> ConnectFailure.NETWORK
-            cause is java.net.ConnectException -> ConnectFailure.NETWORK
-            cause is java.net.SocketTimeoutException -> ConnectFailure.TIMEOUT
+            msg.contains("Unable to resolve", ignoreCase = true) ||
+            e is java.net.UnknownHostException || cause is java.net.UnknownHostException ||
+            e is java.net.ConnectException || cause is java.net.ConnectException ->
+                ConnectFailure.NETWORK
+            msg.contains("shell channel", ignoreCase = true) ||
+            msg.contains("channel is not opened", ignoreCase = true) ->
+                ConnectFailure.CHANNEL_FAILED
             else -> ConnectFailure.UNKNOWN
         }
     }
