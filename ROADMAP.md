@@ -36,15 +36,15 @@ Solidify the terminal layer first — the conversational features all sit on top
 
 ### Conversation depth
 
-| PR | Branch | Scope | Status |
-|----|--------|-------|--------|
-| — | ~~`feature/play-parameter-ux`~~ | Play parameter defaults, descriptions, examples; live preview in run dialog; required-vs-optional distinction | ✅ |
-| WS2a | ~~`feature/gemini-transcript-persistence`~~ | Gemini transcript persistence — SQLite-backed session history with command/output entries per turn | ✅ |
-| WS2b | ~~`feature/gemini-history-ui`~~ | Gemini history browser — session list + turn detail view, delete session, command/output display | ✅ |
-| C | ~~`feature/connection-error-classification`~~ | Connection error classification — typed `ConnectFailure` enum, actionable error banner, smart retry gating | ✅ |
-| D | ~~`feature/first-run-setup-checklist`~~ | First-run setup checklist — persistent card guides new users through SSH host + key + optional Gemini/Drive | ✅ |
-| 4 | `feature/raw-terminal-mode` | [Raw Terminal Mode toggle](docs/features/raw-terminal-mode.md) — switch between AI conversation and direct shell | deferred → v0.7.0 |
-| 5 | `feature/output-streaming` | Command output streaming — token-by-token delivery for long-running commands (scope needs re-evaluation) | deferred → v0.7.0 |
+| Feature | Branch | Scope | Status |
+|---------|--------|-------|--------|
+| Play UX | ~~`feature/play-parameter-ux`~~ | Play parameter defaults, descriptions, examples; live preview in run dialog; required-vs-optional distinction | ✅ |
+| Transcript persistence | ~~`feature/gemini-transcript-persistence`~~ | Gemini transcript persistence — SQLite-backed session history with command/output entries per turn | ✅ |
+| History UI | ~~`feature/gemini-history-ui`~~ | Gemini history browser — session list + turn detail view, delete session, command/output display | ✅ |
+| Connection errors | ~~`feature/connection-error-classification`~~ | Connection error classification — typed `ConnectFailure` enum, actionable error banner, smart retry gating | ✅ |
+| [Setup checklist](docs/features/first-run-onboarding.md) | ~~`feature/first-run-setup-checklist`~~ | First-run setup checklist — persistent card guides new users through SSH host + key + optional Gemini/Drive | ✅ |
+| [Raw terminal mode](docs/features/raw-terminal-mode.md) | `feature/raw-terminal-mode` | Raw Terminal Mode toggle — switch between AI conversation and direct shell | deferred → v0.7.0 |
+| Output streaming | `feature/output-streaming` | Command output streaming — token-by-token delivery for long-running commands (scope needs re-evaluation) | deferred → v0.7.0 |
 
 ---
 
@@ -58,7 +58,7 @@ Also picks up the two deferred v0.6.0 terminal items.
 - **Custom log location** — read `log_dir` from `~/.config/sushi/config.conf` and honour it; the config key exists, enforcement does not
 - **Connection keep-alive in background** *(T-8)* — session should only disconnect on explicit action, not when the app backgrounds
 - **[Raw Terminal Mode toggle](docs/features/raw-terminal-mode.md)** — switch between AI conversation and direct shell (deferred from v0.6.0)
-- **Command output streaming** — token-by-token delivery for long-running commands; scope to be re-evaluated (deferred from v0.6.0)
+- **Command output streaming** — token-by-token delivery for long-running commands (scope needs re-evaluation) (deferred from v0.6.0)
 
 ---
 
