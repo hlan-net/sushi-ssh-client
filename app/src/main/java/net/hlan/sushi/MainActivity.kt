@@ -396,6 +396,9 @@ class MainActivity : AppCompatActivity() {
         dialogBinding.geminiDialogSettingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+        dialogBinding.geminiDialogHistoryButton.setOnClickListener {
+            startActivity(GeminiHistoryActivity.createIntent(this))
+        }
         dialogBinding.geminiDialogCopyButton.setOnClickListener {
             copyGeminiCommand()
         }
