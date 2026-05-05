@@ -103,7 +103,8 @@ if ! id "$ADB_USER" >/dev/null 2>&1; then
 fi
 
 if [ "$ALL_INTERFACES" -eq 1 ]; then
-  SOCKET_DIRECTIVE="# Bound on all interfaces (--all-interfaces)."
+  EXEC_START="${ADB_BIN} -a -P ${PORT} nodaemon server"
+  BIND_DESC="0.0.0.0:${PORT}"
 else
   if [ -z "$BRIDGE_IP" ]; then
     BRIDGE_IP="$(detect_bridge_ip || true)"
@@ -111,9 +112,14 @@ else
   if [ -z "$BRIDGE_IP" ]; then
     err "could not auto-detect docker0 bridge IP. Pass --bridge-ip <ip> or --all-interfaces."
   fi
-  SOCKET_DIRECTIVE="Environment=\"ADB_SERVER_SOCKET=tcp:${BRIDGE_IP}:${PORT}\""
+  EXEC_START="${ADB_BIN} -L tcp:${BRIDGE_IP}:${PORT} nodaemon server"
+  BIND_DESC="${BRIDGE_IP}:${PORT}"
 fi
-EXEC_START="${ADB_BIN} -a -P ${PORT} start-server"
+
+ADB_HOME="$(getent passwd "$ADB_USER" | cut -d: -f6)"
+if [ -z "$ADB_HOME" ]; then
+  err "could not resolve home directory for user '$ADB_USER'"
+fi
 
 echo "Writing $UNIT_PATH"
 cat > "$UNIT_PATH" <<UNIT
@@ -123,11 +129,10 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=forking
+Type=simple
 User=${ADB_USER}
-${SOCKET_DIRECTIVE}
+Environment=HOME=${ADB_HOME}
 ExecStart=${EXEC_START}
-ExecStop=${ADB_BIN} kill-server
 Restart=on-failure
 RestartSec=5
 
@@ -141,26 +146,34 @@ systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}.service"
 systemctl restart "${SERVICE_NAME}.service"
 
-# Give the daemon a moment to bind.
-sleep 1
-
-systemctl --no-pager --full status "${SERVICE_NAME}.service" || true
-
-echo
-echo "Verifying ADB daemon is reachable..."
 if [ "$ALL_INTERFACES" -eq 1 ]; then
   CHECK_HOST="127.0.0.1"
 else
   CHECK_HOST="$BRIDGE_IP"
 fi
 
-if sudo -u "$ADB_USER" "$ADB_BIN" -H "$CHECK_HOST" -P "$PORT" devices >/dev/null 2>&1; then
-  echo "  OK — adb -H $CHECK_HOST -P $PORT reachable."
-  sudo -u "$ADB_USER" "$ADB_BIN" -H "$CHECK_HOST" -P "$PORT" devices
-else
-  echo "  WARNING — could not reach adb daemon at $CHECK_HOST:$PORT yet." >&2
-  echo "  Check 'journalctl -u ${SERVICE_NAME}.service' for errors." >&2
+echo
+echo "Verifying ADB daemon is reachable on ${BIND_DESC}..."
+ATTEMPTS=0
+while [ "$ATTEMPTS" -lt 10 ]; do
+  if sudo -u "$ADB_USER" "$ADB_BIN" -H "$CHECK_HOST" -P "$PORT" devices >/dev/null 2>&1; then
+    echo "  OK — adb -H $CHECK_HOST -P $PORT reachable."
+    sudo -u "$ADB_USER" "$ADB_BIN" -H "$CHECK_HOST" -P "$PORT" devices
+    break
+  fi
+  ATTEMPTS=$((ATTEMPTS + 1))
+  sleep 1
+done
+
+if [ "$ATTEMPTS" -ge 10 ]; then
+  echo "  WARNING — could not reach adb daemon at $CHECK_HOST:$PORT after 10s." >&2
+  echo "  Check 'journalctl -u ${SERVICE_NAME}.service -n 50' for errors." >&2
+  systemctl --no-pager --full status "${SERVICE_NAME}.service" || true
+  exit 1
 fi
+
+echo
+systemctl --no-pager status "${SERVICE_NAME}.service" || true
 
 echo
 echo "Done. The daemon will start automatically on reboot."
