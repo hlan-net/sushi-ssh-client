@@ -12,9 +12,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
@@ -74,17 +72,15 @@ class GeminiHistoryActivity : AppCompatActivity() {
         binding.geminiHistorySessionsRecycler.layoutManager = LinearLayoutManager(this)
         binding.geminiHistorySessionsRecycler.adapter = adapter
 
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                db.sessionsFlow.collect { sessions ->
-                    if (sessions.isEmpty()) {
-                        binding.geminiHistoryEmptyText.visibility = View.VISIBLE
-                        binding.geminiHistorySessionsRecycler.visibility = View.GONE
-                    } else {
-                        binding.geminiHistoryEmptyText.visibility = View.GONE
-                        binding.geminiHistorySessionsRecycler.visibility = View.VISIBLE
-                        adapter.submitList(sessions)
-                    }
+        lifecycleScope.launchWhenStarted {
+            db.sessionsFlow.collect { sessions ->
+                if (sessions.isEmpty()) {
+                    binding.geminiHistoryEmptyText.visibility = View.VISIBLE
+                    binding.geminiHistorySessionsRecycler.visibility = View.GONE
+                } else {
+                    binding.geminiHistoryEmptyText.visibility = View.GONE
+                    binding.geminiHistorySessionsRecycler.visibility = View.VISIBLE
+                    adapter.submitList(sessions)
                 }
             }
         }
