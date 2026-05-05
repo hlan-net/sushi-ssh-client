@@ -17,7 +17,8 @@ object SetupChecklist {
     ): SetupChecklistState = SetupChecklistState(
         hasSshHost = sshSettings.getHosts().any { it.kind == HostKind.SSH },
         hasSshKey = sshSettings.getPublicKey() != null,
-        hasGeminiKey = geminiSettings.isEnabled() && geminiSettings.getApiKey().isNotBlank(),
+        hasGeminiKey = geminiSettings.isEnabled() &&
+            (geminiSettings.getApiKey().isNotBlank() || driveAuthManager.getSignedInAccount() != null),
         hasDriveAuth = driveAuthManager.getSignedInAccount() != null
     )
 }
