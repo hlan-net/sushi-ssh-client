@@ -36,24 +36,29 @@ Solidify the terminal layer first — the conversational features all sit on top
 
 ### Conversation depth
 
-| PR | Branch | Scope | Status |
-|----|--------|-------|--------|
-| — | ~~`feature/play-parameter-ux`~~ | Play parameter defaults, descriptions, examples; live preview in run dialog; required-vs-optional distinction | ✅ |
-| 6 | `feature/gemini-transcript` | Gemini transcript persistence — SQLite-backed session history with command/output entries, browsable history UI | 🔄 in progress |
-| 4 | `feature/raw-terminal-mode` | [Raw Terminal Mode toggle](docs/features/raw-terminal-mode.md) — switch between AI conversation and direct shell | — |
-| 5 | `feature/output-streaming` | Command output streaming — token-by-token delivery for long-running commands | — |
-| 7 | `feature/first-run-onboarding` | [First-run onboarding](docs/features/first-run-onboarding.md) — guide user through `SUSHI.md` setup on first connect | — |
+| Feature | Branch | Scope | Status |
+|---------|--------|-------|--------|
+| Play UX | ~~`feature/play-parameter-ux`~~ | Play parameter defaults, descriptions, examples; live preview in run dialog; required-vs-optional distinction | ✅ |
+| Transcript persistence | ~~`feature/gemini-transcript-persistence`~~ | Gemini transcript persistence — SQLite-backed session history with command/output entries per turn | ✅ |
+| History UI | ~~`feature/gemini-history-ui`~~ | Gemini history browser — session list + turn detail view, delete session, command/output display | ✅ |
+| Connection errors | ~~`feature/connection-error-classification`~~ | Connection error classification — typed `ConnectFailure` enum, actionable error banner, smart retry gating | ✅ |
+| [Setup checklist](docs/features/first-run-onboarding.md) | ~~`feature/first-run-setup-checklist`~~ | First-run setup checklist — persistent card guides new users through SSH host + key + optional Gemini/Drive | ✅ |
+| [Raw terminal mode](docs/features/raw-terminal-mode.md) | `feature/raw-terminal-mode` | Raw Terminal Mode toggle — switch between AI conversation and direct shell | deferred → v0.7.0 |
+| Output streaming | `feature/output-streaming` | Command output streaming — token-by-token delivery for long-running commands (scope needs re-evaluation) | deferred → v0.7.0 |
 
 ---
 
-## v0.7.0 — Persona and file operations
+## v0.7.0 — Persona, file operations, and terminal depth
 
 Close the loop on persona editing and add the file operations that conversational users naturally ask for.
+Also picks up the two deferred v0.6.0 terminal items.
 
 - **[Remote SUSHI.md editor](docs/features/persona-editor.md)** — read and write `~/.config/sushi/SUSHI.md` from within the app; right now customizing the persona requires a separate SSH terminal
 - **[SFTP file operations](docs/features/file-operations.md)** — "download this log to my phone" is a natural conversational request; `SshClient` already handles upload via the Share target, download is the missing half *(B-17)*
 - **Custom log location** — read `log_dir` from `~/.config/sushi/config.conf` and honour it; the config key exists, enforcement does not
 - **Connection keep-alive in background** *(T-8)* — session should only disconnect on explicit action, not when the app backgrounds
+- **[Raw Terminal Mode toggle](docs/features/raw-terminal-mode.md)** — switch between AI conversation and direct shell (deferred from v0.6.0)
+- **Command output streaming** — token-by-token delivery for long-running commands (scope needs re-evaluation) (deferred from v0.6.0)
 
 ---
 
