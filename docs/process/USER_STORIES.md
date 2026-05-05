@@ -70,7 +70,7 @@ All stories below break this epic into specific capabilities.
 | G-3 | As a user, I want to toggle between on-device and cloud Gemini models so that I can choose speed vs capability. | P1 | Done |
 | G-4 | As a user, I want to choose between Flash and Pro cloud models so that I can balance cost and quality. | P2 | Done |
 | G-5 | As a user, I want to copy a Gemini-suggested command so that I can paste and edit it before running. | P1 | Done |
-| G-6 | As a user, I want a full transcript of my Gemini voice conversation — what I said, what Gemini replied, and the commands executed — so that I can review, audit, or learn from the interaction. | P1 | Partial |
+| G-6 | As a user, I want a full transcript of my Gemini voice conversation — what I said, what Gemini replied, and the commands executed — so that I can review, audit, or learn from the interaction. | P1 | Done |
 
 ## Google Drive Integration
 
