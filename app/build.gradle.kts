@@ -117,9 +117,9 @@ dependencies {
     implementation("com.github.mwiede:jsch:2.28.2")
     implementation("com.jcraft:jzlib:1.1.3")
     // Bouncy Castle provides Ed25519 on Android API < 33 (JCE lacks EdDSA before API 33).
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
     // JSch BC integration references ML-KEM classes shipped in bcprov-ext.
-    implementation("org.bouncycastle:bcprov-ext-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcprov-ext-jdk18on:1.84")
     implementation("androidx.security:security-crypto:1.1.0")
     implementation("com.google.android.gms:play-services-auth:21.5.1")
     implementation("com.google.api-client:google-api-client-android:2.9.0")
