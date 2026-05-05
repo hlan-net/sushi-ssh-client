@@ -1,6 +1,16 @@
 <resources>
     <string name="app_name_short" translatable="false">Sushi</string>
     <string name="app_name_long" translatable="false">Sushi - SSH Client</string>
+    <!-- Setup checklist -->
+    <string name="setup_checklist_title">Get started</string>
+    <string name="setup_checklist_subtitle">Complete the steps below to start using Sushi.</string>
+    <string name="setup_checklist_add_host">Add an SSH host</string>
+    <string name="setup_checklist_generate_key">Generate an SSH key</string>
+    <string name="setup_checklist_gemini_key">Set up Gemini AI (optional)</string>
+    <string name="setup_checklist_drive_auth">Connect Google Drive (optional)</string>
+    <string name="setup_checklist_done_marker">✓</string>
+    <string name="setup_checklist_pending_marker">○</string>
+
     <string name="placeholder_status">Add SSH details in Settings to start a session.</string>
     <string name="placeholder_status_active">Connecting...</string>
     <string name="session_title">Terminal session</string>
