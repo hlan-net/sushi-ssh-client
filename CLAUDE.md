@@ -37,6 +37,7 @@ Lint reports go to `app/build/reports/`.
 ./scripts/setup-local-ssh-test.sh          # wizard to store SSH test credentials
 ./scripts/run-local-ssh-test.sh            # runs LocalSshIntegrationTest
 ./scripts/install-git-hooks.sh             # installs pre-push hook (runs unit tests)
+sudo ./scripts/install-adb-systemd-service.sh  # Device Tests runner host: adb as a systemd service
 ```
 
 Skip the pre-push hook with `SKIP_PRE_PUSH_TESTS=1 git push`.
