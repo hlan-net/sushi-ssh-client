@@ -1,150 +1,72 @@
 # AGENTS.md
 
-This file guides agentic coding assistants working in this repository.
-It summarizes build/test commands and local coding conventions.
-## Project summary
-- Android app built with Gradle (Kotlin DSL).
-- Single module: `app`.
-- Package: `net.hlan.sushi`.
-- UI uses view binding (no Compose).
-## Environment
-- JDK 17 required.
-- Android Studio Hedgehog or newer recommended.
-- Gradle wrapper included (`./gradlew`).
-## Build commands
-Common builds:
+Sushi is an Android SSH client. Package `net.hlan.sushi`, single Gradle module `:app`, Kotlin DSL, JDK 17, min SDK 24, target SDK 36. No Compose, no ViewModel/MVVM — activity-based with view binding.
+
+`CLAUDE.md` covers the same ground in more detail; keep the two reconciled when changing one.
+
+## Build / test
+
 ```bash
 ./gradlew assembleDebug
-./gradlew assembleRelease
-./gradlew bundleDebug
-```
-Clean build:
-```bash
-./gradlew clean assembleDebug
-```
-If Gradle wrapper JAR is missing:
-```bash
-gradle wrapper
-```
-## Lint / static analysis
-Run lint for all variants:
-```bash
-./gradlew lint
-```
-Debug-only lint:
-```bash
 ./gradlew lintDebug
-```
-Reports are written under `app/build/reports/`.
-## Tests
-Unit tests (JVM):
-```bash
-./gradlew test
-./gradlew testDebugUnitTest
-```
-Run a single unit test method:
-```bash
+./gradlew testDebugUnitTest                       # JVM unit tests
 ./gradlew testDebugUnitTest --tests "net.hlan.sushi.ExampleUnitTest.testAddition_isCorrect"
-```
-Instrumented tests (device/emulator):
-```bash
-./gradlew connectedAndroidTest
-./gradlew connectedDebugAndroidTest
-```
-Run a single instrumented test class:
-```bash
+./gradlew connectedDebugAndroidTest               # requires device/emulator
 ./gradlew connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=net.hlan.sushi.ExampleInstrumentedTest
+  -Pandroid.testInstrumentationRunnerArguments.class=net.hlan.sushi.JschRuntimeTest
 ```
-Run a single instrumented test method:
+
+Reports: `app/build/reports/`. Version overrides: `-PversionCode=...`, `-PversionName=...`.
+
+## Build types (non-obvious)
+
+- `debug` — standard.
+- `release` — minified, signed via env: `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+- `minifiedDebug` — debug + R8/ProGuard. **`testBuildType = "minifiedDebug"`**, so `connectedAndroidTest` runs against the minified APK to catch ProGuard stripping.
+
+JSch reflectively loads crypto providers — its classes are kept in `app/proguard-rules.pro`. When adding any code referenced only by name/reflection, add keep rules there or `minifiedDebug` will break.
+
+## Local scripts
+
 ```bash
-./gradlew connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=net.hlan.sushi.ExampleInstrumentedTest#useAppContext
-```
-Device tests require an emulator or physical device.
-## Kotlin & formatting
-- Kotlin official style is enabled (`kotlin.code.style=official`).
-- Indentation: 4 spaces, no tabs.
-- Keep line length reasonable (IDE defaults).
-- Prefer `val`; use `var` only when mutation is required.
-- Prefer small, focused functions with early returns for guards.
-- Expression-bodied functions are fine for simple returns.
-- Avoid wildcard imports.
-- Import order follows Android Studio defaults:
-  - `android.*`, `androidx.*`, third-party (`com.*`), then `java.*`/`kotlin.*`.
-- One top-level class per file.
-## Types & nullability
-- Use Kotlin null-safety instead of nullable globals.
-- Prefer non-null values; handle null with early returns.
-- Use `orEmpty()` for nullable strings.
-- Use explicit types when inference would reduce clarity.
-
-## Naming conventions
-- Classes/objects: `UpperCamelCase`.
-- Functions/properties: `lowerCamelCase`.
-- Constants: `UPPER_SNAKE_CASE` in `companion object`.
-- Resource IDs: `lower_snake_case`.
-- Layout files: `activity_*.xml`.
-- Test classes end with `Test`.
-
-## UI & resources
-- All user-visible text goes in `app/src/main/res/values/strings.xml`.
-- Use view binding (`binding`) instead of `findViewById`.
-- Keep activity setup in `onCreate`, state refresh in `onResume` when needed.
-- Update UI only from the main thread.
-
-## Threading & networking
-- Never perform network or disk I/O on the UI thread.
-- Current code uses `Thread { ... }` and `runOnUiThread { ... }`.
-- If introducing coroutines, do it consistently and update this doc.
-- Close network connections and streams in `finally`/`use` blocks.
-
-## Error handling
-- Use `runCatching { ... }` for background work and map to result objects.
-- Catch `Exception` only at module boundaries (network, storage, API calls).
-- Provide user-friendly messages; avoid leaking raw stack traces.
-- Do not swallow failures without logging or UI feedback.
-
-Example pattern:
-```kotlin
-val result = runCatching {
-    doWork()
-    true
-}.getOrElse { error ->
-    false
-}
+./scripts/install-wifi-debug.sh [device]   # build + install via Wi-Fi ADB; auto-bumps versionCode
+./scripts/run-device-qa-suite.sh           # instrumented QA suite
+./scripts/setup-local-ssh-test.sh          # wizard; writes .local/local-ssh-test.env (chmod 600, gitignored)
+./scripts/run-local-ssh-test.sh            # runs LocalSshIntegrationTest using above creds
+./scripts/install-git-hooks.sh             # installs pre-push hook (runs unit tests)
 ```
 
-## Data storage & security
-- Use `SecurePrefs` for secrets (API keys, tokens).
-- Use regular `SharedPreferences` only for non-sensitive data.
-- Avoid logging sensitive values.
-- Prefer `applicationContext` in long-lived helpers.
+Bypass pre-push hook: `SKIP_PRE_PUSH_TESTS=1 git push`.
 
-## Architecture notes
-- Keep UI logic in activities; move service logic into helper classes.
-- Existing helpers: `GeminiClient`, `DriveAuthManager`, `DriveLogUploader`.
-- Use small data classes for results (see `GeminiResult`, `DriveUploadResult`).
+## Architecture
 
-## Versioning & signing
-- Version overrides via Gradle properties:
-  - `-PversionCode=...`
-  - `-PversionName=...`
-- Release signing uses environment variables:
-  - `ANDROID_KEYSTORE_PATH`
-  - `ANDROID_KEYSTORE_PASSWORD`
-  - `ANDROID_KEY_ALIAS`
-  - `ANDROID_KEY_PASSWORD`
-- Keep credentials out of git and logs.
+UI logic stays in activities; service logic lives in helpers:
 
-## Cursor/Copilot rules
-- No Cursor rules found in `.cursor/rules/` or `.cursorrules`.
-- No Copilot instructions found in `.github/copilot-instructions.md`.
+- `SshClient` — JSch wrapper (password/key auth, jump servers, PTY).
+- `GeminiClient` — Gemini API over raw `HttpURLConnection` (no SDK).
+- `DriveAuthManager` / `DriveLogUploader` — Google OAuth + Drive log upload.
+- `PlayRunner` — runs automated "Plays" with `{{ PARAM }}` template placeholders.
+- `SecurePrefs` — AES256-GCM encrypted prefs; **all secrets go here**.
+- `PhraseDatabaseHelper` / `PlayDatabaseHelper` — `SQLiteOpenHelper`. `PhraseDatabaseHelper` exposes a `MutableStateFlow` for reactive UI.
+- `ConsoleLogRepository` / `TerminalLogRepository` — session log persistence.
 
-## Agentic tips
-- Follow existing patterns before introducing new frameworks.
-- Update `app/build.gradle.kts` when adding dependencies.
-- Add permissions to `AndroidManifest.xml` only when necessary.
-- Prefer deterministic tests; avoid live network in tests.
-- Add new settings to `SettingsActivity` and store them in `SecurePrefs`.
-- Update `README.md` if new setup steps are required.
+Main UI: `MainActivity` is a `ViewPager2` (Terminal + Plays tabs); `SettingsActivity` is a `ViewPager2` carousel (General/SSH/Gemini/Drive); `TerminalActivity` uses the custom `TerminalView`.
+
+## Threading
+
+Mixed by design: legacy code uses `Thread { } / runOnUiThread { }`, newer code uses `lifecycleScope.launch + Dispatchers.IO`. **Match the surrounding file's style**; do not mix in a single feature.
+
+## Conventions worth knowing
+
+- Kotlin official style, 4-space indent, no wildcard imports, one top-level class per file.
+- All user-visible strings → `app/src/main/res/values/strings.xml`.
+- View binding only (`binding.*`), never `findViewById`.
+- Resource IDs `lower_snake_case`; layouts `activity_*.xml`.
+- Error boundaries: `runCatching { }.getOrElse { }` mapping to small result data classes (`GeminiResult`, `DriveUploadResult`).
+- New settings → add UI to `SettingsActivity` + store in `SecurePrefs` if sensitive.
+- New deps → `app/build.gradle.kts`. New permissions → `AndroidManifest.xml` only when required.
+
+## Tests
+
+- Avoid live network in tests; SSH integration tests read from `.local/local-ssh-test.env` (never commit).
+- Instrumented tests run against `minifiedDebug` — failures may be ProGuard-related, not logic bugs.
