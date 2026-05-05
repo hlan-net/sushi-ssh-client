@@ -22,7 +22,7 @@ required check**. It is triggered manually or by adding the label
 |-------|--------|
 | RPi5 self-hosted runner | Running (Docker container) |
 | Nokia 4.2G USB connection | Connected to host `ergo` |
-| ADB on host | Needs to be started manually (`adb start-server`) |
+| ADB on host | Managed by `adb-server.service` (see install step below) |
 | Workflow | Committed, not yet exercised end-to-end |
 
 ---
@@ -52,39 +52,34 @@ adb -a -P 5037 start-server
 
 ---
 
-## Pending: make ADB a systemd service
+## Make ADB a systemd service
 
 Running `adb start-server` manually means the daemon is lost on reboot or if
-the process crashes. The daemon should be managed by systemd so it starts
-automatically and reconnects to the phone.
+the process crashes. Use the helper script to install a systemd unit that
+starts the daemon on boot and binds it to the Docker bridge so the runner
+container can reach it.
 
-### Proposed unit file `/etc/systemd/system/adb-server.service`
+### Install
 
-```ini
-[Unit]
-Description=Android Debug Bridge server
-After=network.target
-
-[Service]
-Type=forking
-User=larry
-# Bind to the Docker bridge so the runner container can connect.
-# Change the IP if your bridge address differs (ip -4 addr show docker0).
-Environment="ADB_SERVER_SOCKET=tcp:172.17.0.1:5037"
-ExecStart=/usr/bin/adb -a -P 5037 start-server
-ExecStop=/usr/bin/adb kill-server
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### Enable and verify
+From a checkout of this repo on the runner host:
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now adb-server
+sudo ./scripts/install-adb-systemd-service.sh
+```
+
+The script:
+- requires `adb` on `PATH` (`sudo apt install -y android-tools-adb`);
+- auto-detects the `docker0` bridge IP and runs adb as `$SUDO_USER`;
+- writes `/etc/systemd/system/adb-server.service`, enables it, and starts it;
+- prints `adb devices` against the bound socket to verify reachability.
+
+Override defaults with `--user <name>`, `--port <port>`, `--bridge-ip <ip>`, or
+`--all-interfaces` (binds `0.0.0.0` — only safe on trusted networks).
+Remove the service with `sudo ./scripts/install-adb-systemd-service.sh --uninstall`.
+
+### Verify
+
+```bash
 sudo systemctl status adb-server
 
 # Confirm the phone is reachable from the container
