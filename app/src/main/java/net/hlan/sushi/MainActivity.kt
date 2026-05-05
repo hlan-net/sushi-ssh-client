@@ -148,6 +148,7 @@ class MainActivity : AppCompatActivity() {
         updateSessionUi()
         refreshPlaysPageState()
         warmUpNanoIfAvailable()
+        updateSetupChecklist()
     }
 
     override fun onDestroy() {
@@ -868,6 +869,44 @@ class MainActivity : AppCompatActivity() {
         binding.configureHostButton.visibility = if (config == null) View.VISIBLE else View.GONE
 
         refreshPlaysPageState()
+    }
+
+    private fun updateSetupChecklist() {
+        val state = SetupChecklist.evaluate(sshSettings, geminiSettings, driveAuthManager)
+        val card = binding.setupChecklistCard
+        if (state.requiredComplete) {
+            card.root.visibility = View.GONE
+            return
+        }
+        card.root.visibility = View.VISIBLE
+
+        val doneMarker = getString(R.string.setup_checklist_done_marker)
+        val pendingMarker = getString(R.string.setup_checklist_pending_marker)
+        val doneColor = getColor(android.R.color.holo_green_dark)
+        val pendingColor = getColor(android.R.color.darker_gray)
+
+        fun applyRow(statusView: android.widget.TextView, done: Boolean) {
+            statusView.text = if (done) doneMarker else pendingMarker
+            statusView.setTextColor(if (done) doneColor else pendingColor)
+        }
+
+        applyRow(card.checklistSshHostStatus, state.hasSshHost)
+        applyRow(card.checklistSshKeyStatus, state.hasSshKey)
+        applyRow(card.checklistGeminiStatus, state.hasGeminiKey)
+        applyRow(card.checklistDriveStatus, state.hasDriveAuth)
+
+        card.checklistSshHostRow.setOnClickListener {
+            startActivity(Intent(this, HostsActivity::class.java))
+        }
+        card.checklistSshKeyRow.setOnClickListener {
+            startActivity(Intent(this, KeysActivity::class.java))
+        }
+        card.checklistGeminiRow.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        card.checklistDriveRow.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
     }
 
     private inner class MainToolsPagerAdapter(
