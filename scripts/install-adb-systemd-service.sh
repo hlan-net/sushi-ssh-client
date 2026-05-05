@@ -10,12 +10,13 @@
 # Usage:
 #   sudo ./scripts/install-adb-systemd-service.sh [options]
 #
+# The daemon binds on 0.0.0.0:<port> (the Debian-packaged adb cannot bind to a
+# specific IP). Only safe on a trusted home/office network — do not run on a
+# host exposed to the public internet.
+#
 # Options:
 #   --user <name>        Run adb as this user (default: $SUDO_USER, else $USER)
 #   --port <port>        ADB daemon port (default: 5037)
-#   --bridge-ip <ip>     Bind ADB to this IP only (default: auto-detect docker0)
-#   --all-interfaces     Bind ADB to 0.0.0.0 instead of the bridge IP. Less safe
-#                        — only use on a trusted network.
 #   --uninstall          Stop, disable, and remove the service.
 #   -h, --help           Show this help.
 #
@@ -26,7 +27,7 @@ UNIT_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
 DEFAULT_PORT="5037"
 
 usage() {
-  sed -n '3,21p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '3,22p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 err() {
@@ -60,16 +61,12 @@ detect_bridge_ip() {
 
 ADB_USER=""
 PORT="$DEFAULT_PORT"
-BRIDGE_IP=""
-ALL_INTERFACES=0
 UNINSTALL=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --user)            ADB_USER="$2"; shift 2 ;;
     --port)            PORT="$2"; shift 2 ;;
-    --bridge-ip)       BRIDGE_IP="$2"; shift 2 ;;
-    --all-interfaces)  ALL_INTERFACES=1; shift ;;
     --uninstall)       UNINSTALL=1; shift ;;
     -h|--help)         usage; exit 0 ;;
     *)                 err "unknown option: $1" ;;
@@ -102,19 +99,12 @@ if ! id "$ADB_USER" >/dev/null 2>&1; then
   err "user '$ADB_USER' does not exist"
 fi
 
-if [ "$ALL_INTERFACES" -eq 1 ]; then
-  EXEC_START="${ADB_BIN} -a -P ${PORT} nodaemon server"
-  BIND_DESC="0.0.0.0:${PORT}"
-else
-  if [ -z "$BRIDGE_IP" ]; then
-    BRIDGE_IP="$(detect_bridge_ip || true)"
-  fi
-  if [ -z "$BRIDGE_IP" ]; then
-    err "could not auto-detect docker0 bridge IP. Pass --bridge-ip <ip> or --all-interfaces."
-  fi
-  EXEC_START="${ADB_BIN} -L tcp:${BRIDGE_IP}:${PORT} nodaemon server"
-  BIND_DESC="${BRIDGE_IP}:${PORT}"
-fi
+EXEC_START="${ADB_BIN} -a -P ${PORT} nodaemon server"
+BIND_DESC="0.0.0.0:${PORT}"
+
+# Used only as the address for the post-install reachability check.
+BRIDGE_IP="$(detect_bridge_ip || true)"
+CHECK_HOST="${BRIDGE_IP:-127.0.0.1}"
 
 ADB_HOME="$(getent passwd "$ADB_USER" | cut -d: -f6)"
 if [ -z "$ADB_HOME" ]; then
@@ -132,6 +122,8 @@ Wants=network-online.target
 Type=simple
 User=${ADB_USER}
 Environment=HOME=${ADB_HOME}
+# Kill any stray user-started daemon so the bind on :${PORT} doesn't conflict.
+ExecStartPre=-${ADB_BIN} kill-server
 ExecStart=${EXEC_START}
 Restart=on-failure
 RestartSec=5
@@ -144,13 +136,13 @@ chmod 0644 "$UNIT_PATH"
 
 systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}.service"
-systemctl restart "${SERVICE_NAME}.service"
 
-if [ "$ALL_INTERFACES" -eq 1 ]; then
-  CHECK_HOST="127.0.0.1"
-else
-  CHECK_HOST="$BRIDGE_IP"
-fi
+# Make sure no other adb daemon (user-started or previous unit) is holding
+# port ${PORT} on any interface before we bring the unit up.
+pkill -u "$ADB_USER" -x adb 2>/dev/null || true
+sleep 1
+
+systemctl restart "${SERVICE_NAME}.service"
 
 echo
 echo "Verifying ADB daemon is reachable on ${BIND_DESC}..."
