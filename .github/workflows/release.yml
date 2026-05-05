@@ -209,14 +209,12 @@ jobs:
             -PversionCode="$ANDROID_VERSION_CODE"
 
       - name: Upload App Bundle to release
-        uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload-url }}
-          asset_path: app/build/outputs/bundle/release/app-release.aab
-          asset_name: sushi-ssh-client-android.aab
-          asset_content_type: application/octet-stream
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ needs.create-release.outputs.release-tag }}" \
+            "app/build/outputs/bundle/release/app-release.aab#sushi-ssh-client-android.aab" \
+            --clobber
 
       - name: Upload to Google Play
         if: ${{ needs.create-release.outputs.deploy-android == 'true' && env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
@@ -226,5 +224,5 @@ jobs:
           packageName: net.hlan.sushi
           releaseFiles: app/build/outputs/bundle/release/app-release.aab
           mappingFile: app/build/outputs/mapping/release/mapping.txt
-          track: ${{ needs.create-release.outputs.play-track }}
+          tracks: ${{ needs.create-release.outputs.play-track }}
           status: completed

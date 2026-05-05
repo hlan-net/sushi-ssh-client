@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Sushi is an Android SSH client. Package `net.hlan.sushi`, single Gradle module `:app`, Kotlin DSL, JDK 17, min SDK 24, target SDK 36. No Compose, no ViewModel/MVVM — activity-based with view binding.
+Sushi is an Android SSH client. Package `net.hlan.sushi`, single Gradle module `:app`, Kotlin DSL, JDK 17, min SDK 26, target SDK 36. No Compose, no ViewModel/MVVM — activity-based with view binding.
 
 `CLAUDE.md` covers the same ground in more detail; keep the two reconciled when changing one.
 
@@ -17,6 +17,12 @@ Sushi is an Android SSH client. Package `net.hlan.sushi`, single Gradle module `
 ```
 
 Reports: `app/build/reports/`. Version overrides: `-PversionCode=...`, `-PversionName=...`.
+
+## Machine setup (non-obvious)
+
+- `local.properties` is gitignored; each machine must set `sdk.dir=/absolute/path/to/sdk`.
+- Required SDK packages: `platform-tools`, `platforms;android-36`, `build-tools;36.0.0`, `ndk;27.0.12077973`, `cmake;3.22.1`.
+- If native builds fail, validate NDK clang directly at `.../ndk/27.0.12077973/toolchains/llvm/prebuilt/.../bin/clang --version` and install missing host compatibility libs.
 
 ## Build types (non-obvious)
 

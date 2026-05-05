@@ -54,6 +54,34 @@ Prerequisites:
 - Android Studio (Hedgehog or newer recommended)
 - JDK 17
 
+Android SDK/NDK setup (machine-specific):
+- `local.properties` is gitignored and must be set per machine:
+  ```properties
+  sdk.dir=/absolute/path/to/your/Android/sdk
+  ```
+- This project requires these SDK components:
+  ```bash
+  sdkmanager \
+    "platform-tools" \
+    "platforms;android-36" \
+    "build-tools;36.0.0" \
+    "ndk;27.0.12077973" \
+    "cmake;3.22.1"
+  ```
+- Quick verification:
+  ```bash
+  ./gradlew assembleDebug
+  ./gradlew assembleMinifiedDebug
+  ```
+
+If native build setup fails on Linux hosts:
+- The NDK toolchain binaries under `ndk/27.0.12077973/toolchains/llvm/prebuilt/...` must run on your host.
+- Validate directly:
+  ```bash
+  "$ANDROID_SDK_ROOT/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" --version
+  ```
+- If that command fails due to missing shared libraries, install the required compatibility libs for your distro/architecture, then retry.
+
 Optional integrations:
 - Gemini voice mode: add your API key in app settings.
 - Google Drive logs: create an OAuth client for the package `net.hlan.sushi` and enable the Drive API.
