@@ -111,6 +111,24 @@ The workflow falls back to `172.17.0.1:5037` if the variables are absent.
 
 ---
 
+## Phone configuration
+
+The QA phone must be set up so the workflow can drive it without manual help:
+
+- **Developer Options → USB debugging** enabled, host's ADB key authorised
+  ("Always allow from this computer").
+- **Secure lockscreen disabled** — set the lockscreen type to **None** or
+  **Swipe** in Settings → Security. The workflow runs `adb shell wm
+  dismiss-keyguard` to wake the device for Espresso, and that command cannot
+  bypass a PIN, pattern, or password. With a secure lockscreen enabled the
+  tests will fail with `NoActivityResumedException` because activities can
+  never gain window focus.
+- **Stay-awake while plugged in**, **animation scales** — set automatically by
+  the workflow's "Prepare device for instrumented tests" step on every run, so
+  no manual configuration needed.
+
+---
+
 ## Wi-Fi ADB (alternative, no USB passthrough needed)
 
 If USB passthrough becomes unreliable, the phone can be reached over Wi-Fi:

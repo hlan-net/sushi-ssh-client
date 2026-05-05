@@ -140,6 +140,9 @@ dependencies {
     // which conflicts with the androidTest dependencies (espresso/junit/concurrent-futures-ktx).
     implementation("androidx.concurrent:concurrent-futures:1.3.0")
     androidTestImplementation("androidx.concurrent:concurrent-futures:1.3.0")
-    androidTestImplementation("com.google.guava:guava:33.6.0-jre")
+    // Pin Guava to the -android flavor on both classpaths. AGP consistent resolution
+    // would otherwise pick the -jre flavor for androidTest and break minifiedDebugAndroidTestRuntimeClasspath.
+    implementation("com.google.guava:guava:33.6.0-android")
+    androidTestImplementation("com.google.guava:guava:33.6.0-android")
 
 }

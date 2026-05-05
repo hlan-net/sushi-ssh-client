@@ -70,6 +70,12 @@ jobs:
           # When set, the step connects via TCP instead of relying on the host server.
           DEVICE_ADDRESS: ${{ secrets.ANDROID_DEVICE_ADDRESS }}
         run: |
+          if ! command -v adb >/dev/null 2>&1; then
+            echo "::error::'adb' is not installed in the runner container. Add 'android-tools-adb' to the runner image."
+            exit 1
+          fi
+          adb --version
+
           export ANDROID_ADB_SERVER_ADDRESS="$ADB_HOST"
           export ANDROID_ADB_SERVER_PORT="$ADB_PORT"
 
@@ -82,15 +88,46 @@ jobs:
 
           DEVICE_COUNT=$(adb devices | grep -v "^List" | grep "device$" | wc -l)
           if [ "$DEVICE_COUNT" -eq 0 ]; then
-            echo "::error::No Android device found. Check USB/Wi-Fi connection, ADB authorisation, and that the host ADB server is running (adb start-server on ergo)."
+            echo "::error::No Android device found. Check USB/Wi-Fi connection, ADB authorisation, and that the host ADB server is running (sudo systemctl status adb-server on ergo)."
             exit 1
           fi
           echo "Found $DEVICE_COUNT device(s) — continuing."
+
+          # Log device identity so test failures can be correlated with the unit.
+          echo "Model:    $(adb shell getprop ro.product.model | tr -d '\r')"
+          echo "Brand:    $(adb shell getprop ro.product.brand | tr -d '\r')"
+          echo "Android:  $(adb shell getprop ro.build.version.release | tr -d '\r') (API $(adb shell getprop ro.build.version.sdk | tr -d '\r'))"
 
           # Persist ADB env for subsequent steps.
           echo "ANDROID_ADB_SERVER_ADDRESS=$ADB_HOST" >> "$GITHUB_ENV"
           echo "ANDROID_ADB_SERVER_PORT=$ADB_PORT"    >> "$GITHUB_ENV"
           [ -n "$DEVICE_ADDRESS" ] && echo "ANDROID_SERIAL=$DEVICE_ADDRESS" >> "$GITHUB_ENV" || true
+
+      - name: Prepare device for instrumented tests
+        run: |
+          # Wake the device and dismiss the keyguard. This requires the device's
+          # secure lockscreen to be set to None or Swipe — `wm dismiss-keyguard`
+          # cannot bypass PIN/pattern/password.
+          adb shell input keyevent KEYCODE_WAKEUP
+          adb shell wm dismiss-keyguard
+
+          # Keep the screen on while plugged in (USB | AC | wireless = 7) so the
+          # device doesn't sleep mid-test and trigger NoActivityResumedException.
+          adb shell settings put global stay_on_while_plugged_in 7
+
+          # Zero animation scales — Espresso waits for animations to settle, and
+          # non-zero scales are a common source of flakes on Android 15+.
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+
+          # Verify the device is unlocked and an activity can resume. If the
+          # lockscreen is secure, mWindowFocusCleared/mDreaming will report the
+          # keyguard is still up and tests will fail later anyway — fail fast.
+          if adb shell dumpsys window 2>/dev/null | grep -q "mDreamingLockscreen=true"; then
+            echo "::error::Secure lockscreen is active and could not be dismissed. Set the device lockscreen to None or Swipe."
+            exit 1
+          fi
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
