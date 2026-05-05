@@ -25,6 +25,54 @@
         app:icon="@drawable/ic_terminal"
         app:iconGravity="textStart" />
 
+    <LinearLayout
+        android:id="@+id/terminalErrorBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="?attr/colorErrorContainer"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/terminalErrorBannerText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/colorOnErrorContainer"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/terminalErrorBannerAction"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/colorOnErrorContainer"
+                android:visibility="gone" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/terminalErrorBannerDismiss"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/action_dismiss"
+                android:textColor="?attr/colorOnErrorContainer" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
     <net.hlan.sushi.TerminalView
         android:id="@+id/terminalOutputText"
         style="@style/TextAppearance.Sushi.Body"
