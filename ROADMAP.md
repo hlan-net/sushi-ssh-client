@@ -93,6 +93,14 @@ Solid SSH client features that are not core to the conversational goal but round
 
 ---
 
+## QA improvements
+
+- **Containerized device-runner hardening** — keep `Device Tests` self-hosted Docker runner setup reproducible (`adb` available in container, explicit host ADB bridge env, clearer preflight failures when no device is visible).
+- **UI test reliability on Android 15+** — reduce `NoActivityResumedException` flakes by standardizing wake/unlock/stay-awake prep and documenting that secure lockscreen must be disabled for Espresso device runs.
+- **Minified androidTest dependency alignment** — keep `minifiedDebugAndroidTestRuntimeClasspath` versions aligned with app classpath (notably Guava Android flavor) to avoid AGP consistent-resolution breakage.
+
+---
+
 ## Far future / ideas
 
 Interesting directions that depend on the conversational core being solid first. No commitment on timing.
@@ -107,4 +115,4 @@ Interesting directions that depend on the conversational core being solid first.
 
 ---
 
-*Last updated: 2026-05-04*
+*Last updated: 2026-05-05*
