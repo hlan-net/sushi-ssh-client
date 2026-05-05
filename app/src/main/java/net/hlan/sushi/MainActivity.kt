@@ -965,12 +965,22 @@ class MainActivity : AppCompatActivity() {
         }
 
         val useNano = geminiSettings.getNanoPreferred() && isNanoAvailable()
+        val activeConfig = sshSettings.getConfigOrNull()
+        val hostLabel = when {
+            activeConfig?.kind == HostKind.LOCAL -> activeConfig.alias.ifBlank { "Local shell" }
+            activeConfig != null -> activeConfig.alias.ifBlank { "${activeConfig.username}@${activeConfig.host}" }
+            else -> null
+        }
         conversationManager = ConversationManager(
             context = this,
             backend = backend,
             geminiClient = geminiClient,
             geminiNanoClient = nanoClient,
-            useNano = useNano
+            useNano = useNano,
+            transcriptStore = GeminiTranscriptDatabaseHelper.getInstance(this),
+            sessionId = java.util.UUID.randomUUID().toString(),
+            hostId = activeConfig?.id,
+            hostLabel = hostLabel
         )
 
         val initResult = withContext(Dispatchers.IO) {

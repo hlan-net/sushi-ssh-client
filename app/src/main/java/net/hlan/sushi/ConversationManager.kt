@@ -17,7 +17,11 @@ class ConversationManager(
     private val backend: TerminalBackend,
     private val geminiClient: GeminiClient?,
     private val geminiNanoClient: GeminiNanoClient?,
-    private val useNano: Boolean = false
+    private val useNano: Boolean = false,
+    private val transcriptStore: GeminiTranscriptDatabaseHelper? = null,
+    private val sessionId: String = java.util.UUID.randomUUID().toString(),
+    private val hostId: String? = null,
+    private val hostLabel: String? = null
 ) {
     private val personaClient = PersonaClient(backend)
     private val conversationHistory = mutableListOf<ConversationTurn>()
@@ -298,14 +302,40 @@ Provide a natural language interpretation of this result, responding as the syst
         )
         
         conversationHistory.add(turn)
-        
+
         // Keep last 10 turns only (manage memory)
         if (conversationHistory.size > 10) {
             conversationHistory.removeAt(0)
         }
-        
+
         // Write to target-side log file
         writeToLog(turn)
+
+        // Persist to local SQLite history if a store is configured (G-6).
+        persistTurn(turn)
+    }
+
+    private suspend fun persistTurn(turn: ConversationTurn) {
+        val store = transcriptStore ?: return
+        withContext(Dispatchers.IO) {
+            runCatching {
+                store.appendEntry(
+                    GeminiTranscriptRecord(
+                        sessionId = sessionId,
+                        hostId = hostId,
+                        hostLabel = hostLabel,
+                        timestamp = turn.timestamp,
+                        userMessage = turn.userMessage,
+                        geminiReply = turn.systemResponse,
+                        commandExecuted = turn.commandExecuted,
+                        commandOutput = turn.commandOutput,
+                        success = turn.executionSuccess
+                    )
+                )
+            }.onFailure { e ->
+                Log.w(TAG, "Failed to persist transcript turn", e)
+            }
+        }
     }
 
     /**
