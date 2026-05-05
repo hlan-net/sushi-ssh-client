@@ -76,6 +76,10 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:exported="false"
             android:label="@string/terminal_title" />
+        <activity
+            android:name=".GeminiHistoryActivity"
+            android:exported="false"
+            android:label="@string/gemini_history_title" />
     </application>
 
 </manifest>
