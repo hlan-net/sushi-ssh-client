@@ -3,6 +3,7 @@ package net.hlan.sushi
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.text.format.DateFormat
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
@@ -11,8 +12,12 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -20,9 +25,7 @@ import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivityGeminiHistoryBinding
 import net.hlan.sushi.databinding.ItemGeminiHistorySessionBinding
 import net.hlan.sushi.databinding.ItemGeminiTranscriptBinding
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 class GeminiHistoryActivity : AppCompatActivity() {
 
@@ -65,19 +68,22 @@ class GeminiHistoryActivity : AppCompatActivity() {
     private fun showSessionList() {
         supportActionBar?.title = getString(R.string.gemini_history_title)
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            val sessions = db.getAllSessions()
-            withContext(Dispatchers.Main) {
-                if (sessions.isEmpty()) {
-                    binding.geminiHistoryEmptyText.visibility = View.VISIBLE
-                    binding.geminiHistorySessionsRecycler.visibility = View.GONE
-                } else {
-                    binding.geminiHistoryEmptyText.visibility = View.GONE
-                    binding.geminiHistorySessionsRecycler.visibility = View.VISIBLE
-                    binding.geminiHistorySessionsRecycler.layoutManager =
-                        LinearLayoutManager(this@GeminiHistoryActivity)
-                    binding.geminiHistorySessionsRecycler.adapter = SessionListAdapter(sessions) { session ->
-                        startActivity(createIntentForSession(this@GeminiHistoryActivity, session.sessionId))
+        val adapter = SessionListAdapter(this) { session ->
+            startActivity(createIntentForSession(this, session.sessionId))
+        }
+        binding.geminiHistorySessionsRecycler.layoutManager = LinearLayoutManager(this)
+        binding.geminiHistorySessionsRecycler.adapter = adapter
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                db.sessionsFlow.collect { sessions ->
+                    if (sessions.isEmpty()) {
+                        binding.geminiHistoryEmptyText.visibility = View.VISIBLE
+                        binding.geminiHistorySessionsRecycler.visibility = View.GONE
+                    } else {
+                        binding.geminiHistoryEmptyText.visibility = View.GONE
+                        binding.geminiHistorySessionsRecycler.visibility = View.VISIBLE
+                        adapter.submitList(sessions)
                     }
                 }
             }
@@ -124,16 +130,15 @@ class GeminiHistoryActivity : AppCompatActivity() {
             .show()
     }
 
-    // --- Session list adapter ---
+    // --- Session list adapter (reactive via sessionsFlow, uses ListAdapter + DiffUtil) ---
 
-    private inner class SessionListAdapter(
-        private val sessions: List<GeminiTranscriptSessionSummary>,
+    private class SessionListAdapter(
+        private val context: Context,
         private val onSessionClick: (GeminiTranscriptSessionSummary) -> Unit
-    ) : RecyclerView.Adapter<SessionListAdapter.SessionVH>() {
+    ) : ListAdapter<GeminiTranscriptSessionSummary, SessionListAdapter.SessionVH>(DIFF) {
 
-        private val dateFormat = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
-
-        override fun getItemCount() = sessions.size
+        private val dateFormat = DateFormat.getMediumDateFormat(context)
+        private val timeFormat = DateFormat.getTimeFormat(context)
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SessionVH {
             val b = ItemGeminiHistorySessionBinding.inflate(
@@ -143,7 +148,7 @@ class GeminiHistoryActivity : AppCompatActivity() {
         }
 
         override fun onBindViewHolder(holder: SessionVH, position: Int) {
-            holder.bind(sessions[position])
+            holder.bind(getItem(position))
         }
 
         inner class SessionVH(private val b: ItemGeminiHistorySessionBinding) :
@@ -151,11 +156,28 @@ class GeminiHistoryActivity : AppCompatActivity() {
 
             fun bind(session: GeminiTranscriptSessionSummary) {
                 b.sessionHostLabel.text = session.hostLabel
-                    ?: getString(R.string.gemini_history_unknown_host)
+                    ?: context.getString(R.string.gemini_history_unknown_host)
                 b.sessionFirstMessage.text = session.firstMessage
-                b.sessionTurnCount.text = getString(R.string.gemini_history_turns, session.turnCount)
-                b.sessionTimestamp.text = dateFormat.format(Date(session.startedAt))
+                b.sessionTurnCount.text = context.resources.getQuantityString(
+                    R.plurals.gemini_history_turns, session.turnCount, session.turnCount
+                )
+                val date = Date(session.startedAt)
+                b.sessionTimestamp.text = "${dateFormat.format(date)} ${timeFormat.format(date)}"
                 b.root.setOnClickListener { onSessionClick(session) }
+            }
+        }
+
+        companion object {
+            private val DIFF = object : DiffUtil.ItemCallback<GeminiTranscriptSessionSummary>() {
+                override fun areItemsTheSame(
+                    a: GeminiTranscriptSessionSummary,
+                    b: GeminiTranscriptSessionSummary
+                ) = a.sessionId == b.sessionId
+
+                override fun areContentsTheSame(
+                    a: GeminiTranscriptSessionSummary,
+                    b: GeminiTranscriptSessionSummary
+                ) = a == b
             }
         }
     }

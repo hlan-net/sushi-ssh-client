@@ -363,7 +363,6 @@
     <!-- Gemini History Activity -->
     <string name="gemini_history_title">Gemini history</string>
     <string name="gemini_history_empty">No conversations yet.</string>
-    <string name="gemini_history_turns">%1$d turn(s)</string>
     <string name="gemini_history_session_title">Conversation</string>
     <string name="gemini_history_delete_session">Delete session</string>
     <string name="gemini_history_deleted">Session deleted.</string>
@@ -394,4 +393,10 @@
     <string name="connect_error_action_edit_credentials">Edit credentials</string>
     <string name="connect_error_action_edit_jump_host">Edit jump host</string>
     <string name="connect_error_action_view_host_key">View host key</string>
+
+    <!-- Plurals -->
+    <plurals name="gemini_history_turns">
+        <item quantity="one">%1$d turn</item>
+        <item quantity="other">%1$d turns</item>
+    </plurals>
 </resources>
