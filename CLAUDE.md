@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Sushi is an Android SSH client (package `net.hlan.sushi`, min SDK 24, target SDK 36). Single Gradle module `:app`, Kotlin DSL, JDK 17 required.
+Sushi is an Android SSH client (package `net.hlan.sushi`, min SDK 26, target SDK 36). Single Gradle module `:app`, Kotlin DSL, JDK 17 required.
 
 ## Build commands
 
@@ -20,6 +20,14 @@ Sushi is an Android SSH client (package `net.hlan.sushi`, min SDK 24, target SDK
 ```
 
 Lint reports go to `app/build/reports/`.
+
+## Machine-specific setup
+
+- `local.properties` is gitignored; set `sdk.dir=/absolute/path/to/sdk` on each machine.
+- Required SDK packages: `platform-tools`, `platforms;android-36`, `build-tools;36.0.0`, `ndk;27.0.12077973`, `cmake;3.22.1`.
+- If native builds fail, validate NDK toolchain directly:
+  `.../ndk/27.0.12077973/toolchains/llvm/prebuilt/.../bin/clang --version`
+  and install missing host compatibility libraries.
 
 ### Local dev scripts
 
