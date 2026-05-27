@@ -103,7 +103,7 @@ class LocalShellBackendTest {
         backend!!.connect(onLine = { lines.add(it) }, streamMode = true)
 
         Thread.sleep(300)
-        backend!!.sendCommand("echo TERM=$TERM")
+        backend!!.sendCommand("echo TERM=\$TERM")
 
         waitUntil(timeoutMs = 5_000, message = "TERM should be xterm-256color") {
             lines.any { it.contains("xterm-256color") }

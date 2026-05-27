@@ -59,6 +59,9 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
+      - name: Set up Android SDK tools (adb)
+        uses: android-actions/setup-android@v4
+
       - name: Connect to ADB (host server or Wi-Fi)
         env:
           # Host ADB server — reachable from inside the Docker container via the
@@ -133,17 +136,24 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build instrumented test APK
-        run: ./gradlew assembleDebug assembleDebugAndroidTest
+        run: ./gradlew assembleMinifiedDebug assembleMinifiedDebugAndroidTest
+
+      - name: Wake screen and dismiss keyguard
+        run: |
+          adb shell input keyevent KEYCODE_WAKEUP
+          adb shell wm dismiss-keyguard
+          sleep 1
 
       - name: Run instrumented tests
         id: run_tests
+        timeout-minutes: 30
         run: |
           if [ -n "${{ github.event.inputs.test_class }}" ]; then
             CLASS_ARG="-Pandroid.testInstrumentationRunnerArguments.class=${{ github.event.inputs.test_class }}"
           else
             CLASS_ARG="-Pandroid.testInstrumentationRunnerArguments.class=net.hlan.sushi.DeviceQaSuiteTest"
           fi
-          ./gradlew connectedDebugAndroidTest $CLASS_ARG --continue 2>&1 | tee test-output.txt
+          ./gradlew connectedMinifiedDebugAndroidTest $CLASS_ARG --continue 2>&1 | tee test-output.txt
           echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
       - name: Upload test results

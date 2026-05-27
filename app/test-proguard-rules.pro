@@ -8,3 +8,28 @@
 
 # Required by Espresso internals in minified instrumentation tests.
 -keep class com.google.common.util.concurrent.** { *; }
+
+# ListAdapter.getCurrentList() has no production callers; keep for instrumented test assertions.
+-keepclassmembers class * extends androidx.recyclerview.widget.ListAdapter {
+    public java.util.List getCurrentList();
+}
+
+# TerminalSessionHolder.getActiveSshClient() and getActiveConfig() have no production callers;
+# R8 removes them as dead code. Keep for instrumented test access.
+-keepclassmembers class net.hlan.sushi.TerminalSessionHolder {
+    public net.hlan.sushi.SshClient getActiveSshClient();
+    public net.hlan.sushi.SshConnectionConfig getActiveConfig();
+}
+
+# ConversationResult.userMessage is only written (constructor), never read, in production code;
+# R8 removes its generated getter. Keep all public members for instrumented test assertions.
+-keepclassmembers class net.hlan.sushi.ConversationResult {
+    public *;
+}
+
+# GeminiTranscriptDatabaseHelper.resetInstance() and clearAll() have no production callers;
+# R8 removes them. Keep for test setUp/tearDown.
+-keepclassmembers class net.hlan.sushi.GeminiTranscriptDatabaseHelper {
+    public static void resetInstance();
+    public int clearAll();
+}

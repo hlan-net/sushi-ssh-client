@@ -199,24 +199,24 @@ class AiConversationTest {
         assertNull(turn.commandOutput)
     }
 
-    // ==================== SshConnectionHolder Tests ====================
+    // ==================== TerminalSessionHolder Tests ====================
 
     @Test
-    fun testSshConnectionHolder_initialState() {
-        val holder = SshConnectionHolder
+    fun testTerminalSessionHolder_initialState() {
+        val holder = TerminalSessionHolder
 
         // Clear any existing state first
         holder.clearActiveConnection()
 
         // Should start with no connection
         assertFalse("Should not be connected initially", holder.isConnected())
-        assertNull("SSH client should be null initially", holder.getActiveClient())
+        assertNull("SSH client should be null initially", holder.getActiveSshClient())
         assertNull("Connection config should be null initially", holder.getActiveConfig())
     }
 
     @Test
-    fun testSshConnectionHolder_setAndClearConnection() {
-        val holder = SshConnectionHolder
+    fun testTerminalSessionHolder_setAndClearConnection() {
+        val holder = TerminalSessionHolder
 
         // Clear any existing state
         holder.clearActiveConnection()
@@ -226,7 +226,7 @@ class AiConversationTest {
 
         // We can't actually create a real SSH connection in this test,
         // but we can verify the holder's state management works
-        assertNull(holder.getActiveClient())
+        assertNull(holder.getActiveSshClient())
         assertNull(holder.getActiveConfig())
 
         // After clearing, should still be not connected
@@ -243,7 +243,7 @@ class AiConversationTest {
         assertNotNull("ConversationManager class should exist", ConversationManager::class.java)
         assertNotNull("CommandSafety class should exist", CommandSafety::class.java)
         assertNotNull("ConversationTurn class should exist", ConversationTurn::class.java)
-        assertNotNull("SshConnectionHolder class should exist", SshConnectionHolder::class.java)
+        assertNotNull("TerminalSessionHolder class should exist", TerminalSessionHolder::class.java)
     }
 
     @Test
@@ -334,9 +334,9 @@ class AiConversationTest {
             CommandSafety.classify("   ")
         )
 
-        // Single characters
+        // Single characters not in the safe set require confirmation
         assertEquals(
-            CommandSafety.SafetyLevel.SAFE,
+            CommandSafety.SafetyLevel.CONFIRM,
             CommandSafety.classify("l")
         )
     }
