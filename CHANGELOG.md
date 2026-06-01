@@ -4,6 +4,28 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
+## [0.7.0] - 2026-06-01
+
+### Added
+- Added terminal copy-paste support with dedicated Paste button and context menu integration.
+- Added intelligent selection preservation in terminal view when buffer updates or trims.
+
+### Changed
+- Hardened device QA pipeline to run instrumented tests against minified builds to catch obfuscation bugs earlier.
+- Added ADB systemd service helper for Debian-based CI environments.
+- Updated Material Components to 1.14.0, Android Gradle Plugin to 9.2.1, Gradle wrapper to 9.5.1, and Coroutines to 1.11.0.
+
+## [0.6.1] - 2026-05-05
+
+### Fixed
+- Fixed a startup crash in minified/release builds caused by enum obfuscation when loading persisted host config (`NoSuchFieldException: SSH`).
+- Preserved `HostKind` enum constant names used by Moshi deserialization.
+
+### Changed
+- Replaced deprecated `actions/upload-release-asset@v1` step with `gh release upload` in the release workflow.
+- Updated Google Play upload action input from deprecated `track` to `tracks`.
+- Added machine-specific Android SDK setup guidance in documentation.
+
 ## [0.5.0] - 2026-03-28
 
 ### Added
