@@ -1,5 +1,7 @@
 package net.hlan.sushi
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -84,6 +86,10 @@ class TerminalActivity : AppCompatActivity() {
         }
         binding.terminalCtrlDButton.setOnClickListener {
             sshClient?.sendCtrlD()
+        }
+
+        binding.terminalPasteButton.setOnClickListener {
+            pasteFromClipboard()
         }
 
         binding.terminalPhrasesButton.setOnClickListener {
@@ -327,6 +333,17 @@ class TerminalActivity : AppCompatActivity() {
         return isImmediateDuplicate
     }
 
+    private fun pasteFromClipboard() {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val clip = clipboard?.primaryClip
+        if (clip != null && clip.itemCount > 0) {
+            val text = clip.getItemAt(0).text
+            if (!text.isNullOrEmpty()) {
+                sendRaw(text.toString())
+            }
+        }
+    }
+
     private fun updateUi() {
         val connected = sshClient?.isConnected() == true
         binding.terminalStatusText.text = when {
@@ -353,6 +370,7 @@ class TerminalActivity : AppCompatActivity() {
         binding.terminalBackspaceButton.isEnabled = canInput
         binding.terminalCtrlCButton.isEnabled = canInput
         binding.terminalCtrlDButton.isEnabled = canInput
+        binding.terminalPasteButton.isEnabled = canInput
         binding.terminalPhrasesButton.isEnabled = canInput
     }
 

@@ -1,8 +1,10 @@
 package net.hlan.sushi
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
 import android.text.InputType
+import android.text.Selection
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.style.BackgroundColorSpan
@@ -50,6 +52,23 @@ class TerminalView @JvmOverloads constructor(
     }
 
     override fun onCheckIsTextEditor(): Boolean = true
+
+    override fun onTextContextMenuItem(id: Int): Boolean {
+        when (id) {
+            android.R.id.paste -> {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                val clip = clipboard?.primaryClip
+                if (clip != null && clip.itemCount > 0) {
+                    val text = clip.getItemAt(0).text
+                    if (!text.isNullOrEmpty()) {
+                        onInputText?.invoke(text.toString())
+                    }
+                }
+                return true
+            }
+        }
+        return super.onTextContextMenuItem(id)
+    }
 
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
         outAttrs.inputType = InputType.TYPE_CLASS_TEXT or
@@ -120,8 +139,8 @@ class TerminalView @JvmOverloads constructor(
         val safeText = if (text.length > 50000) text.substring(text.length - 50000) else text
         val normalizedText = normalizeLineEndings(safeText)
         rawTextBuffer.append(normalizedText)
-        trimBuffer()
-        updateText()
+        val dropped = trimBuffer()
+        updateText(dropped)
     }
 
     fun getRawText(): String = rawTextBuffer.toString()
@@ -135,15 +154,34 @@ class TerminalView @JvmOverloads constructor(
         scrollTo(0, 0)
     }
 
-    private fun updateText() {
+    private fun updateText(renderedCharsDropped: Int = 0) {
+        val selStart = selectionStart
+        val selEnd = selectionEnd
+        val hasSelection = selStart >= 0 && selEnd >= 0 && selStart != selEnd
+
         val fullText = rawTextBuffer.toString()
         currentFgColor = null
         currentBgColor = null
-        text = runCatching {
+        val processedText = runCatching {
             if (renderAnsi) parseAnsi(fullText) else fullText
         }.getOrElse {
             fullText
         }
+        
+        text = processedText
+
+        if (hasSelection) {
+            val len = processedText.length
+            val newStart = (selStart - renderedCharsDropped).coerceIn(0, len)
+            val newEnd = (selEnd - renderedCharsDropped).coerceIn(0, len)
+            if (newStart != newEnd) {
+                val spannable = text as? Spannable
+                if (spannable != null) {
+                    Selection.setSelection(spannable, newStart, newEnd)
+                }
+            }
+        }
+
         post {
             val scrollAmount = layout?.let {
                 it.getLineTop(lineCount) - height + paddingBottom + paddingTop
@@ -156,10 +194,10 @@ class TerminalView @JvmOverloads constructor(
         }
     }
 
-    private fun trimBuffer() {
+    private fun trimBuffer(): Int {
+        var cutIndex = 0
         if (rawTextBuffer.length > MAX_CHARS) {
-            val extraChars = rawTextBuffer.length - MAX_CHARS
-            rawTextBuffer.delete(0, extraChars)
+            cutIndex = rawTextBuffer.length - MAX_CHARS
         }
 
         var newlineCount = 0
@@ -169,22 +207,25 @@ class TerminalView @JvmOverloads constructor(
             }
         }
 
-        if (newlineCount <= MAX_LINES) {
-            return
-        }
-
-        var linesToDrop = newlineCount - MAX_LINES
-        var cutIndex = 0
-        while (linesToDrop > 0 && cutIndex < rawTextBuffer.length) {
-            if (rawTextBuffer[cutIndex] == '\n') {
-                linesToDrop--
+        if (newlineCount > MAX_LINES) {
+            var linesToDrop = newlineCount - MAX_LINES
+            var i = 0
+            while (linesToDrop > 0 && i < rawTextBuffer.length) {
+                if (rawTextBuffer[i] == '\n') {
+                    linesToDrop--
+                }
+                i++
             }
-            cutIndex++
+            cutIndex = maxOf(cutIndex, i)
         }
 
         if (cutIndex > 0) {
+            val droppedPrefix = rawTextBuffer.substring(0, cutIndex)
+            val renderedDroppedLen = if (renderAnsi) parseAnsi(droppedPrefix).length else droppedPrefix.length
             rawTextBuffer.delete(0, cutIndex)
+            return renderedDroppedLen
         }
+        return 0
     }
 
     private fun normalizeLineEndings(input: String): String {

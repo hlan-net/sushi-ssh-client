@@ -76,6 +76,7 @@
     <string name="action_end_session">End session</string>
     <string name="action_open_terminal_mode">Open dedicated terminal</string>
     <string name="action_copy_log">Copy log</string>
+    <string name="action_paste">Paste</string>
     <string name="action_clear_log">Clear log</string>
     <string name="terminal_title">Terminal mode</string>
     <string name="terminal_status_disconnected">Terminal disconnected</string>

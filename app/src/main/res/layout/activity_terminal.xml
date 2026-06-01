@@ -147,6 +147,17 @@
             android:text="@string/action_send_ctrl_d" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/terminalPasteButton"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/action_paste"
+            app:icon="@drawable/ic_content_paste"
+            app:iconGravity="textStart" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/terminalPhrasesButton"
             style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="0dp"
