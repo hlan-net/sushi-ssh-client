@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
+## [0.7.1] - 2026-06-22
+
+### Fixed
+- Fixed SshClient exception classification for "auth cancel" JSchException patterns.
+
+### Changed
+- Removed 'RPi5' runner label requirement from the device-tests GitHub Actions workflow.
+- Updated Android compileSdk to 37 to support newer dependency libraries.
+- Upgraded com.github.mwiede:jsch from 2.28.2 to 2.28.3.
+- Upgraded androidx.core:core-ktx from 1.18.0 to 1.19.0.
+- Upgraded com.google.android.gms:play-services-auth from 21.5.1 to 21.6.0.
+
 ## [0.7.0] - 2026-06-01
 
 ### Added
