@@ -114,7 +114,7 @@ dependencies {
     implementation("com.google.android.material:material:1.14.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")
     // Use maintained JSch fork for modern host key/kex support (OpenSSH 9+/10+).
-    implementation("com.github.mwiede:jsch:2.28.2")
+    implementation("com.github.mwiede:jsch:2.28.3")
     implementation("com.jcraft:jzlib:1.1.3")
     // Bouncy Castle provides Ed25519 on Android API < 33 (JCE lacks EdDSA before API 33).
     // bcprov-ext-jdk18on was discontinued after 1.78.1; ML-KEM merged into bcprov since 1.79.
