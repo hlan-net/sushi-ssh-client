@@ -267,6 +267,7 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
             msg.contains("auth cancel", ignoreCase = true) ||
             msg.contains("userauth fail", ignoreCase = true) -> {
                 if (msg.contains("publickey", ignoreCase = true) ||
+                    msg.contains("auth cancel", ignoreCase = true) ||
                     msg.contains("key", ignoreCase = true) && !msg.contains("password", ignoreCase = true))
                     ConnectFailure.AUTH_KEY
                 else
