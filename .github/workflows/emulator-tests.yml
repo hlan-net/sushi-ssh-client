@@ -8,6 +8,10 @@ name: Emulator Tests (Android 17 / API 37)
 # application layer — only the kernel page size differs — so they faithfully
 # reproduce Pixel 10 / Android 17 behaviour.
 #
+# The reactivecircus/android-emulator-runner action hard-codes 'platforms;android-37'
+# (without .0) which does not resolve in sdkmanager, so emulator lifecycle is
+# managed manually instead.
+#
 # LocalSshIntegrationTest is excluded because it requires a live SSH server.
 
 on:
@@ -63,20 +67,42 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Run instrumented tests on API 37 emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 37
-          target: google_apis_ps16k
-          arch: x86_64
-          avd-name: api37
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          script: |
-            ./gradlew connectedMinifiedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.notClass=net.hlan.sushi.LocalSshIntegrationTest \
-              --continue
+      - name: Start emulator
+        run: |
+          $ANDROID_HOME/emulator/emulator \
+            -avd api37 \
+            -no-window \
+            -gpu swiftshader_indirect \
+            -noaudio \
+            -no-boot-anim \
+            -camera-back none \
+            -port 5554 &
+          echo "EMULATOR_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for emulator boot
+        run: |
+          adb wait-for-device
+          timeout 300 bash -c \
+            'until adb shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do sleep 3; done'
+          adb shell input keyevent KEYCODE_WAKEUP
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          echo "Emulator ready — $(adb shell getprop ro.build.version.release | tr -d '\r') (API $(adb shell getprop ro.build.version.sdk | tr -d '\r'))"
+
+      - name: Run instrumented tests
+        id: run_tests
+        run: |
+          ./gradlew connectedMinifiedDebugAndroidTest \
+            -Pandroid.testInstrumentationRunnerArguments.notClass=net.hlan.sushi.LocalSshIntegrationTest \
+            --continue
+        continue-on-error: true
+
+      - name: Stop emulator
+        if: always()
+        run: |
+          adb emu kill || true
+          kill "$EMULATOR_PID" 2>/dev/null || true
 
       - name: Upload test results
         if: always()
@@ -87,3 +113,7 @@ jobs:
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
           retention-days: 14
+
+      - name: Fail if tests failed
+        if: steps.run_tests.outcome == 'failure'
+        run: exit 1
