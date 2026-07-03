@@ -15,11 +15,13 @@
     public *;
 }
 
-# GeminiTranscriptDatabaseHelper.resetInstance() and clearAll() have no production callers;
-# R8 removes them. Keep for test setUp/tearDown.
+# GeminiTranscriptDatabaseHelper.resetInstance() (companion) and clearAll() (instance) have no
+# production callers; R8 removes them. Keep for test setUp/tearDown.
 -keepclassmembers class net.hlan.sushi.GeminiTranscriptDatabaseHelper {
-    public static void resetInstance();
     public int clearAll();
+}
+-keepclassmembers class net.hlan.sushi.GeminiTranscriptDatabaseHelper$Companion {
+    public void resetInstance();
 }
 
 # Keep Kotlin helpers required by AndroidX instrumentation startup in minifiedDebug.
