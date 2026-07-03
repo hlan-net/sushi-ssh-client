@@ -30,6 +30,7 @@ jobs:
   emulator-test:
     name: Instrumented tests (API 37 emulator)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v7
@@ -80,15 +81,17 @@ jobs:
           echo "EMULATOR_PID=$!" >> "$GITHUB_ENV"
 
       - name: Wait for emulator boot
+        timeout-minutes: 10
         run: |
-          adb wait-for-device
+          # Target the emulator explicitly so adb doesn't hang waiting for any device.
+          timeout 600 adb -s emulator-5554 wait-for-device
           timeout 300 bash -c \
-            'until adb shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do sleep 3; done'
-          adb shell input keyevent KEYCODE_WAKEUP
-          adb shell settings put global window_animation_scale 0
-          adb shell settings put global transition_animation_scale 0
-          adb shell settings put global animator_duration_scale 0
-          echo "Emulator ready — $(adb shell getprop ro.build.version.release | tr -d '\r') (API $(adb shell getprop ro.build.version.sdk | tr -d '\r'))"
+            'until adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do sleep 3; done'
+          adb -s emulator-5554 shell input keyevent KEYCODE_WAKEUP
+          adb -s emulator-5554 shell settings put global window_animation_scale 0
+          adb -s emulator-5554 shell settings put global transition_animation_scale 0
+          adb -s emulator-5554 shell settings put global animator_duration_scale 0
+          echo "Emulator ready — $(adb -s emulator-5554 shell getprop ro.build.version.release | tr -d '\r') (API $(adb -s emulator-5554 shell getprop ro.build.version.sdk | tr -d '\r'))"
 
       - name: Run instrumented tests
         id: run_tests
@@ -101,7 +104,7 @@ jobs:
       - name: Stop emulator
         if: always()
         run: |
-          adb emu kill || true
+          adb -s emulator-5554 emu kill || true
           kill "$EMULATOR_PID" 2>/dev/null || true
 
       - name: Upload test results
