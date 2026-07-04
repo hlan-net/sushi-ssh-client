@@ -1078,7 +1078,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleUserMessage(message: String) {
-        if (conversationManager == null || !conversationManager!!.isInitialized()) {
+        if (isGeminiRequestRunning) return
+        val manager = conversationManager
+        if (manager == null || !manager.isInitialized()) {
             Toast.makeText(
                 this,
                 getString(R.string.conversation_init_failed, "Not connected"),
@@ -1095,7 +1097,7 @@ class MainActivity : AppCompatActivity() {
             var streamEntryIndex = -1
             try {
                 val result = withContext(Dispatchers.IO) {
-                    conversationManager!!.processUserMessage(message) { chunk ->
+                    manager.processUserMessage(message) { chunk ->
                         lifecycleScope.launch(Dispatchers.Main) {
                             streamEntryIndex = appendStreamingChunk(streamEntryIndex, message, chunk)
                         }
@@ -1136,26 +1138,7 @@ class MainActivity : AppCompatActivity() {
                     // If output streamed in while the command ran, replace it with the final
                     // (LLM-interpreted) response in place; otherwise this is a plain
                     // conversational turn with no command, so append a fresh entry.
-                    if (streamEntryIndex >= 0 && streamEntryIndex < geminiTranscript.size) {
-                        geminiTranscript[streamEntryIndex] = GeminiTranscriptEntry(
-                            prompt = message,
-                            response = result.systemResponse
-                        )
-                        transcriptAdapter?.notifyItemChanged(streamEntryIndex)
-                    } else {
-                        geminiTranscript.add(GeminiTranscriptEntry(
-                            prompt = message,
-                            response = result.systemResponse
-                        ))
-                        transcriptAdapter?.let { adapter ->
-                            adapter.notifyItemInserted(geminiTranscript.size - 1)
-                            geminiDialogBinding?.geminiTranscriptLabel?.visibility = View.VISIBLE
-                            geminiDialogBinding?.geminiTranscriptRecycler?.apply {
-                                visibility = View.VISIBLE
-                                scrollToPosition(geminiTranscript.size - 1)
-                            }
-                        }
-                    }
+                    replaceOrAppendTranscriptEntry(streamEntryIndex, message, result.systemResponse)
 
                     updateGeminiDialogState()
                 }
@@ -1200,6 +1183,32 @@ class MainActivity : AppCompatActivity() {
         return idx
     }
 
+    /**
+     * Replaces the transcript entry at [entryIndex] with the final (prompt, response) pair,
+     * or appends a new entry if [entryIndex] is out of range (no streaming happened for this turn).
+     * Returns the entry's index.
+     */
+    private fun replaceOrAppendTranscriptEntry(entryIndex: Int, prompt: String, response: String): Int {
+        val entry = GeminiTranscriptEntry(prompt = prompt, response = response)
+        if (entryIndex >= 0 && entryIndex < geminiTranscript.size) {
+            geminiTranscript[entryIndex] = entry
+            transcriptAdapter?.notifyItemChanged(entryIndex)
+            return entryIndex
+        }
+
+        geminiTranscript.add(entry)
+        val idx = geminiTranscript.size - 1
+        transcriptAdapter?.let { adapter ->
+            adapter.notifyItemInserted(idx)
+            geminiDialogBinding?.geminiTranscriptLabel?.visibility = View.VISIBLE
+            geminiDialogBinding?.geminiTranscriptRecycler?.apply {
+                visibility = View.VISIBLE
+                scrollToPosition(idx)
+            }
+        }
+        return idx
+    }
+
     private fun showCommandConfirmationDialog(
         userMessage: String,
         initialResponse: String,
@@ -1220,14 +1229,17 @@ class MainActivity : AppCompatActivity() {
         initialResponse: String,
         command: String
     ) {
+        val manager = conversationManager ?: return
         isGeminiRequestRunning = true
         updateGeminiDialogState()
 
         lifecycleScope.launch {
-            var streamEntryIndex = -1
+            // Falls back to the last transcript entry (added by handleUserMessage's
+            // needsConfirmation branch) when no output has streamed in yet.
+            var streamEntryIndex = if (geminiTranscript.isNotEmpty()) geminiTranscript.size - 1 else -1
             try {
                 val result = withContext(Dispatchers.IO) {
-                    conversationManager!!.executeConfirmedCommand(
+                    manager.executeConfirmedCommand(
                         userMessage,
                         initialResponse,
                         command
@@ -1249,20 +1261,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     }
 
-                    val targetIdx = if (streamEntryIndex >= 0 && streamEntryIndex < geminiTranscript.size) {
-                        streamEntryIndex
-                    } else if (geminiTranscript.isNotEmpty()) {
-                        geminiTranscript.size - 1
-                    } else {
-                        -1
-                    }
-                    if (targetIdx >= 0) {
-                        geminiTranscript[targetIdx] = GeminiTranscriptEntry(
-                            prompt = userMessage,
-                            response = result.systemResponse
-                        )
-                        transcriptAdapter?.notifyItemChanged(targetIdx)
-                    }
+                    replaceOrAppendTranscriptEntry(streamEntryIndex, userMessage, result.systemResponse)
 
                     updateGeminiDialogState()
                 }
@@ -1282,7 +1281,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleRawCommand(command: String) {
-        if (conversationManager == null || !conversationManager!!.isInitialized()) {
+        if (isGeminiRequestRunning) return
+        val manager = conversationManager
+        if (manager == null || !manager.isInitialized()) {
             Toast.makeText(
                 this,
                 getString(R.string.conversation_init_failed, "Not connected"),
@@ -1298,7 +1299,7 @@ class MainActivity : AppCompatActivity() {
             var streamEntryIndex = -1
             try {
                 val result = withContext(Dispatchers.IO) {
-                    conversationManager!!.executeRawCommand(command) { chunk ->
+                    manager.executeRawCommand(command) { chunk ->
                         lifecycleScope.launch(Dispatchers.Main) {
                             streamEntryIndex = appendStreamingChunk(streamEntryIndex, "$ $command", chunk)
                         }
@@ -1325,21 +1326,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     }
 
-                    val entry = GeminiTranscriptEntry(prompt = "$ $command", response = result.systemResponse)
-                    if (streamEntryIndex >= 0 && streamEntryIndex < geminiTranscript.size) {
-                        geminiTranscript[streamEntryIndex] = entry
-                        transcriptAdapter?.notifyItemChanged(streamEntryIndex)
-                    } else {
-                        geminiTranscript.add(entry)
-                        transcriptAdapter?.let { adapter ->
-                            adapter.notifyItemInserted(geminiTranscript.size - 1)
-                            geminiDialogBinding?.geminiTranscriptLabel?.visibility = View.VISIBLE
-                            geminiDialogBinding?.geminiTranscriptRecycler?.apply {
-                                visibility = View.VISIBLE
-                                scrollToPosition(geminiTranscript.size - 1)
-                            }
-                        }
-                    }
+                    replaceOrAppendTranscriptEntry(streamEntryIndex, "$ $command", result.systemResponse)
 
                     updateGeminiDialogState()
                 }
@@ -1370,6 +1357,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun executeConfirmedRawCommand(command: String) {
+        val manager = conversationManager ?: return
         isGeminiRequestRunning = true
         updateGeminiDialogState()
 
@@ -1377,7 +1365,7 @@ class MainActivity : AppCompatActivity() {
             var streamEntryIndex = -1
             try {
                 val result = withContext(Dispatchers.IO) {
-                    conversationManager!!.executeConfirmedRawCommand(command) { chunk ->
+                    manager.executeConfirmedRawCommand(command) { chunk ->
                         lifecycleScope.launch(Dispatchers.Main) {
                             streamEntryIndex = appendStreamingChunk(streamEntryIndex, "$ $command", chunk)
                         }
@@ -1395,21 +1383,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     }
 
-                    val entry = GeminiTranscriptEntry(prompt = "$ $command", response = result.systemResponse)
-                    if (streamEntryIndex >= 0 && streamEntryIndex < geminiTranscript.size) {
-                        geminiTranscript[streamEntryIndex] = entry
-                        transcriptAdapter?.notifyItemChanged(streamEntryIndex)
-                    } else {
-                        geminiTranscript.add(entry)
-                        transcriptAdapter?.let { adapter ->
-                            adapter.notifyItemInserted(geminiTranscript.size - 1)
-                            geminiDialogBinding?.geminiTranscriptLabel?.visibility = View.VISIBLE
-                            geminiDialogBinding?.geminiTranscriptRecycler?.apply {
-                                visibility = View.VISIBLE
-                                scrollToPosition(geminiTranscript.size - 1)
-                            }
-                        }
-                    }
+                    replaceOrAppendTranscriptEntry(streamEntryIndex, "$ $command", result.systemResponse)
 
                     updateGeminiDialogState()
                 }

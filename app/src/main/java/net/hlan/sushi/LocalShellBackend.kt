@@ -87,9 +87,10 @@ class LocalShellBackend(private val context: Context) : TerminalBackend {
                 .redirectErrorStream(true)
                 .start()
 
-            // StringBuilder accumulates output while onChunk is invoked per read, so callers
-            // can show progress on long-running commands instead of waiting for the final result.
-            val outputBuilder = StringBuilder()
+            // StringBuffer (not StringBuilder) because the reader thread keeps appending after
+            // process.waitFor() returns; if readerThread.join(500) times out while a read is
+            // still in flight, the calling thread's toString() below would otherwise race with it.
+            val outputBuilder = StringBuffer()
             val readerThread = Thread {
                 try {
                     val reader = process.inputStream.bufferedReader()
