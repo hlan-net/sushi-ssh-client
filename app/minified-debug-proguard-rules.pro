@@ -20,9 +20,7 @@
 -keepclassmembers class net.hlan.sushi.GeminiTranscriptDatabaseHelper {
     public int clearAll();
 }
--keepclassmembers class net.hlan.sushi.GeminiTranscriptDatabaseHelper$Companion {
-    public void resetInstance();
-}
+-keep class net.hlan.sushi.GeminiTranscriptDatabaseHelper$Companion { void resetInstance(); }
 
 # Keep Kotlin helpers required by AndroidX instrumentation startup in minifiedDebug.
 -keep class kotlin.LazyKt { *; }
