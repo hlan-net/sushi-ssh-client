@@ -77,16 +77,30 @@ class LocalShellBackend(private val context: Context) : TerminalBackend {
      * Output is read in a daemon thread so [timeoutMs] is enforced with [Process.waitFor]
      * rather than blocking on [InputStream.read] — matching the pattern in [SshClient.execCommand].
      */
-    override fun execCommand(command: String, timeoutMs: Long): SshCommandResult {
+    override fun execCommand(
+        command: String,
+        timeoutMs: Long,
+        onChunk: ((String) -> Unit)?
+    ): SshCommandResult {
         return runCatching {
             val process = ProcessBuilder("sh", "-c", command)
                 .redirectErrorStream(true)
                 .start()
 
-            val outputRef = java.util.concurrent.atomic.AtomicReference("")
+            // StringBuilder accumulates output while onChunk is invoked per read, so callers
+            // can show progress on long-running commands instead of waiting for the final result.
+            val outputBuilder = StringBuilder()
             val readerThread = Thread {
                 try {
-                    outputRef.set(process.inputStream.bufferedReader().readText())
+                    val reader = process.inputStream.bufferedReader()
+                    val buf = CharArray(4096)
+                    while (true) {
+                        val n = reader.read(buf)
+                        if (n < 0) break
+                        val chunk = String(buf, 0, n)
+                        outputBuilder.append(chunk)
+                        onChunk?.invoke(chunk)
+                    }
                 } catch (_: Exception) { }
             }.apply {
                 isDaemon = true
@@ -103,7 +117,7 @@ class LocalShellBackend(private val context: Context) : TerminalBackend {
 
             readerThread.join(500)
             val exitCode = process.exitValue()
-            SshCommandResult(exitCode == 0, exitCode, outputRef.get().trim())
+            SshCommandResult(exitCode == 0, exitCode, outputBuilder.toString().trim())
         }.getOrElse { e ->
             SshCommandResult(false, null, e.message ?: "Exec failed")
         }

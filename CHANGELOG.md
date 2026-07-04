@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
+## [Unreleased]
+
+### Added
+- Added Raw Terminal Mode toggle to the Gemini dialog — input goes straight to the shell, bypassing the AI layer, while still going through `CommandSafety` classification and the conversation transcript.
+- Added incremental output streaming for AI- and raw-mode command execution: `TerminalBackend.execCommand` now takes an `onChunk` callback so long-running command output appears in the Gemini dialog as it's produced instead of only after the command finishes.
+
 ## [0.7.1] - 2026-06-22
 
 ### Fixed

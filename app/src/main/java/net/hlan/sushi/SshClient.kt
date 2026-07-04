@@ -347,7 +347,11 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
      *   [SshCommandResult.exitStatus] set to the process exit code, and
      *   [SshCommandResult.message] containing the combined stdout/stderr output.
      */
-    override fun execCommand(command: String, timeoutMs: Long): SshCommandResult {
+    override fun execCommand(
+        command: String,
+        timeoutMs: Long,
+        onChunk: ((String) -> Unit)?
+    ): SshCommandResult {
         val activeSession = session
         if (activeSession == null || !activeSession.isConnected) {
             return SshCommandResult(false, null, "Not connected")
@@ -368,12 +372,22 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
 
             // Read output in a daemon thread so we can enforce a wall-clock timeout.
             // AtomicReference provides safe cross-thread exception propagation without
-            // requiring the reader thread to hold any lock.
-            val outputBuffer = ByteArrayOutputStream()
+            // requiring the reader thread to hold any lock. Reading through InputStreamReader
+            // (rather than copyTo a byte buffer) lets us hand chunks to onChunk as they arrive
+            // instead of only surfacing output once the whole command has finished.
+            val outputBuilder = StringBuilder()
             val readerError = AtomicReference<Exception?>(null)
             val readerThread = Thread {
                 try {
-                    stdout.copyTo(outputBuffer)
+                    val reader = InputStreamReader(stdout, Charsets.UTF_8)
+                    val buf = CharArray(4096)
+                    while (true) {
+                        val n = reader.read(buf)
+                        if (n < 0) break
+                        val chunk = String(buf, 0, n)
+                        outputBuilder.append(chunk)
+                        onChunk?.invoke(chunk)
+                    }
                 } catch (e: Exception) {
                     readerError.set(e)
                 }
@@ -407,7 +421,7 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
             }
 
             val exitStatus = ch.exitStatus
-            val stdoutStr = outputBuffer.toString(Charsets.UTF_8).trim()
+            val stdoutStr = outputBuilder.toString().trim()
             val stderrStr = stderrBuffer.toString(Charsets.UTF_8).trim()
 
             val fullOutput = when {
