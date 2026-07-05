@@ -22,7 +22,14 @@ interface TerminalBackend {
      *
      * @param command Shell command to run.
      * @param timeoutMs Maximum time to wait before aborting.
+     * @param onChunk Optional callback invoked with output as it arrives, before the command
+     * finishes. Lets callers (e.g. the Gemini dialog) show progress on long-running commands
+     * instead of waiting for the final [SshCommandResult].
      * @return [SshCommandResult] with success=true when exit code is 0.
      */
-    fun execCommand(command: String, timeoutMs: Long = 30_000L): SshCommandResult
+    fun execCommand(
+        command: String,
+        timeoutMs: Long = 30_000L,
+        onChunk: ((String) -> Unit)? = null
+    ): SshCommandResult
 }

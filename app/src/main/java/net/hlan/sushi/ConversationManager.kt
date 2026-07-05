@@ -77,8 +77,15 @@ class ConversationManager(
     /**
      * Process a user message and generate a conversational response.
      * Executes commands if the LLM requests it.
+     *
+     * @param onChunk Optional callback for incremental output while a SAFE command executes,
+     * forwarded to [TerminalBackend.execCommand] so the UI can show progress before the LLM's
+     * interpretation of the final result is ready.
      */
-    suspend fun processUserMessage(userMessage: String): ConversationResult {
+    suspend fun processUserMessage(
+        userMessage: String,
+        onChunk: ((String) -> Unit)? = null
+    ): ConversationResult {
         if (!isInitialized) {
             return ConversationResult(
                 success = false,
@@ -142,7 +149,7 @@ class ConversationManager(
                         
                         CommandSafety.SafetyLevel.SAFE -> {
                             // Safe to execute automatically
-                            executeCommandAndRespond(userMessage, response, command)
+                            executeCommandAndRespond(userMessage, response, command, onChunk)
                         }
                     }
                 } else {
@@ -172,10 +179,11 @@ class ConversationManager(
     suspend fun executeConfirmedCommand(
         userMessage: String,
         initialResponse: String,
-        command: String
+        command: String,
+        onChunk: ((String) -> Unit)? = null
     ): ConversationResult {
         return withContext(Dispatchers.IO) {
-            executeCommandAndRespond(userMessage, initialResponse, command)
+            executeCommandAndRespond(userMessage, initialResponse, command, onChunk)
         }
     }
 
@@ -188,11 +196,12 @@ class ConversationManager(
     private suspend fun executeCommandAndRespond(
         userMessage: String,
         initialResponse: String,
-        command: String
+        command: String,
+        onChunk: ((String) -> Unit)? = null
     ): ConversationResult {
         return try {
             // Use execCommand so we get real output back, not just "Command sent".
-            val cmdResult = backend.execCommand(command)
+            val cmdResult = backend.execCommand(command, onChunk = onChunk)
 
             if (!cmdResult.success && cmdResult.exitStatus == null) {
                 // execCommand itself failed (e.g. not connected, timed out).
@@ -258,6 +267,93 @@ Provide a natural language interpretation of this result, responding as the syst
             )
         }
     }
+
+    /**
+     * Run [command] directly against [backend], bypassing the LLM entirely (Raw Terminal Mode).
+     * Still goes through [CommandSafety] and the same transcript/log persistence as AI-driven
+     * commands so raw-mode activity remains visible in the conversation history.
+     */
+    suspend fun executeRawCommand(
+        command: String,
+        onChunk: ((String) -> Unit)? = null
+    ): ConversationResult {
+        return withContext(Dispatchers.IO) {
+            when (val safety = CommandSafety.classify(command)) {
+                CommandSafety.SafetyLevel.BLOCKED -> {
+                    val explanation = CommandSafety.explainClassification(command)
+                    val response = "[Command blocked: $explanation]"
+                    addToHistory(rawPrompt(command), response, command, null, false)
+
+                    ConversationResult(
+                        success = true,
+                        systemResponse = response,
+                        userMessage = command,
+                        commandAttempted = command,
+                        commandBlocked = true
+                    )
+                }
+
+                CommandSafety.SafetyLevel.CONFIRM -> ConversationResult(
+                    success = true,
+                    systemResponse = "",
+                    userMessage = command,
+                    commandToConfirm = command,
+                    needsConfirmation = true
+                )
+
+                CommandSafety.SafetyLevel.SAFE -> executeRawCommandDirect(command, onChunk)
+            }
+        }
+    }
+
+    /**
+     * Run a raw command that was confirmed by the user (CONFIRM tier).
+     */
+    suspend fun executeConfirmedRawCommand(
+        command: String,
+        onChunk: ((String) -> Unit)? = null
+    ): ConversationResult {
+        return withContext(Dispatchers.IO) {
+            executeRawCommandDirect(command, onChunk)
+        }
+    }
+
+    private suspend fun executeRawCommandDirect(
+        command: String,
+        onChunk: ((String) -> Unit)?
+    ): ConversationResult {
+        return try {
+            val cmdResult = backend.execCommand(command, onChunk = onChunk)
+            val output = cmdResult.message.ifEmpty { "(no output)" }
+            addToHistory(rawPrompt(command), output, command, output, cmdResult.success)
+
+            ConversationResult(
+                success = true,
+                systemResponse = output,
+                userMessage = command,
+                commandExecuted = command,
+                commandOutput = output,
+                commandSuccess = cmdResult.success
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error executing raw command", e)
+            val response = "[Error executing command: ${e.message}]"
+            addToHistory(rawPrompt(command), response, command, null, false)
+
+            ConversationResult(
+                success = false,
+                systemResponse = response,
+                userMessage = command,
+                commandExecuted = command
+            )
+        }
+    }
+
+    /**
+     * Prefix used so raw-mode turns read distinctly in the transcript/history browser
+     * without needing a schema change to track an AI-vs-raw source column.
+     */
+    private fun rawPrompt(command: String): String = "$ $command"
 
     /**
      * Generate LLM response using configured client (Nano or Cloud).

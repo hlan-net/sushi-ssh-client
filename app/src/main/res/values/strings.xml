@@ -381,6 +381,8 @@
     
     <!-- Conversation UI -->
     <string name="conversation_input_hint">Ask the system...</string>
+    <string name="raw_terminal_mode_label">Raw mode</string>
+    <string name="raw_terminal_mode_hint">Raw shell — commands run directly, no AI</string>
     <string name="action_send_message">Send message</string>
     <string name="conversation_confirm_command_title">Confirm Command</string>
     <string name="conversation_confirm_command_message">Execute this command?\n\n%1$s</string>

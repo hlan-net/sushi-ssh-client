@@ -43,22 +43,19 @@ Solidify the terminal layer first — the conversational features all sit on top
 | History UI | ~~`feature/gemini-history-ui`~~ | Gemini history browser — session list + turn detail view, delete session, command/output display | ✅ |
 | Connection errors | ~~`feature/connection-error-classification`~~ | Connection error classification — typed `ConnectFailure` enum, actionable error banner, smart retry gating | ✅ |
 | [Setup checklist](docs/features/first-run-onboarding.md) | ~~`feature/first-run-setup-checklist`~~ | First-run setup checklist — persistent card guides new users through SSH host + key + optional Gemini/Drive | ✅ |
-| [Raw terminal mode](docs/features/raw-terminal-mode.md) | `feature/raw-terminal-mode` | Raw Terminal Mode toggle — switch between AI conversation and direct shell | deferred → v0.7.0 |
-| Output streaming | `feature/output-streaming` | Command output streaming — token-by-token delivery for long-running commands (scope needs re-evaluation) | deferred → v0.7.0 |
+| [Raw terminal mode](docs/features/raw-terminal-mode.md) | ~~`claude/roadmap-priorities-ds0cbs`~~ | Raw Terminal Mode toggle in the Gemini dialog — input goes straight to the shell, bypassing Gemini; still classified/logged via `CommandSafety` and the transcript | ✅ |
+| Output streaming | ~~`claude/roadmap-priorities-ds0cbs`~~ | Command output streaming — `TerminalBackend.execCommand` takes an `onChunk` callback so long-running command output appears incrementally in the Gemini dialog instead of only after completion | ✅ |
 
 ---
 
 ## v0.7.0 — Persona, file operations, and terminal depth
 
 Close the loop on persona editing and add the file operations that conversational users naturally ask for.
-Also picks up the two deferred v0.6.0 terminal items.
 
 - **[Remote SUSHI.md editor](docs/features/persona-editor.md)** — read and write `~/.config/sushi/SUSHI.md` from within the app; right now customizing the persona requires a separate SSH terminal
 - **[SFTP file operations](docs/features/file-operations.md)** — "download this log to my phone" is a natural conversational request; `SshClient` already handles upload via the Share target, download is the missing half *(B-17)*
 - **Custom log location** — read `log_dir` from `~/.config/sushi/config.conf` and honour it; the config key exists, enforcement does not
 - **Connection keep-alive in background** *(T-8)* — session should only disconnect on explicit action, not when the app backgrounds
-- **[Raw Terminal Mode toggle](docs/features/raw-terminal-mode.md)** — switch between AI conversation and direct shell (deferred from v0.6.0)
-- **Command output streaming** — token-by-token delivery for long-running commands (scope needs re-evaluation) (deferred from v0.6.0)
 
 ---
 
@@ -115,4 +112,4 @@ Interesting directions that depend on the conversational core being solid first.
 
 ---
 
-*Last updated: 2026-05-05*
+*Last updated: 2026-07-04*
