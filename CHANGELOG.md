@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
-## [Unreleased]
+## [0.7.2] - 2026-07-05
 
 ### Added
 - Added Raw Terminal Mode toggle to the Gemini dialog — input goes straight to the shell, bypassing the AI layer, while still going through `CommandSafety` classification and the conversation transcript.
