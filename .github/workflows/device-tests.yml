@@ -59,8 +59,11 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
-      - name: Set up Android SDK tools (adb)
-        uses: android-actions/setup-android@v4
+      - name: Verify Android SDK (pre-installed in runner image)
+        run: |
+          adb --version
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          sdkmanager --list_installed 2>/dev/null | grep -E "build-tools|platform-tools|platforms" || true
 
       - name: Connect to ADB (host server or Wi-Fi)
         env:
