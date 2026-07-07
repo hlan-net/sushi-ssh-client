@@ -101,12 +101,18 @@ jobs:
         id: run_tests
         timeout-minutes: 20
         run: |
-          set -o pipefail
+          # Stream per-test progress from device logcat alongside Gradle output.
+          adb -s emulator-5554 logcat -v time -s TestRunner:I &
+          LOGCAT_PID=$!
+
           ./gradlew connectedMinifiedDebugAndroidTest \
             -Pandroid.testInstrumentationRunnerArguments.notClass=net.hlan.sushi.LocalSshIntegrationTest \
             -Pandroid.testInstrumentationRunnerArguments.timeout_msec=60000 \
-            --continue --info 2>&1 \
-            | grep --line-buffered -E "(> Task :| STARTED| PASSED| FAILED| SKIPPED|Tests [0-9]+/[0-9]+|Exception|Error:)"
+            --continue
+          GRADLE_EXIT=$?
+
+          kill "$LOGCAT_PID" 2>/dev/null || true
+          exit $GRADLE_EXIT
         continue-on-error: true
 
       - name: Stop emulator
