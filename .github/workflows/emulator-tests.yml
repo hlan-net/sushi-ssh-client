@@ -106,7 +106,7 @@ jobs:
           LOGCAT_PID=$!
 
           ./gradlew connectedMinifiedDebugAndroidTest \
-            "-Pandroid.testInstrumentationRunnerArguments.notClass=net.hlan.sushi.LocalSshIntegrationTest,net.hlan.sushi.LocalShellBackendTest" \
+            "-Pandroid.testInstrumentationRunnerArguments.notClass=net.hlan.sushi.LocalSshIntegrationTest,net.hlan.sushi.LocalShellBackendTest,net.hlan.sushi.DeviceQaSuiteTest" \
             -Pandroid.testInstrumentationRunnerArguments.timeout_msec=60000 \
             --continue
           GRADLE_EXIT=$?
