@@ -75,6 +75,9 @@ jobs:
           # Optional: explicit device address for Wi-Fi ADB (e.g. "192.168.1.42:5555").
           # When set, the step connects via TCP instead of relying on the host server.
           DEVICE_ADDRESS: ${{ secrets.ANDROID_DEVICE_ADDRESS }}
+          # USB serial of the target device — avoids ambiguity when multiple devices
+          # are visible on the host ADB server.
+          DEVICE_SERIAL: ${{ secrets.ANDROID_DEVICE_SERIAL }}
         run: |
           if ! command -v adb >/dev/null 2>&1; then
             echo "::error::'adb' is not installed in the runner container. Add 'android-tools-adb' to the runner image."
@@ -107,9 +110,10 @@ jobs:
           # Persist ADB env for subsequent steps.
           echo "ANDROID_ADB_SERVER_ADDRESS=$ADB_HOST" >> "$GITHUB_ENV"
           echo "ANDROID_ADB_SERVER_PORT=$ADB_PORT"    >> "$GITHUB_ENV"
-          # Always pin ANDROID_SERIAL so subsequent adb calls target the right device
-          # even when multiple devices are visible on the host ADB server.
-          SERIAL="${DEVICE_ADDRESS:-$(adb devices | grep -v "^List" | grep "device$" | head -1 | awk '{print $1}')}"
+          # Pin ANDROID_SERIAL: prefer explicit secret, then DEVICE_ADDRESS, then first device.
+          # The secret is the Nokia G42 5G serial — avoids ambiguity when multiple devices
+          # are visible on the host ADB server.
+          SERIAL="${DEVICE_SERIAL:-${DEVICE_ADDRESS:-$(adb devices | grep -v "^List" | grep "device$" | head -1 | awk '{print $1}')}}"
           echo "ANDROID_SERIAL=$SERIAL" >> "$GITHUB_ENV"
           echo "Targeting device: $SERIAL"
 
