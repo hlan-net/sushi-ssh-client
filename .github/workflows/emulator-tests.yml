@@ -104,6 +104,7 @@ jobs:
           set -o pipefail
           ./gradlew connectedMinifiedDebugAndroidTest \
             -Pandroid.testInstrumentationRunnerArguments.notClass=net.hlan.sushi.LocalSshIntegrationTest \
+            -Pandroid.testInstrumentationRunnerArguments.timeout_msec=60000 \
             --continue --info 2>&1 \
             | grep --line-buffered -E "(> Task :| STARTED| PASSED| FAILED| SKIPPED|Tests [0-9]+/[0-9]+|Exception|Error:)"
         continue-on-error: true
