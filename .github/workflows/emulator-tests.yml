@@ -59,22 +59,20 @@ jobs:
             "emulator"
 
       - name: Create API 37 AVD
-        env:
-          ANDROID_AVD_HOME: ${{ runner.home }}/.android/avd
         run: |
-          mkdir -p "$ANDROID_AVD_HOME"
-          echo no | avdmanager create avd \
+          AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$AVD_HOME"
+          echo "ANDROID_AVD_HOME=$AVD_HOME" >> "$GITHUB_ENV"
+          echo no | ANDROID_AVD_HOME="$AVD_HOME" avdmanager create avd \
             --name "api37" \
             --package "system-images;android-37.0;google_apis_ps16k;x86_64" \
             --device "pixel_6"
-          avdmanager list avd
+          ANDROID_AVD_HOME="$AVD_HOME" avdmanager list avd
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
       - name: Start emulator
-        env:
-          ANDROID_AVD_HOME: ${{ runner.home }}/.android/avd
         run: |
           $ANDROID_HOME/emulator/emulator \
             -avd api37 \
