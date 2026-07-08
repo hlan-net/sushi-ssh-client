@@ -25,8 +25,8 @@ android {
         applicationId = "net.hlan.sushi"
         minSdk = 26
         targetSdk = 36
-        versionCode = versionCodeOverride ?: 18
-        versionName = versionNameOverride ?: "0.7.2"
+        versionCode = versionCodeOverride ?: 19
+        versionName = versionNameOverride ?: "0.7.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
