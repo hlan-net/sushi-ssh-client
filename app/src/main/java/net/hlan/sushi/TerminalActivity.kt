@@ -282,6 +282,7 @@ class TerminalActivity : AppCompatActivity() {
         saveTerminalLog()
         sshClient?.disconnect()
         sshClient = null
+        TerminalSessionHolder.clearActiveConnection()
         didLoseConnection = true
         binding.terminalOutputText.appendLog(getString(R.string.terminal_connection_lost_log))
         Toast.makeText(this, getString(R.string.terminal_connection_lost_toast), Toast.LENGTH_SHORT).show()

@@ -37,15 +37,22 @@ class SshConnectionService : Service() {
         val hostLabel = TerminalSessionHolder.getActiveConfig()?.displayTarget()
             ?: getString(R.string.ssh_notification_title)
         val notification = buildNotification(hostLabel)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ServiceCompat.startForeground(
-                this,
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        }.onFailure {
+            // The OS can refuse a foreground-service promotion (e.g. background start
+            // restrictions); the SSH session itself is unaffected, only the background
+            // keep-alive, so just give up on the notification rather than crash.
+            stopSelf()
         }
         return START_NOT_STICKY
     }
