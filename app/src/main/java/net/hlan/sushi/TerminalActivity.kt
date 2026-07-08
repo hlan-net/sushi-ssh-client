@@ -1,16 +1,21 @@
 package net.hlan.sushi
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -41,6 +46,8 @@ class TerminalActivity : AppCompatActivity() {
     private val connectionMonitorRunnable = Runnable {
         monitorConnection()
     }
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op either way */ }
 
     private fun monitorConnection() {
         val client = sshClient
@@ -102,9 +109,28 @@ class TerminalActivity : AppCompatActivity() {
 
         updateUi()
         connectionMonitorHandler.postDelayed(connectionMonitorRunnable, CONNECTION_MONITOR_INTERVAL_MS)
+        requestNotificationPermissionIfNeeded()
 
         if (intent?.getBooleanExtra(EXTRA_AUTO_CONNECT, false) == true) {
             connectTerminal()
+        }
+    }
+
+    /**
+     * Lets the "session active" notification actually show on Android 13+, where posting it
+     * requires a runtime grant. The foreground service that keeps the SSH session alive in the
+     * background still runs without it — this only affects whether the user sees it.
+     */
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return
+        }
+        val granted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 

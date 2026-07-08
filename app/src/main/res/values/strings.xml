@@ -91,6 +91,9 @@
     <string name="terminal_connect_failed_log">[Terminal] Connection failed: %1$s</string>
     <string name="terminal_connection_lost_log">[Terminal] Connection lost unexpectedly.</string>
     <string name="terminal_connection_lost_toast">Connection lost. You can reconnect now.</string>
+    <string name="ssh_notification_channel_name">Active session</string>
+    <string name="ssh_notification_title">Session active</string>
+    <string name="ssh_notification_action_disconnect">Disconnect</string>
     <string name="action_show_tools">Show tools</string>
     <string name="action_hide_tools">Hide tools</string>
     <string name="ssh_section_title">SSH connection</string>

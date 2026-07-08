@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
+## [Unreleased]
+
+### Fixed
+- Fixed SSH sessions dropping when Sushi is backgrounded: a foreground service (`SshConnectionService`) now keeps the process alive while a terminal session is connected, with a persistent "Session active" notification offering a one-tap disconnect.
+
 ## [0.7.3] - 2026-07-08
 
 ### Fixed
