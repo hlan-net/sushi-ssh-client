@@ -28,6 +28,11 @@
 }
 -keep class net.hlan.sushi.GeminiTranscriptDatabaseHelper$Companion { void resetInstance(); }
 
+# The test APK resolves app R classes at runtime (androidTest R fields are non-final
+# field references, not inlined constants). R8 strips R classes from the app APK,
+# breaking e.g. LayoutInflationTest with NoClassDefFoundError: R$style.
+-keep class net.hlan.sushi.R$* { *; }
+
 # Keep Kotlin helpers required by AndroidX instrumentation startup in minifiedDebug.
 -keep class kotlin.LazyKt { *; }
 -keep class kotlin.LazyKt__* { *; }
