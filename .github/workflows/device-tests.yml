@@ -1,4 +1,4 @@
-name: Device Tests (RPi5 + Nokia 4.2G)
+name: Device Tests (RPi5 + Nokia 42 5G)
 
 # Optional workflow — never blocks PR merges.
 #
@@ -59,8 +59,11 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
-      - name: Set up Android SDK tools (adb)
-        uses: android-actions/setup-android@v4
+      - name: Verify Android SDK (pre-installed in runner image)
+        run: |
+          adb --version
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          sdkmanager --list_installed 2>/dev/null | grep -E "build-tools|platform-tools|platforms" || true
 
       - name: Connect to ADB (host server or Wi-Fi)
         env:
@@ -72,6 +75,9 @@ jobs:
           # Optional: explicit device address for Wi-Fi ADB (e.g. "192.168.1.42:5555").
           # When set, the step connects via TCP instead of relying on the host server.
           DEVICE_ADDRESS: ${{ secrets.ANDROID_DEVICE_ADDRESS }}
+          # USB serial of the target device — avoids ambiguity when multiple devices
+          # are visible on the host ADB server.
+          DEVICE_SERIAL: ${{ secrets.ANDROID_DEVICE_SERIAL }}
         run: |
           if ! command -v adb >/dev/null 2>&1; then
             echo "::error::'adb' is not installed in the runner container. Add 'android-tools-adb' to the runner image."
@@ -104,7 +110,12 @@ jobs:
           # Persist ADB env for subsequent steps.
           echo "ANDROID_ADB_SERVER_ADDRESS=$ADB_HOST" >> "$GITHUB_ENV"
           echo "ANDROID_ADB_SERVER_PORT=$ADB_PORT"    >> "$GITHUB_ENV"
-          [ -n "$DEVICE_ADDRESS" ] && echo "ANDROID_SERIAL=$DEVICE_ADDRESS" >> "$GITHUB_ENV" || true
+          # Pin ANDROID_SERIAL: prefer explicit secret, then DEVICE_ADDRESS, then first device.
+          # The secret is the Nokia G42 5G serial — avoids ambiguity when multiple devices
+          # are visible on the host ADB server.
+          SERIAL="${DEVICE_SERIAL:-${DEVICE_ADDRESS:-$(adb devices | grep -v "^List" | grep "device$" | head -1 | awk '{print $1}')}}"
+          echo "ANDROID_SERIAL=$SERIAL" >> "$GITHUB_ENV"
+          echo "Targeting device: $SERIAL"
 
       - name: Prepare device for instrumented tests
         run: |

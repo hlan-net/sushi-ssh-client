@@ -15,6 +15,12 @@
     public *;
 }
 
+# GeminiTranscriptSessionSummary.lastActivityAt has no production reader (only startedAt is
+# displayed); R8 removes the getter. Keep all public members for test assertions.
+-keepclassmembers class net.hlan.sushi.GeminiTranscriptSessionSummary {
+    public *;
+}
+
 # GeminiTranscriptDatabaseHelper.resetInstance() (companion) and clearAll() (instance) have no
 # production callers; R8 removes them. Keep for test setUp/tearDown.
 -keepclassmembers class net.hlan.sushi.GeminiTranscriptDatabaseHelper {

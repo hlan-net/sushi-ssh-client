@@ -60,10 +60,14 @@ jobs:
 
       - name: Create API 37 AVD
         run: |
-          echo no | avdmanager create avd \
+          AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$AVD_HOME"
+          echo "ANDROID_AVD_HOME=$AVD_HOME" >> "$GITHUB_ENV"
+          echo no | ANDROID_AVD_HOME="$AVD_HOME" avdmanager create avd \
             --name "api37" \
             --package "system-images;android-37.0;google_apis_ps16k;x86_64" \
             --device "pixel_6"
+          ANDROID_AVD_HOME="$AVD_HOME" avdmanager list avd
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -95,10 +99,20 @@ jobs:
 
       - name: Run instrumented tests
         id: run_tests
+        timeout-minutes: 20
         run: |
+          # Stream per-test progress from device logcat alongside Gradle output.
+          adb -s emulator-5554 logcat -v time -s TestRunner:I &
+          LOGCAT_PID=$!
+
           ./gradlew connectedMinifiedDebugAndroidTest \
-            -Pandroid.testInstrumentationRunnerArguments.notClass=net.hlan.sushi.LocalSshIntegrationTest \
+            "-Pandroid.testInstrumentationRunnerArguments.notClass=net.hlan.sushi.LocalSshIntegrationTest,net.hlan.sushi.LocalShellBackendTest,net.hlan.sushi.DeviceQaSuiteTest" \
+            -Pandroid.testInstrumentationRunnerArguments.timeout_msec=60000 \
             --continue
+          GRADLE_EXIT=$?
+
+          kill "$LOGCAT_PID" 2>/dev/null || true
+          exit $GRADLE_EXIT
         continue-on-error: true
 
       - name: Stop emulator
