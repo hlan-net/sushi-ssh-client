@@ -8,6 +8,8 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ### Fixed
 - Fixed SSH sessions dropping when Sushi is backgrounded: a foreground service (`SshConnectionService`) now keeps the process alive while a terminal session is connected, with a persistent "Session active" notification offering a one-tap disconnect.
+- Fixed `TerminalView` leaking raw OSC escape-sequence payloads (e.g. window-title text like `0;some title`) into the rendered terminal output; OSC sequences are now stripped like the existing CSI ones.
+- Fixed bare `\r` (progress bars, spinners, in-place redraws) being silently dropped instead of overwriting the current line, including when the `\r` and the following character arrive in separate read chunks.
 
 ## [0.7.3] - 2026-07-08
 

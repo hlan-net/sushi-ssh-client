@@ -35,6 +35,8 @@ class TerminalView @JvmOverloads constructor(
         private const val MAX_LINES = 500
         private const val MAX_CHARS = 200_000
         private val ESCAPE_PATTERN = Pattern.compile("\u001B\\[[0-9;?]*[a-ln-zA-LN-Z]")
+        // OSC (window title, etc.): ESC ] ... terminated by BEL or ESC \
+        private val OSC_PATTERN = Pattern.compile("\u001B\\][^\u0007\u001B]*(?:\u0007|\u001B\\\\)")
         private val SGR_PATTERN = Pattern.compile("\u001B\\[([0-9;]*)m")
     }
 
@@ -137,8 +139,7 @@ class TerminalView @JvmOverloads constructor(
     fun appendLog(text: String) {
         // Prevent DoS from extremely large input strings by truncating
         val safeText = if (text.length > 50000) text.substring(text.length - 50000) else text
-        val normalizedText = normalizeLineEndings(safeText)
-        rawTextBuffer.append(normalizedText)
+        appendWithCarriageReturnHandling(safeText)
         val dropped = trimBuffer()
         updateText(dropped)
     }
@@ -228,31 +229,43 @@ class TerminalView @JvmOverloads constructor(
         return 0
     }
 
-    private fun normalizeLineEndings(input: String): String {
-        if (input.isEmpty()) {
-            return input
-        }
-
-        val out = StringBuilder(input.length)
+    /**
+     * A bare `\r` (progress bars, spinners, and full-screen redraws) means "return to the
+     * start of the current line", so what follows should overwrite it rather than append
+     * after it. `\r\n` is just a line terminator and must not erase the line it ends.
+     * Since the `\r` and the character that disambiguates it can arrive in separate
+     * [appendLog] chunks, [pendingCarriageReturn] carries that decision across calls.
+     */
+    private fun appendWithCarriageReturnHandling(input: String) {
         for (ch in input) {
+            if (pendingCarriageReturn) {
+                pendingCarriageReturn = false
+                if (ch == '\n') {
+                    rawTextBuffer.append('\n')
+                    continue
+                }
+                eraseCurrentLine()
+            }
+
             when (ch) {
                 '\r' -> pendingCarriageReturn = true
-                '\n' -> {
-                    out.append('\n')
-                    pendingCarriageReturn = false
-                }
-                else -> {
-                    pendingCarriageReturn = false
-                    out.append(ch)
-                }
+                '\n' -> rawTextBuffer.append('\n')
+                else -> rawTextBuffer.append(ch)
             }
         }
-        return out.toString()
+    }
+
+    private fun eraseCurrentLine() {
+        val lineStart = rawTextBuffer.lastIndexOf("\n") + 1
+        rawTextBuffer.setLength(lineStart)
     }
 
     private fun parseAnsi(rawText: String): CharSequence {
+        // Strip OSC sequences (e.g. window-title changes) before the CSI ones below —
+        // otherwise their payload (e.g. "0;some title") leaks into the rendered text.
+        val withoutOsc = OSC_PATTERN.matcher(rawText).replaceAll("")
         // Strip out non-color ANSI escape sequences (e.g. cursor movements)
-        val text = ESCAPE_PATTERN.matcher(rawText).replaceAll("")
+        val text = ESCAPE_PATTERN.matcher(withoutOsc).replaceAll("")
 
         val builder = SpannableStringBuilder()
         val matcher = SGR_PATTERN.matcher(text)
