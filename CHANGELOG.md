@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog and follows semantic versioning.
 
+## [0.7.3] - 2026-07-08
+
+### Fixed
+- Fixed corrupt `pathData` in `ic_content_paste` drawable that caused `TerminalActivity` to crash at layout inflation on Android 17 (API 37) with `IllegalArgumentException` from `PathParser`.
+- Fixed ProGuard keep rules for instrumented tests so `minifiedDebug` test APKs build and run correctly.
+
+### Changed
+- Added API 37 emulator job to the CI workflow; added `LayoutInflationTest` to catch drawable inflation regressions on the target SDK.
+
 ## [0.7.2] - 2026-07-05
 
 ### Added
