@@ -48,12 +48,7 @@ No screen required — the full conversational loop runs via voice in/out with n
 
 **Conclusion: a native Android Auto app is not possible for Sushi.**
 
-Google Play only accepts Android Auto (head-unit) apps in fixed categories:
-**navigation, audio/media, and messaging**, plus parked-only video/games on
-Android 15+ head units. An SSH client / conversational server assistant fits
-none of them, and the Android for Cars App Library exposes templates only for
-those categories — there is no template set a Gemini conversation could be
-built from. See [car app quality guidelines](https://developer.android.com/docs/quality-guidelines/car-app-quality).
+Google Play only accepts Android Auto (head-unit) apps in fixed categories:\n**navigation, audio/media, messaging, point of interest (POI), internet of things (IoT), weather, and calling**, plus parked-only video/games on\nAndroid 15+ head units. An SSH client / conversational server assistant fits\nnone of them, and the Android for Cars App Library exposes templates only for\nthose categories — there is no template set a Gemini conversation could be\nbuilt from. See [car app quality guidelines](https://developer.android.com/docs/quality-guidelines/car-app-quality).
 
 **The practical path for in-car use is the Voice-Only Mode above**: the phone
 stays in a mount or pocket, audio flows through the car's Bluetooth
