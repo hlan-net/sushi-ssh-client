@@ -102,7 +102,8 @@ Solid SSH client features that are not core to the conversational goal but round
 
 Interesting directions that depend on the conversational core being solid first. No commitment on timing.
 
-- **[Voice I/O enhancements](docs/features/voice-io.md)** — wake word, text-to-speech responses, voice-only mode
+- **[Voice I/O enhancements](docs/features/voice-io.md)** — wake word, text-to-speech responses, voice-only mode; includes the Android Auto feasibility assessment (native Auto app not possible — voice-only mode is the in-car path)
+- **[Desktop mode / external display support](docs/features/desktop-mode.md)** — hardware keyboard in the terminal, window-resize resilience, adaptive wide layouts for Android 16+ desktop windowing
 - **[Home Assistant integration](docs/features/home-assistant.md)** — control smart home devices through the Sushi conversation layer
 - **[Persona templates](docs/features/persona-templates.md)** — pre-made `SUSHI.md` starters for web server, dev environment, RetroPie, etc.
 - **[Visual system dashboard](docs/features/system-dashboard.md)** — live CPU, memory, temperature, and service status graphs
