@@ -26,14 +26,22 @@ class TerminalView @JvmOverloads constructor(
     private var currentBgColor: Int? = null
     private val rawTextBuffer = StringBuilder()
     private var pendingCarriageReturn = false
+    private var oscState = OscState.NONE
+    private var oscLength = 0
     var onInputText: ((String) -> Unit)? = null
     var renderAnsi: Boolean = true
+
+    // OSC sequences (ESC ] ... BEL/ST) can be split across network chunks,
+    // so the filter state must persist between appendLog calls.
+    private enum class OscState { NONE, ESC_SEEN, IN_OSC, IN_OSC_ESC_SEEN }
 
     var onSizeChangedListener: ((col: Int, row: Int, wp: Int, hp: Int) -> Unit)? = null
 
     companion object {
         private const val MAX_LINES = 500
         private const val MAX_CHARS = 200_000
+        // Unterminated OSC guard: a missing BEL/ST must not swallow output forever.
+        private const val MAX_OSC_LENGTH = 2048
         private val ESCAPE_PATTERN = Pattern.compile("\u001B\\[[0-9;?]*[a-ln-zA-LN-Z]")
         private val SGR_PATTERN = Pattern.compile("\u001B\\[([0-9;]*)m")
     }
@@ -137,8 +145,9 @@ class TerminalView @JvmOverloads constructor(
     fun appendLog(text: String) {
         // Prevent DoS from extremely large input strings by truncating
         val safeText = if (text.length > 50000) text.substring(text.length - 50000) else text
-        val normalizedText = normalizeLineEndings(safeText)
-        rawTextBuffer.append(normalizedText)
+        for (ch in safeText) {
+            processChar(ch)
+        }
         val dropped = trimBuffer()
         updateText(dropped)
     }
@@ -228,26 +237,74 @@ class TerminalView @JvmOverloads constructor(
         return 0
     }
 
-    private fun normalizeLineEndings(input: String): String {
-        if (input.isEmpty()) {
-            return input
-        }
-
-        val out = StringBuilder(input.length)
-        for (ch in input) {
-            when (ch) {
-                '\r' -> pendingCarriageReturn = true
-                '\n' -> {
-                    out.append('\n')
-                    pendingCarriageReturn = false
+    /**
+     * Filters OSC sequences (ESC ] ... BEL/ST — e.g. xterm window titles) out of the
+     * stream before buffering. CSI sequences pass through untouched; parseAnsi strips
+     * or renders them later.
+     */
+    private fun processChar(ch: Char) {
+        when (oscState) {
+            OscState.ESC_SEEN -> {
+                oscState = OscState.NONE
+                if (ch == ']') {
+                    oscState = OscState.IN_OSC
+                    oscLength = 0
+                    return
                 }
-                else -> {
-                    pendingCarriageReturn = false
-                    out.append(ch)
+                // Not an OSC — emit the withheld ESC, then handle ch normally.
+                appendChar('\u001B')
+            }
+            OscState.IN_OSC -> {
+                oscLength++
+                when {
+                    ch == '\u0007' -> oscState = OscState.NONE
+                    ch == '\u001B' -> oscState = OscState.IN_OSC_ESC_SEEN
+                    oscLength > MAX_OSC_LENGTH -> oscState = OscState.NONE
+                }
+                return
+            }
+            OscState.IN_OSC_ESC_SEEN -> {
+                oscState = if (ch == '\\') OscState.NONE else OscState.IN_OSC
+                return
+            }
+            OscState.NONE -> Unit
+        }
+        if (ch == '\u001B') {
+            oscState = OscState.ESC_SEEN
+            return
+        }
+        appendChar(ch)
+    }
+
+    /**
+     * Appends with carriage-return overwrite semantics: a `\r` not followed by `\n`
+     * restarts the current line, so shell prompt redraws (SIGWINCH) and progress bars
+     * (wget, apt) repaint one line instead of appending duplicates.
+     */
+    private fun appendChar(ch: Char) {
+        when (ch) {
+            '\r' -> pendingCarriageReturn = true
+            '\n' -> {
+                rawTextBuffer.append('\n')
+                pendingCarriageReturn = false
+            }
+            '\b' -> {
+                // Remote echoes "\b \b" to erase a character; apply the erase locally.
+                // Never cross a line boundary.
+                val len = rawTextBuffer.length
+                if (len > 0 && rawTextBuffer[len - 1] != '\n') {
+                    rawTextBuffer.setLength(len - 1)
                 }
             }
+            else -> {
+                if (pendingCarriageReturn) {
+                    val lastNewline = rawTextBuffer.lastIndexOf("\n")
+                    rawTextBuffer.setLength(if (lastNewline >= 0) lastNewline + 1 else 0)
+                    pendingCarriageReturn = false
+                }
+                rawTextBuffer.append(ch)
+            }
         }
-        return out.toString()
     }
 
     private fun parseAnsi(rawText: String): CharSequence {
