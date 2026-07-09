@@ -41,3 +41,21 @@ No screen required — the full conversational loop runs via voice in/out with n
 **Implementation**: A dedicated mode flag that routes all I/O through audio and suppresses the transcript UI. SAFE commands auto-execute as normal; CONFIRM commands speak the prompt and listen for a voice response.
 
 **Dependency**: Requires wake word and TTS to be solid first.
+
+---
+
+## Android Auto feasibility (assessed 2026-07)
+
+**Conclusion: a native Android Auto app is not possible for Sushi.**
+
+Google Play only accepts Android Auto (head-unit) apps in fixed categories:\n**navigation, audio/media, messaging, point of interest (POI), internet of things (IoT), weather, and calling**, plus parked-only video/games on\nAndroid 15+ head units. An SSH client / conversational server assistant fits\nnone of them, and the Android for Cars App Library exposes templates only for\nthose categories — there is no template set a Gemini conversation could be\nbuilt from. See [car app quality guidelines](https://developer.android.com/docs/quality-guidelines/car-app-quality).
+
+**The practical path for in-car use is the Voice-Only Mode above**: the phone
+stays in a mount or pocket, audio flows through the car's Bluetooth
+hands-free profile, and no Android Auto integration is required. Wake word +
+TTS + spoken CONFIRM prompts cover the drive-time scenario ("how is the
+backup doing?") without touching the screen.
+
+**Revisit if** Google opens an assistant or IoT/companion category to
+third-party Auto apps, or if the Gemini-in-Auto platform gains third-party
+extension points.
