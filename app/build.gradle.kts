@@ -118,7 +118,7 @@ dependencies {
     implementation("com.jcraft:jzlib:1.1.3")
     // Bouncy Castle provides Ed25519 on Android API < 33 (JCE lacks EdDSA before API 33).
     // bcprov-ext-jdk18on was discontinued after 1.78.1; ML-KEM merged into bcprov since 1.79.
-    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85")
     implementation("androidx.security:security-crypto:1.1.0")
     implementation("com.google.android.gms:play-services-auth:21.6.0")
     implementation("com.google.api-client:google-api-client-android:2.9.0")
