@@ -84,7 +84,7 @@ Solid SSH client features that are not core to the conversational goal but round
 | Phrase search / filter (B-1) | P2 | |
 | Play finish notification (B-4) | P2 | |
 | On-device log browser (B-5) | P2 | |
-| SOCKS proxy (B-11) | P2 | |
+| [SOCKS proxy (B-11)](docs/features/tunneled-web-browsing.md) | P2 | Non-VPN foundation for tunneled web browsing |
 | Sensor capture to remote file (B-12, B-13, B-14) | P1–P2 | |
 | Pin default host (B-8) | P2 | |
 
@@ -110,7 +110,8 @@ Interesting directions that depend on the conversational core being solid first.
 - **[Proactive monitoring](docs/features/proactive-monitoring.md)** — target-side alerts surfaced on connect ("disk at 95%")
 - **[Conversation branching](docs/features/conversation-branching.md)** — fork a conversation to simulate what-if scenarios without executing
 - **[LLM-generated skills](docs/features/llm-generated-skills.md)** — ask the system to learn a new capability; generates and saves a script to the target
+- **[Tunneled web browsing](docs/features/tunneled-web-browsing.md)** — reach web pages (including a server's internal-only pages) through the SSH connection via dynamic (SOCKS) forwarding; the full "open my pre-selected external browser through the tunnel, revert when done" experience needs an Android `VpnService` (tun2socks), deferred over the extra Play Store review that VPN apps carrying other apps' traffic require. Non-VPN alternatives — SOCKS-only exposure (B-11) or an in-app WebView — remain available for a lighter version
 
 ---
 
-*Last updated: 2026-07-04*
+*Last updated: 2026-07-21*
