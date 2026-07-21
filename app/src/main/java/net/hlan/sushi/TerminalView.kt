@@ -290,11 +290,7 @@ class TerminalView @JvmOverloads constructor(
             }
             '\b' -> {
                 // Remote echoes "\b \b" to erase a character; apply the erase locally.
-                // Never cross a line boundary.
-                val len = rawTextBuffer.length
-                if (len > 0 && rawTextBuffer[len - 1] != '\n') {
-                    rawTextBuffer.setLength(len - 1)
-                }
+                eraseLastPrintableChar()
             }
             else -> {
                 if (pendingCarriageReturn) {
@@ -304,6 +300,34 @@ class TerminalView @JvmOverloads constructor(
                 }
                 rawTextBuffer.append(ch)
             }
+        }
+    }
+
+    /**
+     * Erases the last printable character on the current line, never crossing a `\n`.
+     * Trailing CSI/SGR escape sequences (`ESC [ [0-9;?]* letter`, e.g. a `ESC[0m`
+     * color reset) are skipped rather than truncated, so a backspace can't corrupt a
+     * still-open escape sequence into raw codes. OSC is already stripped upstream in
+     * [processChar], so only CSI sequences and printable text reach the buffer.
+     */
+    private fun eraseLastPrintableChar() {
+        var i = rawTextBuffer.length - 1
+        while (i >= 0) {
+            val c = rawTextBuffer[i]
+            if (c == '\n') return
+            if (c.isLetter()) {
+                // Possible CSI/SGR terminator — walk back over its parameter bytes.
+                var j = i - 1
+                while (j >= 0 && (rawTextBuffer[j].isDigit() || rawTextBuffer[j] == ';' || rawTextBuffer[j] == '?')) {
+                    j--
+                }
+                if (j >= 1 && rawTextBuffer[j] == '[' && rawTextBuffer[j - 1] == '\u001B') {
+                    i = j - 2
+                    continue
+                }
+            }
+            rawTextBuffer.deleteCharAt(i)
+            return
         }
     }
 

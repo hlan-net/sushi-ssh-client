@@ -118,4 +118,11 @@ class TerminalViewEscapeTest {
         view.appendLog("\b\b\bx\n")
         assertEquals("line1\nx\n", view.getRawText())
     }
+
+    @Test
+    fun backspaceDoesNotCorruptAnsiEscapeSequences() {
+        view.appendLog("\u001B[31mred\u001B[0m")
+        view.appendLog("\b \b") // erase the last printable char, not the escape terminator
+        assertEquals("\u001B[31mre\u001B[0m", view.getRawText())
+    }
 }
