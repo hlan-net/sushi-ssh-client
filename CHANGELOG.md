@@ -6,10 +6,20 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-07-26
+
 ### Fixed
 - Fixed SSH sessions dropping when Sushi is backgrounded: a foreground service (`SshConnectionService`) now keeps the process alive while a terminal session is connected, with a persistent "Session active" notification offering a one-tap disconnect.
 - Fixed `TerminalView` leaking raw OSC escape-sequence payloads (e.g. window-title text like `0;some title`) into the rendered terminal output; OSC sequences are now stripped like the existing CSI ones.
 - Fixed bare `\r` (progress bars, spinners, in-place redraws) being silently dropped instead of overwriting the current line, including when the `\r` and the following character arrive in separate read chunks.
+- Fixed backspace echo (`\b \b`) not erasing typed-then-deleted characters in the terminal, and made the erase skip over trailing ANSI escape sequences so it never corrupts an open color/CSI sequence.
+
+### Changed
+- Upgraded com.github.mwiede:jsch from 2.28.3 to 2.28.4.
+- Upgraded org.bouncycastle:bcprov-jdk18on from 1.84 to 1.85.
+- Upgraded Android Gradle Plugin (com.android.application) from 9.2.1 to 9.3.0.
+- Upgraded com.google.http-client:google-http-client-android from 2.1.1 to 2.2.0.
+- Upgraded com.google.mlkit:genai-prompt from 1.0.0-beta2 to 1.0.0-beta3.
 
 ## [0.7.3] - 2026-07-08
 
