@@ -415,4 +415,18 @@
         <item quantity="one">%1$d turn</item>
         <item quantity="other">%1$d turns</item>
     </plurals>
+    <!-- In-app feedback (GitHub issues) -->
+    <string name="feedback_section_title">Feedback</string>
+    <string name="feedback_section_subtitle">Send feedback straight to the project\'s GitHub issues. Requires a fine-grained personal access token with Issues permission on the app repository.</string>
+    <string name="feedback_token_label">GitHub token</string>
+    <string name="feedback_send_button">Send feedback</string>
+    <string name="feedback_dialog_title">Send feedback</string>
+    <string name="feedback_text_hint">What happened, or what could be better?</string>
+    <string name="feedback_include_device_info">Include app version and device info</string>
+    <string name="feedback_send">Send</string>
+    <string name="feedback_missing_token">Add a GitHub token in Settings first</string>
+    <string name="feedback_missing_text">Write something first</string>
+    <string name="feedback_default_title">Feedback from app</string>
+    <string name="feedback_sent">Feedback sent: %1$s</string>
+    <string name="feedback_send_failed">Sending feedback failed</string>
 </resources>

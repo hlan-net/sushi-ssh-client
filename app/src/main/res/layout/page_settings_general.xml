@@ -131,5 +131,47 @@
             app:icon="@drawable/ic_format_quote"
             app:iconGravity="textStart" />
 
+        <TextView
+            android:id="@+id/feedbackSectionTitle"
+            style="@style/TextAppearance.Sushi.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/feedback_section_title" />
+
+        <TextView
+            android:id="@+id/feedbackSectionSubtitle"
+            style="@style/TextAppearance.Sushi.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/feedback_section_subtitle" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/githubTokenLayout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:hint="@string/feedback_token_label"
+            app:passwordToggleEnabled="true">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/githubTokenInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPassword" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/sendFeedbackButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/feedback_send_button"
+            app:icon="@drawable/ic_send"
+            app:iconGravity="textStart" />
+
     </LinearLayout>
 </ScrollView>
