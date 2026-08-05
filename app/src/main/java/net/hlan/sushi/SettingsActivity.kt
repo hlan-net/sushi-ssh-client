@@ -19,12 +19,14 @@ import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.mlkit.genai.common.FeatureStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivitySettingsBinding
+import net.hlan.sushi.databinding.DialogFeedbackBinding
 import net.hlan.sushi.databinding.PageSettingsDriveBinding
 import net.hlan.sushi.databinding.PageSettingsGeminiBinding
 import net.hlan.sushi.databinding.PageSettingsGeneralBinding
@@ -39,6 +41,8 @@ class SettingsActivity : AppCompatActivity() {
     private val geminiClient by lazy { GeminiClient(this, settings, driveAuthManager) }
     private val nanoClient by lazy { GeminiNanoClient(this) }
     private val sshSettings by lazy { SshSettings(this) }
+    private val feedbackSettings by lazy { FeedbackSettings(this) }
+    private val gitHubIssueClient by lazy { GitHubIssueClient(this, feedbackSettings) }
     private var generalPageBinding: PageSettingsGeneralBinding? = null
     private var sshPageBinding: PageSettingsSshBinding? = null
     private var geminiPageBinding: PageSettingsGeminiBinding? = null
@@ -190,6 +194,50 @@ class SettingsActivity : AppCompatActivity() {
 
         pageBinding.managePhrasesButton.setOnClickListener {
             startActivity(Intent(this, PhrasesActivity::class.java))
+        }
+
+        pageBinding.githubTokenInput.setText(feedbackSettings.getGitHubToken())
+        pageBinding.githubTokenInput.doAfterTextChanged { editable ->
+            feedbackSettings.setGitHubToken(editable?.toString().orEmpty().trim())
+        }
+
+        pageBinding.sendFeedbackButton.setOnClickListener {
+            showFeedbackDialog()
+        }
+    }
+
+    private fun showFeedbackDialog() {
+        if (!feedbackSettings.isConfigured()) {
+            Toast.makeText(this, R.string.feedback_missing_token, Toast.LENGTH_LONG).show()
+            return
+        }
+        val dialogBinding = DialogFeedbackBinding.inflate(layoutInflater)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.feedback_dialog_title)
+            .setView(dialogBinding.root)
+            .setPositiveButton(R.string.feedback_send) { _, _ ->
+                val text = dialogBinding.feedbackTextInput.text?.toString().orEmpty().trim()
+                if (text.isEmpty()) {
+                    Toast.makeText(this, R.string.feedback_missing_text, Toast.LENGTH_SHORT).show()
+                } else {
+                    sendFeedback(text, dialogBinding.includeDeviceInfoCheckbox.isChecked)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun sendFeedback(text: String, includeDeviceInfo: Boolean) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = gitHubIssueClient.createIssue(text, includeDeviceInfo)
+            withContext(Dispatchers.Main) {
+                val message = if (result.success) {
+                    getString(R.string.feedback_sent, result.message)
+                } else {
+                    getString(R.string.feedback_send_failed) + ": " + result.message
+                }
+                Toast.makeText(this@SettingsActivity, message, Toast.LENGTH_LONG).show()
+            }
         }
     }
 

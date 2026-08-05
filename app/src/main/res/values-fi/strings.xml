@@ -346,4 +346,18 @@
     <string name="conversation_init_failed">Keskustelun alustaminen epäonnistui: %1$s</string>
     <string name="conversation_connected_to">Yhdistetty: %1$s</string>
 
+    <!-- In-app feedback (GitHub issues) -->
+    <string name="feedback_section_title">Palaute</string>
+    <string name="feedback_section_subtitle">Lähetä palaute suoraan projektin GitHub-issueiksi. Vaatii fine-grained personal access tokenin, jolla on Issues-oikeus sovelluksen repoon.</string>
+    <string name="feedback_token_label">GitHub-token</string>
+    <string name="feedback_send_button">Lähetä palautetta</string>
+    <string name="feedback_dialog_title">Lähetä palautetta</string>
+    <string name="feedback_text_hint">Mitä tapahtui tai mikä voisi olla paremmin?</string>
+    <string name="feedback_include_device_info">Liitä sovellusversio ja laitetiedot</string>
+    <string name="feedback_send">Lähetä</string>
+    <string name="feedback_missing_token">Lisää ensin GitHub-token asetuksiin</string>
+    <string name="feedback_missing_text">Kirjoita ensin jotain</string>
+    <string name="feedback_default_title">Palaute sovelluksesta</string>
+    <string name="feedback_sent">Palaute lähetetty: %1$s</string>
+    <string name="feedback_send_failed">Palautteen lähetys epäonnistui</string>
 </resources>
