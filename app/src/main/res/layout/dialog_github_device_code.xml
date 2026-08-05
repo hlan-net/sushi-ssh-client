@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:id="@+id/deviceCodeInstructions"
+        style="@style/TextAppearance.Sushi.Body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/github_device_flow_instructions" />
+
+    <TextView
+        android:id="@+id/deviceCodeText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:fontFamily="monospace"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:letterSpacing="0.15"
+        android:textIsSelectable="true"
+        tools:text="ABCD-1234" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/openGitHubButton"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="@string/github_device_flow_open_button"
+        app:icon="@drawable/ic_login"
+        app:iconGravity="textStart" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ProgressBar
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginEnd="10dp" />
+
+        <TextView
+            android:id="@+id/deviceCodeStatus"
+            style="@style/TextAppearance.Sushi.Caption"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/github_device_flow_waiting" />
+    </LinearLayout>
+
+</LinearLayout>

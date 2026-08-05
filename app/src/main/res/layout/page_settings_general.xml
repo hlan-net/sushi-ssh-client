@@ -147,21 +147,32 @@
             android:layout_marginTop="6dp"
             android:text="@string/feedback_section_subtitle" />
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/githubTokenLayout"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        <TextView
+            android:id="@+id/githubAccountStatus"
+            style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:hint="@string/feedback_token_label"
-            app:passwordToggleEnabled="true">
+            android:layout_marginTop="10dp"
+            android:text="@string/github_not_signed_in" />
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/githubTokenInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textPassword" />
-        </com.google.android.material.textfield.TextInputLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/githubSignInButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/github_sign_in_button"
+            app:icon="@drawable/ic_login"
+            app:iconGravity="textStart" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/githubSignOutButton"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/github_sign_out_button"
+            android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/sendFeedbackButton"
