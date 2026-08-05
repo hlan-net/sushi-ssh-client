@@ -85,7 +85,10 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
                     return DeviceFlowResult.Failed("No access token in response")
                 }
                 "authorization_pending" -> continue
-                "slow_down" -> interval += SLOW_DOWN_INCREMENT_SECONDS
+                "slow_down" -> {
+                    interval += SLOW_DOWN_INCREMENT_SECONDS
+                    continue
+                }
                 "access_denied" -> return DeviceFlowResult.Denied
                 "expired_token" -> return DeviceFlowResult.Expired
                 else -> return DeviceFlowResult.Failed(response.optString("error_description", "Unknown error"))
