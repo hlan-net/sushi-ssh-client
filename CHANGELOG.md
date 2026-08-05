@@ -6,6 +6,21 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-08-05
+
+### Added
+- In-app feedback: a new Feedback section in General settings stores a fine-grained GitHub token (Issues-only) in encrypted preferences and lets the user file feedback straight from the app as a `from-app`-labeled GitHub issue, optionally attaching app version and device info.
+
+### Changed
+- Upgraded com.github.mwiede:jsch from 2.28.4 to 2.28.6.
+- Upgraded androidx.constraintlayout:constraintlayout from 2.2.1 to 2.2.2.
+- Upgraded Android Gradle Plugin (com.android.application) from 9.3.0 to 9.3.1.
+- Upgraded com.google.mlkit:genai-prompt from 1.0.0-beta3 to 1.0.0-beta4.
+
+### CI
+- `from-app` issues are auto-assigned to the Copilot coding agent.
+- Green non-major dependabot PRs are merged automatically by a daily sweep.
+
 ## [0.7.4] - 2026-07-26
 
 ### Fixed
