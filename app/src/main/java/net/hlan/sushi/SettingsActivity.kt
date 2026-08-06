@@ -24,6 +24,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.mlkit.genai.common.FeatureStatus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivitySettingsBinding
@@ -218,10 +219,10 @@ class SettingsActivity : AppCompatActivity() {
     private fun refreshGitHubAccountStatus(pageBinding: PageSettingsGeneralBinding) {
         val signedIn = feedbackSettings.isConfigured()
         val username = feedbackSettings.getGitHubUsername()
-        pageBinding.githubAccountStatus.text = if (signedIn && username.isNotBlank()) {
-            getString(R.string.github_signed_in_as, username)
-        } else {
-            getString(R.string.github_not_signed_in)
+        pageBinding.githubAccountStatus.text = when {
+            signedIn && username.isNotBlank() -> getString(R.string.github_signed_in_as, username)
+            signedIn -> getString(R.string.github_signed_in_generic)
+            else -> getString(R.string.github_not_signed_in)
         }
         pageBinding.githubSignInButton.visibility = if (signedIn) View.GONE else View.VISIBLE
         pageBinding.githubSignOutButton.visibility = if (signedIn) View.VISIBLE else View.GONE
@@ -237,14 +238,15 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        var flowJob: Job? = null
         val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(R.string.github_sign_in_button)
             .setView(dialogBinding.root)
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton(android.R.string.cancel) { _, _ -> flowJob?.cancel() }
             .setCancelable(false)
             .show()
 
-        lifecycleScope.launch(Dispatchers.IO) {
+        flowJob = lifecycleScope.launch(Dispatchers.IO) {
             val deviceCode = gitHubAuthManager.requestDeviceCode()
             if (deviceCode == null) {
                 withContext(Dispatchers.Main) {

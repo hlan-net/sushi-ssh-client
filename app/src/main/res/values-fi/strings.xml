@@ -351,6 +351,7 @@
     <string name="feedback_section_subtitle">Lähetä palaute suoraan projektin GitHub-issueiksi. Kirjaudu ensin GitHubiin.</string>
     <string name="github_not_signed_in">Ei kirjautunut sisään</string>
     <string name="github_signed_in_as">Kirjautuneena: %1$s</string>
+    <string name="github_signed_in_generic">Kirjautuneena</string>
     <string name="github_sign_in_button">Kirjaudu GitHubiin</string>
     <string name="github_sign_out_button">Kirjaudu ulos</string>
     <string name="github_device_flow_instructions">Avaa github.com/login/device millä tahansa laitteella ja syötä tämä koodi:</string>

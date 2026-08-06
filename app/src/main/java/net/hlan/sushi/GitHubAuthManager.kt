@@ -32,20 +32,22 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
 
     /** Requests a device code. Must be called on a background thread. */
     fun requestDeviceCode(): DeviceCode? {
-        val connection = post(DEVICE_CODE_URL, "client_id=$CLIENT_ID&scope=public_repo")
         return try {
-            val response = JSONObject(readBody(connection))
-            DeviceCode(
-                deviceCode = response.getString("device_code"),
-                userCode = response.getString("user_code"),
-                verificationUri = response.getString("verification_uri"),
-                expiresIn = response.getInt("expires_in"),
-                interval = response.getInt("interval")
-            )
+            val connection = post(DEVICE_CODE_URL, "client_id=$CLIENT_ID&scope=public_repo")
+            try {
+                val response = JSONObject(readBody(connection))
+                DeviceCode(
+                    deviceCode = response.getString("device_code"),
+                    userCode = response.getString("user_code"),
+                    verificationUri = response.getString("verification_uri"),
+                    expiresIn = response.getInt("expires_in"),
+                    interval = response.getInt("interval")
+                )
+            } finally {
+                connection.disconnect()
+            }
         } catch (ex: Exception) {
             null
-        } finally {
-            connection.disconnect()
         }
     }
 
@@ -60,17 +62,19 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
         while (System.currentTimeMillis() < deadline) {
             delay(interval * 1000L)
 
-            val connection = post(
-                TOKEN_URL,
-                "client_id=$CLIENT_ID&device_code=${deviceCode.deviceCode}" +
-                    "&grant_type=urn:ietf:params:oauth:grant-type:device_code"
-            )
             val response = try {
-                JSONObject(readBody(connection))
+                val connection = post(
+                    TOKEN_URL,
+                    "client_id=$CLIENT_ID&device_code=${deviceCode.deviceCode}" +
+                        "&grant_type=urn:ietf:params:oauth:grant-type:device_code"
+                )
+                try {
+                    JSONObject(readBody(connection))
+                } finally {
+                    connection.disconnect()
+                }
             } catch (ex: Exception) {
                 return DeviceFlowResult.Failed(ex.message ?: "Network error")
-            } finally {
-                connection.disconnect()
             }
 
             when (response.optString("error")) {
@@ -98,25 +102,34 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
     }
 
     private fun fetchUsername(token: String): String? {
-        val connection = URI(USER_URL).toURL().openConnection() as HttpURLConnection
-        connection.setRequestProperty("Authorization", "Bearer $token")
-        connection.setRequestProperty("Accept", "application/vnd.github+json")
         return try {
-            JSONObject(readBody(connection)).optString("login").ifBlank { null }
+            val connection = newConnection(USER_URL)
+            connection.setRequestProperty("Authorization", "Bearer $token")
+            connection.setRequestProperty("Accept", "application/vnd.github+json")
+            try {
+                JSONObject(readBody(connection)).optString("login").ifBlank { null }
+            } finally {
+                connection.disconnect()
+            }
         } catch (ex: Exception) {
             null
-        } finally {
-            connection.disconnect()
         }
     }
 
     private fun post(url: String, body: String): HttpURLConnection {
-        val connection = URI(url).toURL().openConnection() as HttpURLConnection
+        val connection = newConnection(url)
         connection.requestMethod = "POST"
         connection.setRequestProperty("Accept", "application/json")
         connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
         connection.doOutput = true
         OutputStreamWriter(connection.outputStream).use { it.write(body) }
+        return connection
+    }
+
+    private fun newConnection(url: String): HttpURLConnection {
+        val connection = URI(url).toURL().openConnection() as HttpURLConnection
+        connection.connectTimeout = TIMEOUT_MS
+        connection.readTimeout = TIMEOUT_MS
         return connection
     }
 
@@ -131,5 +144,6 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
         private const val TOKEN_URL = "https://github.com/login/oauth/access_token"
         private const val USER_URL = "https://api.github.com/user"
         private const val SLOW_DOWN_INCREMENT_SECONDS = 5
+        private const val TIMEOUT_MS = 15_000
     }
 }
