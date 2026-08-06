@@ -23,8 +23,10 @@ import java.util.concurrent.TimeUnit
  * blocking indefinitely on the API 37 ps16k emulator or Android 14 targets) fails the
  * individual test within [TEST_TIMEOUT_SECONDS] seconds rather than stalling the whole suite.
  *
- * Tests that require a working PTY call [assumePtyAvailable] first; on targets where the
- * native PTY shim cannot open a pseudoterminal the tests are skipped cleanly instead of failing.
+ * [connectReturnsSuccessAndIsConnectedIsTrue] is a must-pass smoke test that asserts on
+ * connect failure so a broad PTY regression shows up as FAILED (not silently SKIPPED).
+ * Other PTY-specific tests call [assumePtyAvailable] and are skipped on targets where the
+ * native shim cannot open a pseudoterminal.
  */
 @RunWith(AndroidJUnit4::class)
 class LocalShellBackendTest {
@@ -51,9 +53,17 @@ class LocalShellBackendTest {
         assertNotNull(backend)
     }
 
+    /**
+     * Smoke test: [LocalShellBackend.connect] must succeed on this target.
+     * Unlike PTY-specific tests this one uses [assertTrue] (not [Assume]) so a
+     * regression that breaks [connect] broadly will surface as a FAILED test
+     * rather than silently turning the whole class into SKIPPED.
+     */
     @Test
     fun connectReturnsSuccessAndIsConnectedIsTrue() {
-        assumePtyAvailable()
+        backend = LocalShellBackend(context)
+        val result = backend!!.connect(onLine = {}, streamMode = true)
+        assertTrue("connect() should succeed on this target: ${result.message}", result.success)
         assertTrue("isConnected() should be true after connect", backend!!.isConnected())
     }
 
