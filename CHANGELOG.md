@@ -6,6 +6,16 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-08-05
+
+### Changed
+- Feedback sign-in now uses GitHub's OAuth Device Flow instead of a manually pasted personal access token: tap "Sign in with GitHub" in Settings, enter the shown code at github.com/login/device from any browser. No token to copy-paste on a phone keyboard, and no client secret is embedded in the app.
+
+### Fixed
+- Fixed GitHub sign-in network errors escaping uncaught instead of failing gracefully, and added connect/read timeouts so a stalled connection can't hang the sign-in dialog indefinitely.
+- Fixed the account status showing "Not signed in" when a token was present but the username lookup failed.
+- Fixed the sign-in dialog's Cancel button not stopping the background device-flow polling.
+
 ## [0.7.5] - 2026-08-05
 
 ### Added
