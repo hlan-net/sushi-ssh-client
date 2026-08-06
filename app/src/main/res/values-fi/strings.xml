@@ -348,14 +348,25 @@
 
     <!-- In-app feedback (GitHub issues) -->
     <string name="feedback_section_title">Palaute</string>
-    <string name="feedback_section_subtitle">Lähetä palaute suoraan projektin GitHub-issueiksi. Vaatii fine-grained personal access tokenin, jolla on Issues-oikeus sovelluksen repoon.</string>
-    <string name="feedback_token_label">GitHub-token</string>
+    <string name="feedback_section_subtitle">Lähetä palaute suoraan projektin GitHub-issueiksi. Kirjaudu ensin GitHubiin.</string>
+    <string name="github_not_signed_in">Ei kirjautunut sisään</string>
+    <string name="github_signed_in_as">Kirjautuneena: %1$s</string>
+    <string name="github_signed_in_generic">Kirjautuneena</string>
+    <string name="github_sign_in_button">Kirjaudu GitHubiin</string>
+    <string name="github_sign_out_button">Kirjaudu ulos</string>
+    <string name="github_device_flow_instructions">Avaa github.com/login/device millä tahansa laitteella ja syötä tämä koodi:</string>
+    <string name="github_device_flow_open_button">Avaa github.com/login/device</string>
+    <string name="github_device_flow_waiting">Odotetaan hyväksyntää\u2026</string>
+    <string name="github_device_flow_failed">Kirjautuminen epäonnistui: %1$s</string>
+    <string name="github_device_flow_denied">Kirjautuminen hylättiin</string>
+    <string name="github_device_flow_expired">Koodi vanhentui \u2014 yritä uudestaan</string>
+    <string name="github_device_flow_success">Kirjautuneena: %1$s</string>
     <string name="feedback_send_button">Lähetä palautetta</string>
     <string name="feedback_dialog_title">Lähetä palautetta</string>
     <string name="feedback_text_hint">Mitä tapahtui tai mikä voisi olla paremmin?</string>
     <string name="feedback_include_device_info">Liitä sovellusversio ja laitetiedot</string>
     <string name="feedback_send">Lähetä</string>
-    <string name="feedback_missing_token">Lisää ensin GitHub-token asetuksiin</string>
+    <string name="feedback_missing_token">Kirjaudu ensin GitHubiin asetuksissa</string>
     <string name="feedback_missing_text">Kirjoita ensin jotain</string>
     <string name="feedback_default_title">Palaute sovelluksesta</string>
     <string name="feedback_sent">Palaute lähetetty: %1$s</string>
