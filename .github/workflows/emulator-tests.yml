@@ -13,6 +13,9 @@ name: Emulator Tests (Android 17 / API 37)
 # managed manually instead.
 #
 # LocalSshIntegrationTest is excluded because it requires a live SSH server.
+# LocalShellBackendTest is included: its per-test Timeout rule and PTY capability
+# probe (Assume) ensure that a hung or unavailable PTY fails/skips the individual
+# test within 15 s rather than stalling the whole suite.
 
 on:
   workflow_dispatch:
@@ -106,7 +109,7 @@ jobs:
           LOGCAT_PID=$!
 
           ./gradlew connectedMinifiedDebugAndroidTest \
-            "-Pandroid.testInstrumentationRunnerArguments.notClass=net.hlan.sushi.LocalSshIntegrationTest,net.hlan.sushi.LocalShellBackendTest,net.hlan.sushi.DeviceQaSuiteTest" \
+            "-Pandroid.testInstrumentationRunnerArguments.notClass=net.hlan.sushi.LocalSshIntegrationTest,net.hlan.sushi.DeviceQaSuiteTest" \
             -Pandroid.testInstrumentationRunnerArguments.timeout_msec=60000 \
             --continue
           GRADLE_EXIT=$?
