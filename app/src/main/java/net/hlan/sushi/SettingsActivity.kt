@@ -148,7 +148,6 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         if (isFinishing) {
-            feedbackSettings.clearPendingGitHubDeviceFlow()
             gitHubFlowJob?.cancel()
             gitHubFlowJob = null
         }
