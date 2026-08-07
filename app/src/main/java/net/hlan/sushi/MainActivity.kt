@@ -146,7 +146,7 @@ class MainActivity : AppCompatActivity() {
         // Set up SSH connection listener for conversation
         setupConnectionListener()
 
-        if (savedInstanceState == null) {
+        if (!isChangingConfigurations) {
             maybeResumePendingGitHubSignIn()
         }
     }
