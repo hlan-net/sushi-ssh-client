@@ -59,6 +59,37 @@ static void apply_env(char **envp, jsize envc) {
     }
 }
 
+/*
+ * Tear down a PTY child without blocking indefinitely.
+ *
+ * Closing the master fd first delivers a hangup to the slave side and unblocks any
+ * reader. We then send SIGHUP and poll waitpid(WNOHANG) for a short grace period.
+ * Interactive shells (sh -i) may ignore SIGHUP and never exit — observed on the
+ * API 37 ps16k emulator, where a blocking waitpid(pid, NULL, 0) here hung
+ * nativeClose forever and timed out the instrumented tests — so if the child is
+ * still alive we escalate to SIGKILL, which cannot be caught or ignored, and reap
+ * it. This bounds teardown to roughly the grace window instead of hanging.
+ */
+static void reap_pty_child(pid_t child_pid, int master_fd) {
+    if (master_fd >= 0) close(master_fd);
+    kill(child_pid, SIGHUP);
+
+    int reaped = 0;
+    for (int i = 0; i < 20; i++) { /* up to ~200 ms */
+        pid_t r = waitpid(child_pid, NULL, WNOHANG);
+        if (r == child_pid || (r == -1 && errno == ECHILD)) {
+            reaped = 1;
+            break;
+        }
+        usleep(10 * 1000); /* 10 ms */
+    }
+
+    if (!reaped) {
+        kill(child_pid, SIGKILL); /* unignorable — waitpid returns promptly */
+        waitpid(child_pid, NULL, 0);
+    }
+}
+
 JNIEXPORT jlong JNICALL
 Java_net_hlan_sushi_LocalShellBackend_nativeStart(
         JNIEnv *env, jclass clazz,
@@ -109,9 +140,7 @@ Java_net_hlan_sushi_LocalShellBackend_nativeStart(
 
     PtySession *sess = malloc(sizeof(PtySession));
     if (!sess) {
-        kill(child_pid, SIGHUP);
-        waitpid(child_pid, NULL, 0); /* reap to avoid zombie */
-        close(master_fd);
+        reap_pty_child(child_pid, master_fd);
         return 0L;
     }
     sess->master_fd = master_fd;
@@ -183,8 +212,6 @@ Java_net_hlan_sushi_LocalShellBackend_nativeClose(
 
     if (handle == 0L) return;
     PtySession *sess = (PtySession *)(uintptr_t)handle;
-    kill(sess->child_pid, SIGHUP);
-    waitpid(sess->child_pid, NULL, 0);
-    close(sess->master_fd);
+    reap_pty_child(sess->child_pid, sess->master_fd);
     free(sess);
 }
