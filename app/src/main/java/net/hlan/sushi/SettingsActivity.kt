@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
@@ -23,6 +24,7 @@ import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.mlkit.genai.common.FeatureStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -53,6 +55,7 @@ class SettingsActivity : AppCompatActivity() {
     private var drivePageBinding: PageSettingsDriveBinding? = null
     private var tabMediator: TabLayoutMediator? = null
     private var pageChangeCallback: ViewPager2.OnPageChangeCallback? = null
+    private var gitHubFlowJob: Job? = null
 
     private val languageOptions by lazy {
         listOf(
@@ -122,6 +125,7 @@ class SettingsActivity : AppCompatActivity() {
         super.onResume()
         refreshDriveState()
         refreshGeminiAuthStatus()
+        generalPageBinding?.let { refreshGitHubAccountStatus(it) }
         refreshSshSummary()
         geminiPageBinding?.geminiEnabledSwitch?.let { switch ->
             switch.setOnCheckedChangeListener(null)
@@ -143,6 +147,11 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        if (isFinishing) {
+            feedbackSettings.clearPendingGitHubDeviceFlow()
+            gitHubFlowJob?.cancel()
+            gitHubFlowJob = null
+        }
         super.onDestroy()
         pageChangeCallback?.let { callback ->
             binding.settingsViewPager.unregisterOnPageChangeCallback(callback)
@@ -214,6 +223,8 @@ class SettingsActivity : AppCompatActivity() {
         pageBinding.sendFeedbackButton.setOnClickListener {
             showFeedbackDialog()
         }
+
+        resumePendingGitHubDeviceFlowIfNeeded(pageBinding)
     }
 
     private fun refreshGitHubAccountStatus(pageBinding: PageSettingsGeneralBinding) {
@@ -229,66 +240,118 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun startGitHubDeviceFlow(pageBinding: PageSettingsGeneralBinding) {
-        val dialogBinding = DialogGithubDeviceCodeBinding.inflate(layoutInflater)
-        var verificationUri: String? = null
-
-        dialogBinding.openGitHubButton.setOnClickListener {
-            verificationUri?.let { uri ->
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
-            }
+        if (gitHubFlowJob?.isActive == true) {
+            return
         }
-
-        var flowJob: Job? = null
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.github_sign_in_button)
-            .setView(dialogBinding.root)
-            .setNegativeButton(android.R.string.cancel) { _, _ -> flowJob?.cancel() }
-            .setCancelable(false)
-            .show()
-
-        flowJob = lifecycleScope.launch(Dispatchers.IO) {
+        feedbackSettings.clearPendingGitHubDeviceFlow()
+        val dialog = createGitHubDeviceFlowDialog()
+        gitHubFlowJob = lifecycleScope.launch(Dispatchers.IO) {
             val deviceCode = gitHubAuthManager.requestDeviceCode()
             if (deviceCode == null) {
                 withContext(Dispatchers.Main) {
-                    dialogBinding.deviceCodeStatus.text =
+                    dialog.binding.deviceCodeStatus.text =
                         getString(R.string.github_device_flow_failed, "")
                 }
                 return@launch
             }
 
+            val flowState = GitHubDeviceFlowState.fromDeviceCode(deviceCode)
+            feedbackSettings.setPendingGitHubDeviceFlow(flowState)
+
             withContext(Dispatchers.Main) {
-                verificationUri = deviceCode.verificationUri
-                dialogBinding.deviceCodeText.text = deviceCode.userCode
+                bindGitHubDeviceFlowState(dialog.binding, flowState)
             }
 
-            val result = gitHubAuthManager.pollForToken(deviceCode)
+            awaitGitHubDeviceFlowResult(pageBinding, dialog.dialog, deviceCode)
+        }.also { job ->
+            job.invokeOnCompletion { gitHubFlowJob = null }
+        }
+    }
 
-            withContext(Dispatchers.Main) {
+    private fun resumePendingGitHubDeviceFlowIfNeeded(pageBinding: PageSettingsGeneralBinding) {
+        if (feedbackSettings.isConfigured() || gitHubFlowJob?.isActive == true) {
+            return
+        }
+        val flowState = feedbackSettings.getPendingGitHubDeviceFlow() ?: return
+        val deviceCode = flowState.toDeviceCode()
+        if (deviceCode == null) {
+            feedbackSettings.clearPendingGitHubDeviceFlow()
+            return
+        }
+        val dialog = createGitHubDeviceFlowDialog()
+        bindGitHubDeviceFlowState(dialog.binding, flowState)
+        gitHubFlowJob = lifecycleScope.launch(Dispatchers.IO) {
+            awaitGitHubDeviceFlowResult(pageBinding, dialog.dialog, deviceCode)
+        }.also { job ->
+            job.invokeOnCompletion { gitHubFlowJob = null }
+        }
+    }
+
+    private suspend fun awaitGitHubDeviceFlowResult(
+        pageBinding: PageSettingsGeneralBinding,
+        dialog: AlertDialog,
+        deviceCode: GitHubAuthManager.DeviceCode
+    ) {
+        val result = try {
+            gitHubAuthManager.pollForToken(deviceCode)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        }
+        feedbackSettings.clearPendingGitHubDeviceFlow()
+        withContext(Dispatchers.Main) {
+            if (dialog.isShowing) {
                 dialog.dismiss()
-                when (result) {
-                    is GitHubAuthManager.DeviceFlowResult.Success -> {
-                        refreshGitHubAccountStatus(pageBinding)
-                        Toast.makeText(
-                            this@SettingsActivity,
-                            getString(R.string.github_device_flow_success, result.username.orEmpty()),
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                    is GitHubAuthManager.DeviceFlowResult.Failed -> {
-                        Toast.makeText(
-                            this@SettingsActivity,
-                            getString(R.string.github_device_flow_failed, result.message),
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                    GitHubAuthManager.DeviceFlowResult.Denied -> {
-                        Toast.makeText(this@SettingsActivity, R.string.github_device_flow_denied, Toast.LENGTH_LONG).show()
-                    }
-                    GitHubAuthManager.DeviceFlowResult.Expired -> {
-                        Toast.makeText(this@SettingsActivity, R.string.github_device_flow_expired, Toast.LENGTH_LONG).show()
-                    }
+            }
+            when (result) {
+                is GitHubAuthManager.DeviceFlowResult.Success -> {
+                    refreshGitHubAccountStatus(pageBinding)
+                    Toast.makeText(
+                        this@SettingsActivity,
+                        getString(R.string.github_device_flow_success, result.username.orEmpty()),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                is GitHubAuthManager.DeviceFlowResult.Failed -> {
+                    Toast.makeText(
+                        this@SettingsActivity,
+                        getString(R.string.github_device_flow_failed, result.message),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                GitHubAuthManager.DeviceFlowResult.Denied -> {
+                    Toast.makeText(this@SettingsActivity, R.string.github_device_flow_denied, Toast.LENGTH_LONG).show()
+                }
+                GitHubAuthManager.DeviceFlowResult.Expired -> {
+                    Toast.makeText(this@SettingsActivity, R.string.github_device_flow_expired, Toast.LENGTH_LONG).show()
                 }
             }
+        }
+    }
+
+    private fun createGitHubDeviceFlowDialog(): GitHubDeviceFlowDialog {
+        val dialogBinding = DialogGithubDeviceCodeBinding.inflate(layoutInflater)
+        dialogBinding.openGitHubButton.isEnabled = false
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.github_sign_in_button)
+            .setView(dialogBinding.root)
+            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                feedbackSettings.clearPendingGitHubDeviceFlow()
+                gitHubFlowJob?.cancel()
+                gitHubFlowJob = null
+            }
+            .setCancelable(false)
+            .show()
+        return GitHubDeviceFlowDialog(dialog, dialogBinding)
+    }
+
+    private fun bindGitHubDeviceFlowState(
+        dialogBinding: DialogGithubDeviceCodeBinding,
+        flowState: GitHubDeviceFlowState
+    ) {
+        dialogBinding.deviceCodeText.text = flowState.userCode
+        dialogBinding.openGitHubButton.isEnabled = true
+        dialogBinding.openGitHubButton.setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(flowState.verificationUri)))
         }
     }
 
@@ -798,6 +861,11 @@ class SettingsActivity : AppCompatActivity() {
     private data class FontSizeOption(
         val size: AppThemeSettings.TerminalFontSize,
         val label: String
+    )
+
+    private data class GitHubDeviceFlowDialog(
+        val dialog: AlertDialog,
+        val binding: DialogGithubDeviceCodeBinding
     )
 
     private inner class SettingsPagerAdapter(

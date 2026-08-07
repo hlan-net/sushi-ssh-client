@@ -145,6 +145,10 @@ class MainActivity : AppCompatActivity() {
 
         // Set up SSH connection listener for conversation
         setupConnectionListener()
+
+        if (savedInstanceState == null) {
+            maybeResumePendingGitHubSignIn()
+        }
     }
 
     override fun onResume() {
@@ -172,6 +176,19 @@ class MainActivity : AppCompatActivity() {
         // Clean up connection listener
         connectionListener?.let { TerminalSessionHolder.removeListener(it) }
         connectionListener = null
+    }
+
+    private fun maybeResumePendingGitHubSignIn() {
+        val feedbackSettings = FeedbackSettings(this)
+        if (feedbackSettings.isConfigured()) {
+            return
+        }
+        val flowState = feedbackSettings.getPendingGitHubDeviceFlow() ?: return
+        if (flowState.toDeviceCode() == null) {
+            feedbackSettings.clearPendingGitHubDeviceFlow()
+            return
+        }
+        startActivity(Intent(this, SettingsActivity::class.java))
     }
 
     /**
