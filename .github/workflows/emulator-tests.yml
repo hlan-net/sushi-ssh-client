@@ -73,7 +73,7 @@ jobs:
           ANDROID_AVD_HOME="$AVD_HOME" avdmanager list avd
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
 
       - name: Start emulator
         run: |
