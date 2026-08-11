@@ -85,7 +85,7 @@ class LocalShellBackendTest {
         backend!!.sendCommand("echo $marker")
 
         waitUntil(timeoutMs = 5_000, message = "Output should contain marker '$marker'") {
-            lines.any { it.contains(marker) }
+            synchronized(lines) { lines.any { it.contains(marker) } }
         }
     }
 
@@ -121,7 +121,7 @@ class LocalShellBackendTest {
         backend!!.sendCommand("echo TERM=\$TERM")
 
         waitUntil(timeoutMs = 5_000, message = "TERM should be xterm-256color") {
-            lines.any { it.contains("xterm-256color") }
+            synchronized(lines) { lines.any { it.contains("xterm-256color") } }
         }
     }
 
