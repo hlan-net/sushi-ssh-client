@@ -904,7 +904,11 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.action_start_session_host, displayTarget)
         }
         binding.returnTerminalButton.visibility = if (config == null) View.GONE else View.VISIBLE
-        binding.configureHostButton.visibility = if (config == null) View.VISIBLE else View.GONE
+        binding.configureHostButton.text = if (config == null) {
+            getString(R.string.action_configure_host)
+        } else {
+            getString(R.string.action_switch_host)
+        }
 
         refreshPlaysPageState()
     }

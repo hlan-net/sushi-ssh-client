@@ -73,6 +73,7 @@
     <string name="phrase_copied_toast">Copied: %1$s</string>
     <string name="action_return_terminal">Return to terminal</string>
     <string name="action_configure_host">Configure host</string>
+    <string name="action_switch_host">Switch host</string>
     <string name="action_end_session">End session</string>
     <string name="action_open_terminal_mode">Open dedicated terminal</string>
     <string name="action_copy_log">Copy log</string>
