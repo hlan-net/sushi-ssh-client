@@ -13,6 +13,7 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ### Fixed
 - Changing the accent color now applies immediately across the whole app. Previously only the Settings screen itself updated right away; other screens (e.g. the main Terminal/Plays view) kept the old color until the app was force-stopped and reopened, because the accent overlay is applied per-Activity in `onCreate()` and screens already in the back stack weren't recreated. Selecting a new accent now restarts the app's task so every screen picks it up immediately; any active SSH session is unaffected since it lives outside the Activity.
+- Tapping "Talk to Gemini" before Gemini is set up silently opened Settings on the General tab with no explanation. It now shows a toast explaining what's missing (Gemini is off, or no API key/Google sign-in yet) and opens straight to the Gemini tab.
 
 ## [0.7.9] - 2026-08-13
 

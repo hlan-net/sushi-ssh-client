@@ -190,7 +190,10 @@ class SettingsActivity : AppCompatActivity() {
         }
         tabMediator?.attach()
 
-        val index = savedInstanceState?.getInt(KEY_TAB_INDEX, getLastTabIndex()) ?: getLastTabIndex()
+        val requestedTab = intent.getIntExtra(EXTRA_OPEN_TAB, -1).takeIf { it in PAGE_GENERAL..PAGE_DRIVE }
+        val index = requestedTab
+            ?: savedInstanceState?.getInt(KEY_TAB_INDEX, getLastTabIndex())
+            ?: getLastTabIndex()
         binding.settingsViewPager.setCurrentItem(index, false)
 
         pageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
@@ -871,6 +874,16 @@ class SettingsActivity : AppCompatActivity() {
         private const val KEY_PENDING_API_KEY = "key_pending_api_key"
         private const val PREFS_SETTINGS_UI = "settings_ui"
         private const val PREF_LAST_TAB_INDEX = "pref_last_tab_index"
+        const val EXTRA_OPEN_TAB = "extra_open_tab"
+        const val TAB_GEMINI = PAGE_GEMINI
+
+        fun createIntent(context: android.content.Context, openTab: Int? = null): Intent {
+            return Intent(context, SettingsActivity::class.java).apply {
+                if (openTab != null) {
+                    putExtra(EXTRA_OPEN_TAB, openTab)
+                }
+            }
+        }
     }
 
     private fun getLastTabIndex(): Int {

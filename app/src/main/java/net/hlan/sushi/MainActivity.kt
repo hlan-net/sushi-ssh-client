@@ -349,8 +349,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleGeminiVoice() {
-        if (!geminiSettings.isEnabled() || geminiClient.getAuthMode() == GeminiClient.AuthMode.NONE) {
-            startActivity(Intent(this, SettingsActivity::class.java))
+        val missingReason = when {
+            !geminiSettings.isEnabled() -> R.string.gemini_status_disabled
+            geminiClient.getAuthMode() == GeminiClient.AuthMode.NONE -> R.string.gemini_status_missing_key
+            else -> null
+        }
+        if (missingReason != null) {
+            Toast.makeText(this, missingReason, Toast.LENGTH_LONG).show()
+            startActivity(SettingsActivity.createIntent(this, SettingsActivity.TAB_GEMINI))
             return
         }
 
