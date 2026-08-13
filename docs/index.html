@@ -43,10 +43,25 @@
         box-shadow: 0 30px 60px rgba(31, 30, 28, 0.08);
       }
 
+      .hero-heading {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 12px;
+      }
+
+      .hero-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        box-shadow: 0 10px 24px rgba(31, 30, 28, 0.15);
+        flex-shrink: 0;
+      }
+
       .hero h1 {
         font-family: "DM Serif Display", "Georgia", serif;
         font-size: clamp(2.2rem, 4vw, 3.2rem);
-        margin: 0 0 12px;
+        margin: 0;
       }
 
       .hero p {
@@ -109,7 +124,10 @@
   <body>
     <main class="page">
       <section class="hero">
-        <h1>Sushi - SSH Client</h1>
+        <div class="hero-heading">
+          <img class="hero-icon" src="app-icon.png" alt="Sushi app icon" width="72" height="72" />
+          <h1>Sushi - SSH Client</h1>
+        </div>
         <p class="tagline">SSH access for Linux hosts, plus optional Gemini voice help.</p>
         <p>
           Sushi - SSH Client provides reliable SSH access to your Linux hosts, including
