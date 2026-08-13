@@ -26,7 +26,12 @@ object PhrasePickerHelper {
                     ).show()
                     return@withContext
                 }
-                val labels = phrases.map { "${it.name}\n${it.command}" }.toTypedArray()
+                val labels = phrases.map { phrase ->
+                    val preview = phrase.command.replace("\n", " ").let {
+                        if (it.length > 48) it.take(48) + "…" else it
+                    }
+                    "${phrase.name}\n$preview"
+                }.toTypedArray()
                 AlertDialog.Builder(activity)
                     .setTitle(activity.getString(R.string.action_phrases_short))
                     .setItems(labels) { _, which -> onSelected(phrases[which]) }
