@@ -26,4 +26,17 @@
     <style name="Widget.Sushi.PrimaryButton" parent="Widget.Material3.Button">
         <item name="cornerRadius">16dp</item>
     </style>
+
+    <style name="Widget.Sushi.OutlinedButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textColor">@color/sushi_ink</item>
+        <item name="iconTint">@color/sushi_ink</item>
+        <item name="strokeColor">@color/sushi_card_stroke</item>
+        <item name="rippleColor">@color/sushi_card_stroke</item>
+    </style>
+
+    <style name="Widget.Sushi.TextButton" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textColor">@color/sushi_ink</item>
+        <item name="iconTint">@color/sushi_ink</item>
+        <item name="rippleColor">@color/sushi_card_stroke</item>
+    </style>
 </resources>

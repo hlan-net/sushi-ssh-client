@@ -89,14 +89,14 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/geminiModelFlash"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/Widget.Sushi.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/gemini_model_flash" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/geminiModelPro"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/Widget.Sushi.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/gemini_model_pro" />
@@ -136,7 +136,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/nanoDownloadButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"

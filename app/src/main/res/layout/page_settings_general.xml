@@ -113,7 +113,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/managePlaysButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -123,7 +123,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/managePhrasesButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -157,7 +157,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/githubSignInButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -167,7 +167,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/githubSignOutButton"
-            style="@style/Widget.Material3.Button.TextButton"
+            style="@style/Widget.Sushi.TextButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
@@ -176,7 +176,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/sendFeedbackButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"

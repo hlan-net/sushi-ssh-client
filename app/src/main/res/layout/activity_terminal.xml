@@ -17,7 +17,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/terminalConnectButton"
-        style="@style/Widget.Material3.Button.OutlinedButton"
+        style="@style/Widget.Sushi.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
@@ -50,7 +50,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/terminalErrorBannerAction"
-                style="@style/Widget.Material3.Button.TextButton"
+                style="@style/Widget.Sushi.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="?attr/colorOnErrorContainer"
@@ -63,7 +63,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/terminalErrorBannerDismiss"
-                style="@style/Widget.Material3.Button.TextButton"
+                style="@style/Widget.Sushi.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/action_dismiss"
@@ -97,7 +97,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/terminalEnterButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -105,7 +105,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/terminalTabButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
@@ -114,7 +114,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/terminalBackspaceButton"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
@@ -130,7 +130,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/terminalCtrlCButton"
-            style="@style/Widget.Material3.Button.TextButton"
+            style="@style/Widget.Sushi.TextButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -139,7 +139,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/terminalCtrlDButton"
-            style="@style/Widget.Material3.Button.TextButton"
+            style="@style/Widget.Sushi.TextButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
@@ -148,7 +148,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/terminalPasteButton"
-            style="@style/Widget.Material3.Button.TextButton"
+            style="@style/Widget.Sushi.TextButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
@@ -159,7 +159,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/terminalPhrasesButton"
-            style="@style/Widget.Material3.Button.TextButton"
+            style="@style/Widget.Sushi.TextButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"

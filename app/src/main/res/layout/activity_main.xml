@@ -125,7 +125,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/returnTerminalButton"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.Sushi.OutlinedButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -136,7 +136,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/configureHostButton"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.Sushi.OutlinedButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -146,7 +146,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/mainSettingsButton"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.Sushi.OutlinedButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"

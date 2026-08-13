@@ -6,6 +6,12 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.7.8] - 2026-08-13
+
+### Changed
+- Only the primary action per screen (Connect, Plays) now uses the accent button style. Secondary/navigation buttons and text links (Return to terminal, Switch host, Settings, Manage Plays, Copy log, Clear log, About, and the equivalent buttons throughout Settings) now use an ink-colored outline/text style instead of the accent color, so the UI shows which action matters most at a glance.
+- Replaced the green accent color with a coral/salmon tone sampled from the app icon's fish color, so the primary action color matches the app's own branding.
+
 ## [0.7.6] - 2026-08-05
 
 ### Changed
