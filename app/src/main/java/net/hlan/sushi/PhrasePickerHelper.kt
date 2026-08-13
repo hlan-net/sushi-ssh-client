@@ -1,12 +1,15 @@
 package net.hlan.sushi
 
+import android.view.LayoutInflater
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import net.hlan.sushi.databinding.DialogPhrasePickerBinding
 
 object PhrasePickerHelper {
 
@@ -26,17 +29,28 @@ object PhrasePickerHelper {
                     ).show()
                     return@withContext
                 }
-                val labels = phrases.map { phrase ->
-                    val preview = phrase.command.replace("\n", " ").let {
-                        if (it.length > 48) it.take(48) + "…" else it
-                    }
-                    "${phrase.name}\n$preview"
-                }.toTypedArray()
-                AlertDialog.Builder(activity)
+
+                val dialogBinding = DialogPhrasePickerBinding.inflate(LayoutInflater.from(activity))
+                val dialog = AlertDialog.Builder(activity)
                     .setTitle(activity.getString(R.string.action_phrases_short))
-                    .setItems(labels) { _, which -> onSelected(phrases[which]) }
+                    .setView(dialogBinding.root)
                     .setNegativeButton(android.R.string.cancel, null)
-                    .show()
+                    .create()
+
+                val adapter = PhraseAdapter(
+                    onClick = { phrase ->
+                        dialog.dismiss()
+                        onSelected(phrase)
+                    },
+                    onDeleteClick = {},
+                    showDelete = false,
+                    compactCommand = true
+                )
+                dialogBinding.phrasePickerRecyclerView.layoutManager = LinearLayoutManager(activity)
+                dialogBinding.phrasePickerRecyclerView.adapter = adapter
+                adapter.submitList(phrases)
+
+                dialog.show()
             }
         }
     }

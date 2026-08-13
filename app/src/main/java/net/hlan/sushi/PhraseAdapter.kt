@@ -1,6 +1,8 @@
 package net.hlan.sushi
 
+import android.text.TextUtils
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -9,7 +11,9 @@ import net.hlan.sushi.databinding.ItemPhraseBinding
 
 class PhraseAdapter(
     private val onClick: (Phrase) -> Unit,
-    private val onDeleteClick: (Phrase) -> Unit
+    private val onDeleteClick: (Phrase) -> Unit,
+    private val showDelete: Boolean = true,
+    private val compactCommand: Boolean = false
 ) : ListAdapter<Phrase, PhraseAdapter.PhraseViewHolder>(PhraseDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PhraseViewHolder {
@@ -27,7 +31,12 @@ class PhraseAdapter(
         fun bind(phrase: Phrase) {
             binding.phraseNameText.text = phrase.name
             binding.phraseCommandText.text = phrase.command
+            if (compactCommand) {
+                binding.phraseCommandText.maxLines = 1
+                binding.phraseCommandText.ellipsize = TextUtils.TruncateAt.END
+            }
             binding.root.setOnClickListener { onClick(phrase) }
+            binding.deletePhraseButton.visibility = if (showDelete) View.VISIBLE else View.GONE
             binding.deletePhraseButton.setOnClickListener { onDeleteClick(phrase) }
         }
     }
