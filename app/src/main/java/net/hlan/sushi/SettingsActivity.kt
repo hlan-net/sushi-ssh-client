@@ -405,6 +405,10 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupSshPage(pageBinding: PageSettingsSshBinding) {
         sshPageBinding = pageBinding
 
+        pageBinding.manageHostsButton.setOnClickListener {
+            startActivity(Intent(this, HostsActivity::class.java))
+        }
+
         pageBinding.quickGenerateKeyButton.setOnClickListener {
             val hasKey = sshSettings.getPrivateKey().orEmpty().isNotBlank()
             val intent = Intent(this, KeysActivity::class.java)
