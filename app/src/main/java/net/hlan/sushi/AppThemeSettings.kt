@@ -27,7 +27,7 @@ class AppThemeSettings(context: Context) {
     }
 
     fun getAccentVariant(): AccentVariant {
-        val raw = prefs.getInt(KEY_ACCENT_VARIANT, AccentVariant.CORAL.storageValue)
+        val raw = prefs.getInt(KEY_ACCENT_VARIANT, AccentVariant.GARI_AMBER.storageValue)
         return AccentVariant.fromStorageValue(raw)
     }
 
@@ -70,7 +70,7 @@ class AppThemeSettings(context: Context) {
 
         companion object {
             fun fromStorageValue(value: Int): AccentVariant {
-                return entries.firstOrNull { it.storageValue == value } ?: CORAL
+                return entries.firstOrNull { it.storageValue == value } ?: GARI_AMBER
             }
         }
     }

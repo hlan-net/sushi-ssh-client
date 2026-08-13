@@ -76,10 +76,10 @@ class SettingsActivity : AppCompatActivity() {
     }
     private val accentOptions by lazy {
         listOf(
-            AccentOption(AppThemeSettings.AccentVariant.CORAL, getString(R.string.accent_variant_coral)),
-            AccentOption(AppThemeSettings.AccentVariant.WASABI, getString(R.string.accent_variant_wasabi)),
             AccentOption(AppThemeSettings.AccentVariant.GARI_AMBER, getString(R.string.accent_variant_gari_amber)),
-            AccentOption(AppThemeSettings.AccentVariant.TERRACOTTA, getString(R.string.accent_variant_terracotta))
+            AccentOption(AppThemeSettings.AccentVariant.WASABI, getString(R.string.accent_variant_wasabi)),
+            AccentOption(AppThemeSettings.AccentVariant.TERRACOTTA, getString(R.string.accent_variant_terracotta)),
+            AccentOption(AppThemeSettings.AccentVariant.CORAL, getString(R.string.accent_variant_coral))
         )
     }
     private val fontSizeOptions by lazy {
@@ -643,8 +643,21 @@ class SettingsActivity : AppCompatActivity() {
         pageBinding.accentVariantInput.setOnItemClickListener { _, _, position, _ ->
             val option = accentOptions.getOrNull(position) ?: return@setOnItemClickListener
             appThemeSettings.setAccentVariant(option.variant)
-            recreate()
+            restartToApplyAccent()
         }
+    }
+
+    /** Accent overlays are applied per-Activity in onCreate(), unlike day/night mode which
+     * AppCompatDelegate automatically cascades to every tracked Activity. Restarting the whole
+     * task (instead of just recreate()-ing this Activity) forces every screen, including
+     * MainActivity sitting in the back stack, to pick up the new accent immediately. Any active
+     * SSH session survives this: it lives in TerminalSessionHolder/SshConnectionService, not in
+     * the Activity, so MainActivity's "Return to terminal" state is unaffected. */
+    private fun restartToApplyAccent() {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
     }
 
     private fun setupFontSizePicker(pageBinding: PageSettingsGeneralBinding) {
