@@ -12,6 +12,7 @@ class AboutActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppThemeSettings(this).applyAccentOverlay(this)
         binding = ActivityAboutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 

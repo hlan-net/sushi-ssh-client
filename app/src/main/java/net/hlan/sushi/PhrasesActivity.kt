@@ -26,6 +26,7 @@ class PhrasesActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppThemeSettings(this).applyAccentOverlay(this)
         binding = ActivityPhrasesBinding.inflate(layoutInflater)
         setContentView(binding.root)
 

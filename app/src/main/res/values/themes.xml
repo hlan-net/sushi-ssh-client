@@ -39,4 +39,23 @@
         <item name="iconTint">@color/sushi_ink</item>
         <item name="rippleColor">@color/sushi_card_stroke</item>
     </style>
+
+    <!-- Accent color overlays: applied at runtime per-Activity via AppThemeSettings.applyAccentOverlay,
+         based on the user's Settings > General > Accent color choice. Each only swaps colorPrimary;
+         the referenced @color already resolves separately for light/dark via values-night/colors.xml. -->
+    <style name="ThemeOverlay.Sushi.Coral" parent="">
+        <item name="colorPrimary">@color/sushi_green</item>
+    </style>
+
+    <style name="ThemeOverlay.Sushi.Wasabi" parent="">
+        <item name="colorPrimary">@color/sushi_accent_wasabi</item>
+    </style>
+
+    <style name="ThemeOverlay.Sushi.GariAmber" parent="">
+        <item name="colorPrimary">@color/sushi_accent_gari</item>
+    </style>
+
+    <style name="ThemeOverlay.Sushi.Terracotta" parent="">
+        <item name="colorPrimary">@color/sushi_accent_terracotta</item>
+    </style>
 </resources>

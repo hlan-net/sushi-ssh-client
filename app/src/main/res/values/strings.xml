@@ -173,6 +173,13 @@
     <string name="theme_mode_auto">Auto (device setting)</string>
     <string name="theme_mode_light">Light</string>
     <string name="theme_mode_dark">Dark</string>
+    <string name="accent_section_title">Accent color</string>
+    <string name="accent_section_subtitle">Choose the color used for the primary action on each screen.</string>
+    <string name="accent_variant_label">Accent color</string>
+    <string name="accent_variant_coral">Coral</string>
+    <string name="accent_variant_wasabi">Wasabi</string>
+    <string name="accent_variant_gari_amber">Gari amber</string>
+    <string name="accent_variant_terracotta">Terracotta</string>
     <string name="settings_hosts_keys_title">Hosts and keys</string>
     <string name="settings_summary_title">Current status</string>
     <string name="settings_summary_host_label">Active host</string>

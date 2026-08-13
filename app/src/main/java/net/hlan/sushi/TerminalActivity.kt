@@ -59,6 +59,7 @@ class TerminalActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppThemeSettings(this).applyAccentOverlay(this)
         binding = ActivityTerminalBinding.inflate(layoutInflater)
         setContentView(binding.root)
 

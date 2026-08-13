@@ -1,5 +1,8 @@
 <resources>
     <color name="sushi_green">#DD6F77</color>
+    <color name="sushi_accent_wasabi">#A0C841</color>
+    <color name="sushi_accent_gari">#DD9A5F</color>
+    <color name="sushi_accent_terracotta">#D37E69</color>
     <color name="sushi_ink">#E6F1ED</color>
     <color name="sushi_slate">#A8B5AE</color>
     <color name="sushi_mist">#0F1514</color>

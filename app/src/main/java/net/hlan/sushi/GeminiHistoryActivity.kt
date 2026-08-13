@@ -33,6 +33,7 @@ class GeminiHistoryActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppThemeSettings(this).applyAccentOverlay(this)
         binding = ActivityGeminiHistoryBinding.inflate(layoutInflater)
         setContentView(binding.root)
 

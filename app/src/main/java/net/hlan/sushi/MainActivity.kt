@@ -21,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
@@ -108,6 +109,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppThemeSettings(this).applyAccentOverlay(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -940,7 +942,7 @@ class MainActivity : AppCompatActivity() {
 
         val doneMarker = getString(R.string.setup_checklist_done_marker)
         val pendingMarker = getString(R.string.setup_checklist_pending_marker)
-        val doneColor = getColor(R.color.sushi_green)
+        val doneColor = MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary, getColor(R.color.sushi_green))
         val pendingColor = getColor(R.color.sushi_slate)
 
         fun applyRow(statusView: android.widget.TextView, done: Boolean) {

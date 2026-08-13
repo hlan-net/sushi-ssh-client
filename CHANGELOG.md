@@ -6,6 +6,14 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.7.9] - 2026-08-13
+
+### Added
+- Accent color picker in Settings > General: choose between Coral (the v0.7.8 default), Wasabi (green), Gari amber, and Terracotta for the primary action color, independent of the Light/Dark theme mode. Each option is tuned separately for light and dark mode and meets WCAG AA contrast against its button text.
+
+### Fixed
+- The Terminal/Plays tab indicator and the Gemini user chat bubble were hardcoded to the accent color resource instead of following the theme, so they didn't update when switching accent colors. Both now follow `?attr/colorPrimary` like the rest of the UI.
+
 ## [0.7.8] - 2026-08-13
 
 ### Changed

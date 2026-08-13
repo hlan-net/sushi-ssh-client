@@ -14,6 +14,7 @@ class HostsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppThemeSettings(this).applyAccentOverlay(this)
         binding = ActivityHostsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 

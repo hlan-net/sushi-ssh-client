@@ -74,6 +74,14 @@ class SettingsActivity : AppCompatActivity() {
             ThemeOption(AppThemeSettings.ThemeMode.DARK, getString(R.string.theme_mode_dark))
         )
     }
+    private val accentOptions by lazy {
+        listOf(
+            AccentOption(AppThemeSettings.AccentVariant.CORAL, getString(R.string.accent_variant_coral)),
+            AccentOption(AppThemeSettings.AccentVariant.WASABI, getString(R.string.accent_variant_wasabi)),
+            AccentOption(AppThemeSettings.AccentVariant.GARI_AMBER, getString(R.string.accent_variant_gari_amber)),
+            AccentOption(AppThemeSettings.AccentVariant.TERRACOTTA, getString(R.string.accent_variant_terracotta))
+        )
+    }
     private val fontSizeOptions by lazy {
         listOf(
             FontSizeOption(AppThemeSettings.TerminalFontSize.SMALL, getString(R.string.terminal_font_size_small)),
@@ -102,6 +110,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppThemeSettings(this).applyAccentOverlay(this)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -198,6 +207,7 @@ class SettingsActivity : AppCompatActivity() {
         generalPageBinding = pageBinding
         setupLanguagePicker(pageBinding)
         setupThemePicker(pageBinding)
+        setupAccentPicker(pageBinding)
         setupFontSizePicker(pageBinding)
 
         pageBinding.managePlaysButton.setOnClickListener {
@@ -621,6 +631,22 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupAccentPicker(pageBinding: PageSettingsGeneralBinding) {
+        val labels = accentOptions.map { it.label }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
+        pageBinding.accentVariantInput.setAdapter(adapter)
+
+        val selected = accentOptions.firstOrNull { it.variant == appThemeSettings.getAccentVariant() }
+            ?: accentOptions.first()
+        pageBinding.accentVariantInput.setText(selected.label, false)
+
+        pageBinding.accentVariantInput.setOnItemClickListener { _, _, position, _ ->
+            val option = accentOptions.getOrNull(position) ?: return@setOnItemClickListener
+            appThemeSettings.setAccentVariant(option.variant)
+            recreate()
+        }
+    }
+
     private fun setupFontSizePicker(pageBinding: PageSettingsGeneralBinding) {
         val labels = fontSizeOptions.map { it.label }
         val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
@@ -854,6 +880,11 @@ class SettingsActivity : AppCompatActivity() {
 
     private data class ThemeOption(
         val mode: AppThemeSettings.ThemeMode,
+        val label: String
+    )
+
+    private data class AccentOption(
+        val variant: AppThemeSettings.AccentVariant,
         val label: String
     )
 

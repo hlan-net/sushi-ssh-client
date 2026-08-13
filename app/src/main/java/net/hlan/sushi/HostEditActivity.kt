@@ -18,6 +18,7 @@ class HostEditActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppThemeSettings(this).applyAccentOverlay(this)
         binding = ActivityHostEditBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
