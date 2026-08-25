@@ -142,7 +142,7 @@ dependencies {
     androidTestImplementation("androidx.concurrent:concurrent-futures:1.3.0")
     // Pin Guava to the -android flavor on both classpaths. AGP consistent resolution
     // would otherwise pick the -jre flavor for androidTest and break minifiedDebugAndroidTestRuntimeClasspath.
-    implementation("com.google.guava:guava:33.6.0-android")
-    androidTestImplementation("com.google.guava:guava:33.6.0-android")
+    implementation("com.google.guava:guava:33.7.1-android")
+    androidTestImplementation("com.google.guava:guava:33.7.1-android")
 
 }
