@@ -118,11 +118,7 @@ class ConnectionFailureClassificationTest {
 
     // --- classifyException message patterns ---
 
-    @Test
-    fun classify_incorrectPassphrase() {
-        assertEquals(ConnectFailure.AUTH_KEY_PASSPHRASE,
-            client.classifyException(JSchException("Incorrect passphrase provided.")))
-    }
+
 
     @Test
     fun classify_typedChangedHostKeyException() {

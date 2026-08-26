@@ -349,8 +349,6 @@ class SshClient(
                 ConnectFailure.HOST_KEY_MISMATCH
             e is JSchUnknownHostKeyException ->
                 ConnectFailure.HOST_KEY_UNTRUSTED
-            msg.contains("Incorrect passphrase provided", ignoreCase = true) ->
-                ConnectFailure.AUTH_KEY_PASSPHRASE
             msg.contains("HostKey", ignoreCase = true) && msg.contains("changed", ignoreCase = true) ->
                 ConnectFailure.HOST_KEY_MISMATCH
             msg.contains("HostKey", ignoreCase = true) && msg.contains("reject", ignoreCase = true) ->
