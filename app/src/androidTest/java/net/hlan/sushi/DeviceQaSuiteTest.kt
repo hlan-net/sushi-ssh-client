@@ -38,6 +38,13 @@ class DeviceQaSuiteTest {
 
     @Before
     fun clearState() {
+        // Send HOME and BACK to clear any crash dialogs or left-over password prompts
+        // that would block the next test's ActivityScenario from reaching RESUMED state.
+        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_HOME").close()
+        Thread.sleep(200)
+        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_BACK").close()
+        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_BACK").close()
+        
         wakeAndUnlock()
         // Disable autofill to prevent Google Password Manager from stealing focus.
         instrumentation.uiAutomation.executeShellCommand(
@@ -421,6 +428,7 @@ class DeviceQaSuiteTest {
     private fun wakeAndUnlock() {
         instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_WAKEUP").close()
         instrumentation.uiAutomation.executeShellCommand("wm dismiss-keyguard").close()
+        instrumentation.uiAutomation.executeShellCommand("input keyevent 82").close() // KEYCODE_MENU
     }
 
     companion object {
