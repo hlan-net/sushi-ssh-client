@@ -50,7 +50,13 @@ class ConnectionFailureClassificationTest {
     @Test fun retryable_authKeyPassphrase() = assertTrue(ConnectFailure.AUTH_KEY_PASSPHRASE.isRetryable)
     @Test fun notRetryable_authKey() = assertFalse(ConnectFailure.AUTH_KEY.isRetryable)
     @Test fun notRetryable_authPassword() = assertFalse(ConnectFailure.AUTH_PASSWORD.isRetryable)
-    @Test fun retryable_hostKeyUntrusted() = assertTrue(ConnectFailure.HOST_KEY_UNTRUSTED.isRetryable)
+    /**
+     * Declining a host key is a deliberate refusal, not a transient error. Marking it retryable
+     * makes TerminalActivity reconnect after CONNECT_RETRY_DELAY_MS and re-show the identical
+     * trust dialog the user just cancelled. The 120s prompt timeout returns the same code, so it
+     * re-prompts there too.
+     */
+    @Test fun notRetryable_hostKeyUntrusted() = assertFalse(ConnectFailure.HOST_KEY_UNTRUSTED.isRetryable)
     @Test fun notRetryable_hostKeyMismatch() = assertFalse(ConnectFailure.HOST_KEY_MISMATCH.isRetryable)
     @Test fun notRetryable_jumpFailed() = assertFalse(ConnectFailure.JUMP_FAILED.isRetryable)
     @Test fun notRetryable_channelFailed() = assertFalse(ConnectFailure.CHANNEL_FAILED.isRetryable)

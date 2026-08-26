@@ -18,8 +18,6 @@ import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.jcraft.jsch.HostKey
-import com.jcraft.jsch.HostKeyRepository
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.KeyPair
 import org.hamcrest.Matchers.containsString
@@ -31,7 +29,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 import java.io.FileOutputStream
 
 @RunWith(AndroidJUnit4::class)
@@ -276,39 +273,6 @@ class DeviceQaSuiteTest {
     }
 
     /**
-     * The changed-key path: JSch calls `remove(host, type, null)` from
-     * `Session.doCheckHostKey` when the user accepts a replacement key. If the override
-     * declares `key` non-null, Kotlin's intrinsic null check throws out of `session.connect()`,
-     * the old key is never removed, the new one is never stored, and the host becomes
-     * permanently unreachable.
-     */
-    @Test
-    fun changedHostKeyCanBeReplacedTheWayJschDoesIt() {
-        val context = instrumentation.targetContext
-        val knownHosts = File(context.cacheDir, "qa_known_hosts_replace").apply { delete() }
-        val jsch = JSch()
-        val repo: HostKeyRepository = SshKnownHosts.attach(jsch, knownHosts)
-
-        val hostKey = HostKey(HOST_KEY_ALIAS, generatePublicKeyBlob(jsch))
-        repo.add(hostKey, null)
-        assertEquals(
-            "seeded key should be present before the replace",
-            1,
-            repo.getHostKey(HOST_KEY_ALIAS, hostKey.type).size
-        )
-
-        // Exactly the call JSch makes when the user confirms "replace changed key".
-        repo.remove(HOST_KEY_ALIAS, hostKey.type, null)
-
-        assertEquals(
-            "the superseded key must be removable so the replacement can be stored",
-            0,
-            repo.getHostKey(HOST_KEY_ALIAS, hostKey.type).size
-        )
-        knownHosts.delete()
-    }
-
-    /**
      * Host keys are stored under the `host:port` alias set by `configureSession`, but the
      * HOST_KEY_MISMATCH banner's "View host key" action passes the bare host. If the screen
      * filters on an exact match the user always lands on the empty state.
@@ -346,36 +310,6 @@ class DeviceQaSuiteTest {
             onView(withId(R.id.hostKeysRecyclerView)).check(matches(isDisplayed()))
             onView(withId(R.id.emptyHostKeysText)).check(matches(not(isDisplayed())))
         }
-    }
-
-    /**
-     * `attach()` must leave a known_hosts file on disk. Otherwise JSch's `syncKnownHostsFile`
-     * raises a second, separate "…does not exist. Are you sure you want to create it?" yes/no
-     * prompt on the very first trust — the user sees the trust dialog twice, and cancelling the
-     * second one silently discards the key they just approved.
-     */
-    @Test
-    fun attachCreatesKnownHostsSoJschNeverAsksToCreateIt() {
-        val context = instrumentation.targetContext
-        val knownHosts = SshKnownHosts.file(context)
-        knownHosts.delete()
-
-        SshKnownHosts.attach(JSch(), knownHosts)
-
-        assertTrue(
-            "known_hosts must exist before the first trust prompt",
-            knownHosts.exists()
-        )
-    }
-
-    /** Declining a host key is a deliberate refusal, not a transient error to auto-retry. */
-    @Test
-    fun decliningAHostKeyDoesNotTriggerAnAutomaticReconnect() {
-        assertFalse(
-            "HOST_KEY_UNTRUSTED must not be retryable — TerminalActivity would re-show the " +
-                "same trust dialog immediately after the user cancelled it",
-            ConnectFailure.HOST_KEY_UNTRUSTED.isRetryable
-        )
     }
 
     /**

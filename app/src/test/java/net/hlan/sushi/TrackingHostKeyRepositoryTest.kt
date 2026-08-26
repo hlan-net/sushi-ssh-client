@@ -31,6 +31,25 @@ class TrackingHostKeyRepositoryTest {
         override fun getHostKey(host: String?, type: String?): Array<HostKey> = emptyArray()
     }
 
+    /**
+     * `Session.doCheckHostKey` calls `remove(host, type, key)` with a **null** key when the user
+     * accepts a replacement for a changed host key. A non-null `key` parameter on the override
+     * makes Kotlin's intrinsic null check throw out of `session.connect()`, so the old key is
+     * never removed, the new one is never stored, and that host becomes unreachable for good.
+     *
+     * The fake below deliberately declares nullable parameters, matching JSch's Java signature —
+     * the null-rejection under test lives in the production override, not in the delegate.
+     */
+    @Test
+    fun remove_acceptsTheNullKeyJschPassesOnTheChangedKeyPath() {
+        val delegate = FakeHostKeyRepository()
+        val tracking: HostKeyRepository = TrackingHostKeyRepository(delegate)
+
+        tracking.remove("example.com:22", "ssh-ed25519", null)
+
+        assertEquals("example.com:22", delegate.lastRemovedHost)
+    }
+
     @Test
     fun check_recordsResultHostAndKey() {
         val delegate = FakeHostKeyRepository().apply { checkResultToReturn = HostKeyRepository.NOT_INCLUDED }

@@ -41,5 +41,18 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6.3.0
 
+      # Unit tests previously ran only in the local pre-push hook, so nothing on CI covered
+      # SshClient/known-hosts logic — the emulator job excludes DeviceQaSuiteTest and
+      # LocalSshIntegrationTest, and the device job needs a self-hosted runner.
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Upload unit test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest/
+
       - name: Assemble debug
         run: ./gradlew assembleDebug
