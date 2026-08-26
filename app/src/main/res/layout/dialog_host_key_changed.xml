@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/hostKeyChangedWarning"
+        style="@style/TextAppearance.Sushi.Body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="?attr/colorError"
+        android:textStyle="bold"
+        tools:text="WARNING: the host key for db-prod.example.com:22 has changed. This could mean someone is intercepting your connection, or the server was legitimately reinstalled." />
+
+    <TextView
+        android:id="@+id/hostKeyChangedOldLabel"
+        style="@style/TextAppearance.Sushi.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/host_key_changed_old_label" />
+
+    <TextView
+        android:id="@+id/hostKeyChangedOldFingerprint"
+        style="@style/TextAppearance.Sushi.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:textIsSelectable="true"
+        tools:text="SHA256:oldoldoldoldold..." />
+
+    <TextView
+        android:id="@+id/hostKeyChangedNewLabel"
+        style="@style/TextAppearance.Sushi.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/host_key_changed_new_label" />
+
+    <TextView
+        android:id="@+id/hostKeyChangedNewFingerprint"
+        style="@style/TextAppearance.Sushi.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:textIsSelectable="true"
+        tools:text="SHA256:newnewnewnewnew..." />
+
+    <com.google.android.material.checkbox.MaterialCheckBox
+        android:id="@+id/hostKeyChangedConfirmCheckbox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/host_key_changed_confirm_checkbox" />
+
+</LinearLayout>

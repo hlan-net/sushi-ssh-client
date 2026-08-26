@@ -63,6 +63,16 @@ class KeysActivity : AppCompatActivity() {
 
     private fun generateKeyPair() {
         binding.generateKeyButton.isEnabled = false
+        showKeyPassphraseDialog(
+            activity = this,
+            targetLabel = null,
+            allowEmpty = true,
+            onResult = { passphrase, remember -> generateKeyPairWithPassphrase(passphrase, remember) },
+            onCancel = { binding.generateKeyButton.isEnabled = true }
+        )
+    }
+
+    private fun generateKeyPairWithPassphrase(passphrase: String?, remember: Boolean) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val jsch = JSch()
@@ -71,9 +81,9 @@ class KeysActivity : AppCompatActivity() {
                 val kpair = KeyPair.genKeyPair(jsch, KeyPair.RSA, 2048)
 
                 val prvKeyOut = ByteArrayOutputStream()
-                // Prompt user for a passphrase and use it here
-                val passphrase: ByteArray? = null // Replace with user-supplied passphrase
-                kpair.writePrivateKey(prvKeyOut, passphrase)
+                val passphraseBytes = passphrase?.toByteArray()
+                kpair.writePrivateKey(prvKeyOut, passphraseBytes)
+                passphraseBytes?.fill(0)
                 val prvKeyStr = prvKeyOut.toString("UTF-8")
 
                 val pubKeyOut = ByteArrayOutputStream()
@@ -86,6 +96,7 @@ class KeysActivity : AppCompatActivity() {
 
                 sshSettings.setPrivateKey(prvKeyStr)
                 sshSettings.setPublicKey(pubKeyStr)
+                sshSettings.setKeyPassphrase(if (remember) passphrase else null)
 
                 val installCommand = ManagedPlays.buildInstallAuthorizedKeyCommand(pubKeyStr)
                 val removeCommand = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys.sushi.bak && grep -v 'Sushi - SSH client key' ~/.ssh/authorized_keys.sushi.bak > ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
@@ -111,6 +122,7 @@ class KeysActivity : AppCompatActivity() {
     private fun deleteKeyPair() {
         sshSettings.setPrivateKey(null)
         sshSettings.setPublicKey(null)
+        sshSettings.setKeyPassphrase(null)
         updateUi()
         Toast.makeText(this, R.string.key_deleted, Toast.LENGTH_SHORT).show()
     }

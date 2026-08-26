@@ -1,6 +1,7 @@
 package net.hlan.sushi
 
 import android.content.Intent
+import android.util.Base64
 import android.view.View
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
@@ -8,20 +9,27 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.replaceText
+import androidx.test.espresso.action.ViewActions.scrollTo
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.contrib.RecyclerViewActions
+import androidx.test.espresso.matcher.ViewMatchers.hasDescendant
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.jcraft.jsch.JSch
+import com.jcraft.jsch.KeyPair
 import org.hamcrest.Matchers.containsString
 import org.hamcrest.Matchers.not
 import org.hamcrest.Matchers.isEmptyOrNullString
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.FileOutputStream
 
 @RunWith(AndroidJUnit4::class)
 class DeviceQaSuiteTest {
@@ -47,6 +55,7 @@ class DeviceQaSuiteTest {
         PlayDatabaseHelper.resetInstance()
         context.deleteDatabase("sushi_phrases.db")
         context.deleteDatabase("sushi_plays.db")
+        SshKnownHosts.file(context).delete()
     }
 
     @Test
@@ -58,7 +67,7 @@ class DeviceQaSuiteTest {
         launchActivity(MainActivity::class.java).use {
             onView(withId(R.id.sessionStatusText))
                 .check(matches(withText(not(isEmptyOrNullString()))))
-            onView(withId(R.id.mainSettingsButton)).check(matches(isDisplayed()))
+            onView(withId(R.id.mainSettingsButton)).perform(scrollTo()).check(matches(isDisplayed()))
         }
 
         // SettingsActivity — verify title and SSH page generate-key button
@@ -84,7 +93,7 @@ class DeviceQaSuiteTest {
             onView(withId(R.id.sshPortInput)).perform(replaceText("22"))
             onView(withId(R.id.sshUsernameInput)).perform(replaceText("qa-user"))
             onView(withId(R.id.sshPasswordInput)).perform(replaceText("qa-password"))
-            onView(withId(R.id.saveButton)).perform(click())
+            onView(withId(R.id.saveButton)).perform(scrollTo(), click())
         }
 
         // HostsActivity — verify host appears and can be tapped
@@ -153,6 +162,9 @@ class DeviceQaSuiteTest {
 
         launchActivity(KeysActivity::class.java).use {
             onView(withId(R.id.generateKeyButton)).perform(click())
+            // Key generation now prompts for an optional passphrase first; confirm with it
+            // left blank (an explicit, supported "no passphrase" choice) to proceed.
+            onView(withText(R.string.key_passphrase_confirm)).perform(click())
 
             waitUntil(
                 timeoutMs = 20_000,
@@ -189,20 +201,9 @@ class DeviceQaSuiteTest {
                 recycler.adapter?.itemCount ?: 0 >= 2
             }
 
-            var targetPosition = -1
-            phrasesScenario.onActivity { activity ->
-                val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.phrasesRecyclerView)
-                val adapter = recycler.adapter as? PhraseAdapter ?: return@onActivity
-                targetPosition = adapter.currentList.indexOfFirst { phrase ->
-                    phrase.name == PHRASE_REMOVE_SUSHI_KEYS && phrase.command == removePhraseCommand
-                }
-            }
-
-            assertTrue("Remove Sushi SSH Keys phrase row should exist", targetPosition >= 0)
-
             onView(withId(R.id.phrasesRecyclerView)).perform(
-                RecyclerViewActions.actionOnItemAtPosition<androidx.recyclerview.widget.RecyclerView.ViewHolder>(
-                    targetPosition, click()
+                RecyclerViewActions.actionOnItem<androidx.recyclerview.widget.RecyclerView.ViewHolder>(
+                    hasDescendant(withText(PHRASE_REMOVE_SUSHI_KEYS)), click()
                 )
             )
         }
@@ -270,6 +271,78 @@ class DeviceQaSuiteTest {
             onView(withId(R.id.deleteButton)).check(matches(not(isDisplayed())))
         }
     }
+
+    /**
+     * Host keys are stored under the `host:port` alias set by `configureSession`, but the
+     * HOST_KEY_MISMATCH banner's "View host key" action passes the bare host. If the screen
+     * filters on an exact match the user always lands on the empty state.
+     */
+    @Test
+    fun hostKeysScreenShowsEntryStoredUnderHostPortAlias() {
+        val context = instrumentation.targetContext
+        val jsch = JSch()
+        val blob = generatePublicKeyBlob(jsch)
+        val entry = "$HOST_KEY_ALIAS ssh-rsa ${Base64.encodeToString(blob, Base64.NO_WRAP)}\n"
+        // java.io rather than File.writeText(): kotlin.io.FilesKt is stripped from the minified
+        // APK this suite runs against, since no app code pulls it in.
+        FileOutputStream(SshKnownHosts.file(context)).use { out ->
+            out.write(entry.toByteArray(Charsets.UTF_8))
+        }
+
+        // Control: prove the seeded entry really parses back out under the host:port alias, so a
+        // failure below can only mean the screen's filter rejected it.
+        val storedKeys = SshKnownHosts.attach(JSch(), SshKnownHosts.file(context)).hostKey.orEmpty()
+        assertEquals("seeded entry should parse back out of known_hosts", 1, storedKeys.size)
+        assertEquals("entry is stored under the host:port alias", HOST_KEY_ALIAS, storedKeys[0].host)
+
+        val intent = Intent(context, HostKeysActivity::class.java)
+            // TerminalActivity passes config.host, without the port.
+            .putExtra(HostKeysActivity.EXTRA_HOST_FILTER, HOST_KEY_HOST)
+
+        wakeAndUnlock()
+        Thread.sleep(400)
+        ActivityScenario.launch<HostKeysActivity>(intent).use { scenario ->
+            waitForCondition(scenario) { activity ->
+                activity.findViewById<androidx.recyclerview.widget.RecyclerView>(
+                    R.id.hostKeysRecyclerView
+                ).adapter?.itemCount ?: 0 > 0
+            }
+            onView(withId(R.id.hostKeysRecyclerView)).check(matches(isDisplayed()))
+            onView(withId(R.id.emptyHostKeysText)).check(matches(not(isDisplayed())))
+        }
+    }
+
+    /**
+     * `promptPassword` returning true while `getPassword()` returns null makes JSch raise
+     * `JSchAuthCancelException` ("Auth cancel") instead of a plain "Auth fail" on a rejected
+     * password — which `classifyException` reports as a public-key failure. That misleads every
+     * password-only host, including ones that never touch host keys or passphrases.
+     */
+    @Test
+    fun promptPasswordDoesNotClaimAPasswordItCannotSupply() {
+        launchActivity(MainActivity::class.java).use { scenario ->
+            var claimedAPassword = true
+            var suppliedPassword: String? = "unset"
+            scenario.onActivity { activity ->
+                val userInfo = DialogUserInfo(
+                    activity = activity,
+                    targetLabel = HOST_KEY_HOST,
+                    passphraseCache = KeyPassphraseCache(activity)
+                )
+                claimedAPassword = userInfo.promptPassword("Password:")
+                suppliedPassword = userInfo.password
+            }
+            assertFalse(
+                "promptPassword must return false when getPassword() has nothing to return " +
+                    "(supplied: $suppliedPassword)",
+                claimedAPassword
+            )
+        }
+    }
+
+    /** RSA-1024 keeps generation fast on low-end test devices; only the blob shape matters here. */
+    private fun generatePublicKeyBlob(jsch: JSch): ByteArray =
+        KeyPair.genKeyPair(jsch, KeyPair.RSA, 1024).publicKeyBlob
 
     private fun <T : AppCompatActivity> launchActivity(
         activityClass: Class<T>
@@ -353,5 +426,9 @@ class DeviceQaSuiteTest {
     companion object {
         private const val PHRASE_INSTALL_KEY = "Install SSH Key"
         private const val PHRASE_REMOVE_SUSHI_KEYS = "Remove Sushi SSH Keys"
+
+        /** Host keys are stored under the `host:port` alias set by `configureSession`. */
+        private const val HOST_KEY_HOST = "qa-host.local"
+        private const val HOST_KEY_ALIAS = "$HOST_KEY_HOST:2222"
     }
 }

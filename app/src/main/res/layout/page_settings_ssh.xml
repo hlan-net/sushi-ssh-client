@@ -205,5 +205,15 @@
             app:icon="@drawable/ic_vpn_key"
             app:iconGravity="textStart" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/manageHostKeysButton"
+            style="@style/Widget.Sushi.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/host_keys_title"
+            app:icon="@drawable/ic_vpn_key"
+            app:iconGravity="textStart" />
+
     </LinearLayout>
 </ScrollView>

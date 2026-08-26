@@ -165,7 +165,11 @@ class ShareActivity : AppCompatActivity() {
             val resolvedConfig = sshSettings.resolveJumpServer(
                 host.copy(privateKey = sshSettings.getPrivateKey())
             )
-            val client = SshClient(resolvedConfig)
+            val client = SshClient(
+                resolvedConfig,
+                DialogUserInfo(this@ShareActivity, resolvedConfig.displayTarget(), KeyPassphraseCache(this@ShareActivity)),
+                SshKnownHosts.file(this@ShareActivity)
+            )
 
             val result = when (payload) {
                 is SharePayload.TextPayload -> {

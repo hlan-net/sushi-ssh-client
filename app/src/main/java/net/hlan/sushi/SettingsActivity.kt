@@ -418,6 +418,10 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
+        pageBinding.manageHostKeysButton.setOnClickListener {
+            startActivity(Intent(this, HostKeysActivity::class.java))
+        }
+
         pageBinding.testConnectionButton.setOnClickListener {
             testActiveConnection()
         }
@@ -798,7 +802,11 @@ class SettingsActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             val startedAt = System.currentTimeMillis()
             val outputLines = mutableListOf<String>()
-            val client: TerminalBackend = SshClient(config)
+            val client: TerminalBackend = SshClient(
+                config,
+                DialogUserInfo(this@SettingsActivity, config.displayTarget(), KeyPassphraseCache(this@SettingsActivity)),
+                SshKnownHosts.file(this@SettingsActivity)
+            )
             val connectResult = client.connect(onLine = { line ->
                 synchronized(outputLines) {
                     if (outputLines.size < 6) {

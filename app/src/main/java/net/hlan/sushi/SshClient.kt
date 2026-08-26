@@ -4,8 +4,14 @@ import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
+import com.jcraft.jsch.JSchChangedHostKeyException
+import com.jcraft.jsch.JSchRevokedHostKeyException
+import com.jcraft.jsch.JSchUnknownHostKeyException
+import com.jcraft.jsch.KeyPair
 import com.jcraft.jsch.Session
+import com.jcraft.jsch.UserInfo
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
@@ -64,12 +70,21 @@ enum class ConnectFailure {
     TIMEOUT,            // TCP or SSH handshake timed out
     AUTH_KEY,           // Public-key authentication rejected
     AUTH_PASSWORD,      // Password authentication rejected
-    HOST_KEY_MISMATCH,  // Remote host key does not match known key
+    AUTH_KEY_PASSPHRASE, // Wrong local passphrase for an encrypted private key
+    HOST_KEY_MISMATCH,  // Remote host key has changed since it was trusted — do not connect
+    HOST_KEY_UNTRUSTED, // User declined to trust an unknown host key (or the prompt timed out)
     JUMP_FAILED,        // Jump / bastion server connection failed
     CHANNEL_FAILED,     // Session authenticated but shell channel failed to open
     UNKNOWN;            // Unclassified error
 
-    val isRetryable: Boolean get() = this == NETWORK || this == TIMEOUT || this == UNKNOWN
+    /**
+     * HOST_KEY_UNTRUSTED is deliberately absent: declining a host key is a considered refusal,
+     * not a transient error, and auto-reconnecting would re-show the trust dialog the user just
+     * cancelled. The banner's Retry button remains the way back in.
+     */
+    val isRetryable: Boolean
+        get() = this == NETWORK || this == TIMEOUT || this == UNKNOWN ||
+            this == AUTH_KEY_PASSPHRASE
 }
 
 data class SshConnectResult(
@@ -94,7 +109,11 @@ data class SftpUploadResult(
     val message: String
 )
 
-class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
+class SshClient(
+    private val config: SshConnectionConfig,
+    private val userInfo: UserInfo,
+    private val knownHostsFile: File
+) : TerminalBackend {
     private var session: Session? = null
     private var jumpSession: Session? = null
     private var jumpForwardPort: Int? = null
@@ -102,7 +121,8 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
     private var shellInput: OutputStream? = null
     private var shellReaderThread: Thread? = null
 
-    private data class AuthPlan(
+    /** Internal rather than private so [classifyException] can take it as a parameter. */
+    internal data class AuthPlan(
         val shouldUseKey: Boolean,
         val shouldUsePassword: Boolean
     )
@@ -149,7 +169,7 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
             shellInput = null
             shellReaderThread = null
             val reason = (error as? ConnectionFailureException)?.reason
-                ?: classifyException(error)
+                ?: classifyException(error, runCatching { resolveAuthPlan(config) }.getOrNull())
             val message = error.message?.takeIf { it.isNotBlank() }
                 ?: "Unable to connect. Check host and credentials."
             SshConnectResult(false, message, reason)
@@ -177,13 +197,63 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
         )
     }
 
+    /**
+     * Unlocks an encrypted key here rather than letting JSch prompt during `connect()`.
+     *
+     * JSch gives no way to tell a wrong passphrase from a key the server refused: on a failed
+     * decrypt `UserAuthPublicKey` silently retries a few times and then reports an ordinary
+     * authentication failure, with no distinguishing message and no typed exception. Decrypting
+     * the key ourselves turns that into a definite answer, and lets the error surface before any
+     * network round-trip. The verified passphrase is then handed to JSch, so it has no reason to
+     * call back into [userInfo] mid-connect for this.
+     */
     private fun addPrivateKeyIdentity(jsch: JSch, authPlan: AuthPlan) {
         if (!authPlan.shouldUseKey) {
             return
         }
-        val keyPassphrase: ByteArray? = null
         val privateKeyBytes = config.privateKey.orEmpty().toByteArray()
-        jsch.addIdentity("key", privateKeyBytes, null, keyPassphrase)
+
+        val keyPair = runCatching { KeyPair.load(jsch, privateKeyBytes, null) }.getOrNull()
+        if (keyPair == null || !keyPair.isEncrypted) {
+            keyPair?.dispose()
+            jsch.addIdentity("key", privateKeyBytes, null, null)
+            return
+        }
+
+        try {
+            var passphrase: String? = null
+            // getPassphrase() only has a value once promptPassphrase() has been answered — from
+            // the cache, or from the dialog. Mirrors how JSch drives the same UserInfo.
+            if (userInfo.promptPassphrase("Passphrase for the SSH key")) {
+                passphrase = userInfo.passphrase
+            }
+            if (passphrase == null) {
+                throw ConnectionFailureException(
+                    ConnectFailure.AUTH_KEY_PASSPHRASE,
+                    IllegalStateException("Key is encrypted but no passphrase was provided.")
+                )
+            }
+
+            val passphraseBytes = passphrase.toByteArray()
+            val unlocked = try {
+                keyPair.decrypt(passphraseBytes)
+            } finally {
+                passphraseBytes.fill(0)
+            }
+            if (!unlocked) {
+                // Must not survive in the cache, or every later connect answers from it and the
+                // dialog never reappears.
+                (userInfo as? DialogUserInfo)?.forgetPassphrase()
+                throw ConnectionFailureException(
+                    ConnectFailure.AUTH_KEY_PASSPHRASE,
+                    IllegalStateException("Incorrect passphrase for the SSH key.")
+                )
+            }
+
+            jsch.addIdentity("key", privateKeyBytes, null, passphrase.toByteArray())
+        } finally {
+            keyPair.dispose()
+        }
     }
 
     private fun establishJumpSession(jsch: JSch, authPlan: AuthPlan): JumpSessionResult? {
@@ -195,7 +265,7 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
         if (authPlan.shouldUsePassword && config.jumpPassword.isNotBlank()) {
             createdJumpSession.setPassword(config.jumpPassword)
         }
-        configureSession(createdJumpSession)
+        configureSession(createdJumpSession, "${config.jumpHost}:${config.jumpPort}")
         createdJumpSession.connect(CONNECTION_TIMEOUT_MS)
         val forwardedPort = createdJumpSession.setPortForwardingL(0, config.host, config.port)
         return JumpSessionResult(createdJumpSession, forwardedPort)
@@ -211,7 +281,10 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
         if (authPlan.shouldUsePassword && config.password.isNotBlank()) {
             createdSession.setPassword(config.password)
         }
-        configureSession(createdSession)
+        // Always alias the host-key check to the real endpoint, never the tunneled
+        // 127.0.0.1/forwarded-port pair used when connecting through a jump host — otherwise
+        // TOFU prompts and the known-hosts store would key off the wrong, meaningless host.
+        configureSession(createdSession, "${config.host}:${config.port}")
         createdSession.connect(CONNECTION_TIMEOUT_MS)
         return createdSession
     }
@@ -233,6 +306,11 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
 
     private fun createConnectedSession(): ConnectedSessionPair {
         val jsch = JSch()
+        val trackingRepo = SshKnownHosts.attach(jsch, knownHostsFile)
+        if (userInfo is DialogUserInfo) {
+            userInfo.jsch = jsch
+            userInfo.trackingRepo = trackingRepo
+        }
         val authPlan = resolveAuthPlan(config)
         addPrivateKeyIdentity(jsch, authPlan)
 
@@ -251,27 +329,46 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
             establishTargetSession(jsch, targetHost, targetPort, authPlan)
         } catch (e: Exception) {
             jumpResult?.session?.disconnect()
-            throw ConnectionFailureException(classifyException(e), e)
+            throw ConnectionFailureException(classifyException(e, authPlan), e)
         }
 
         return ConnectedSessionPair(targetSession, jumpResult?.session, jumpResult?.forwardedPort)
     }
 
-    internal fun classifyException(e: Throwable): ConnectFailure {
+    internal fun classifyException(
+        e: Throwable,
+        attempted: AuthPlan? = null
+    ): ConnectFailure {
         val msg = e.message.orEmpty()
         val cause = e.cause
         return when {
-            msg.contains("HostKey", ignoreCase = true) && msg.contains("reject", ignoreCase = true) ->
+            // Typed exceptions from JSch's own host-key check are authoritative — prefer them
+            // over string matching, which stays below only as a fallback for synthetic/wrapped
+            // exceptions that aren't the real typed subclasses.
+            e is JSchChangedHostKeyException || e is JSchRevokedHostKeyException ->
                 ConnectFailure.HOST_KEY_MISMATCH
+            e is JSchUnknownHostKeyException ->
+                ConnectFailure.HOST_KEY_UNTRUSTED
+            msg.contains("HostKey", ignoreCase = true) && msg.contains("changed", ignoreCase = true) ->
+                ConnectFailure.HOST_KEY_MISMATCH
+            msg.contains("HostKey", ignoreCase = true) && msg.contains("reject", ignoreCase = true) ->
+                ConnectFailure.HOST_KEY_UNTRUSTED
             msg.contains("Auth fail", ignoreCase = true) ||
             msg.contains("auth cancel", ignoreCase = true) ||
             msg.contains("userauth fail", ignoreCase = true) -> {
-                if (msg.contains("publickey", ignoreCase = true) ||
-                    msg.contains("auth cancel", ignoreCase = true) ||
-                    msg.contains("key", ignoreCase = true) && !msg.contains("password", ignoreCase = true))
-                    ConnectFailure.AUTH_KEY
-                else
-                    ConnectFailure.AUTH_PASSWORD
+                // JSch's "Auth fail for methods 'publickey,password'" lists what the *server*
+                // offers, not what failed, so the method names in it say nothing about the
+                // cause. Whenever we know which methods were actually attempted, that decides;
+                // the message heuristic below only covers callers that don't pass a plan.
+                when {
+                    attempted != null && !attempted.shouldUseKey -> ConnectFailure.AUTH_PASSWORD
+                    attempted != null && !attempted.shouldUsePassword -> ConnectFailure.AUTH_KEY
+                    msg.contains("publickey", ignoreCase = true) ||
+                        msg.contains("auth cancel", ignoreCase = true) ||
+                        msg.contains("key", ignoreCase = true) &&
+                        !msg.contains("password", ignoreCase = true) -> ConnectFailure.AUTH_KEY
+                    else -> ConnectFailure.AUTH_PASSWORD
+                }
             }
             msg.contains("timeout", ignoreCase = true) ||
             msg.contains("timed out", ignoreCase = true) ||
@@ -291,8 +388,10 @@ class SshClient(private val config: SshConnectionConfig) : TerminalBackend {
         }
     }
 
-    private fun configureSession(session: Session) {
-        session.setConfig("StrictHostKeyChecking", "no")
+    private fun configureSession(session: Session, hostKeyAlias: String) {
+        session.setConfig("StrictHostKeyChecking", "ask")
+        session.setHostKeyAlias(hostKeyAlias)
+        session.setUserInfo(userInfo)
         // Use Bouncy Castle for Ed25519 so ssh-ed25519 host keys work on all Android
         // versions. Android JCE only supports EdDSA from API 33; the BC implementation
         // works from the app's minSdk (26) onward.

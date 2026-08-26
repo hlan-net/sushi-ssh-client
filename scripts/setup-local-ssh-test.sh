@@ -70,8 +70,11 @@ while [[ "${auth_choice}" != "1" && "${auth_choice}" != "2" ]]; do
   auth_choice="$(prompt_with_default "Choose [1/2]" "${default_auth_choice}")"
 done
 
-ssh_password=""
-ssh_private_key_b64=""
+# Keep whichever credential this run isn't editing: the integration suite needs password,
+# plain-key and encrypted-key auth all configured at once, so picking one method here must
+# not wipe the others.
+ssh_password="${SSH_PASSWORD:-}"
+ssh_private_key_b64="${SSH_PRIVATE_KEY_B64:-}"
 
 if [[ "${auth_choice}" == "1" ]]; then
   entered_password="$(prompt_secret_keep_existing "SSH password" "$( [[ -n "${SSH_PASSWORD:-}" ]] && printf true || printf false )")"
@@ -98,6 +101,31 @@ else
     fi
     echo "File not found: ${key_path}"
   done
+fi
+
+# Optional passphrase-protected key. Kept separate from the plain key above so the
+# unencrypted-key tests keep their regression coverage while the encrypted-key and
+# wrong-passphrase paths get exercised too.
+ssh_encrypted_private_key_b64="${SSH_ENCRYPTED_PRIVATE_KEY_B64:-}"
+ssh_key_passphrase="${SSH_KEY_PASSPHRASE:-}"
+
+echo
+encrypted_hint=""
+if [[ -n "${ssh_encrypted_private_key_b64}" ]]; then
+  encrypted_hint=" (leave empty to keep current)"
+fi
+encrypted_key_path="$(prompt_with_default "Path to a passphrase-protected key, optional${encrypted_hint}" "")"
+if [[ -n "${encrypted_key_path}" ]]; then
+  if [[ -f "${encrypted_key_path}" ]]; then
+    ssh_encrypted_private_key_b64="$(base64 < "${encrypted_key_path}" | tr -d '\n')"
+    entered_passphrase="$(prompt_secret_keep_existing "Key passphrase" "$( [[ -n "${ssh_key_passphrase}" ]] && printf true || printf false )")"
+    entered_passphrase="${entered_passphrase#$'\n'}"
+    if [[ -n "${entered_passphrase}" ]]; then
+      ssh_key_passphrase="${entered_passphrase}"
+    fi
+  else
+    echo "File not found: ${encrypted_key_path} — skipping encrypted-key setup."
+  fi
 fi
 
 jump_default_enabled="${SSH_JUMP_ENABLED:-false}"
@@ -150,6 +178,8 @@ fi
   printf "SSH_JUMP_PORT=%q\n" "${ssh_jump_port}"
   printf "SSH_JUMP_USERNAME=%q\n" "${ssh_jump_username}"
   printf "SSH_JUMP_PASSWORD=%q\n" "${ssh_jump_password}"
+  printf "SSH_ENCRYPTED_PRIVATE_KEY_B64=%q\n" "${ssh_encrypted_private_key_b64}"
+  printf "SSH_KEY_PASSPHRASE=%q\n" "${ssh_key_passphrase}"
 } > "${CONFIG_FILE}"
 
 chmod 600 "${CONFIG_FILE}"
