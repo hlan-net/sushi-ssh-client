@@ -54,6 +54,10 @@
             android:exported="false"
             android:label="@string/keys_title" />
         <activity
+            android:name=".HostKeysActivity"
+            android:exported="false"
+            android:label="@string/host_keys_title" />
+        <activity
             android:name=".PhrasesActivity"
             android:exported="false"
             android:label="@string/phrases_title" />

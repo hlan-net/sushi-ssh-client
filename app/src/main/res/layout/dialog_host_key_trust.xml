@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/hostKeyTrustMessage"
+        style="@style/TextAppearance.Sushi.Body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        tools:text="Sushi can now verify server identities. Confirm this is the key you expect for db-prod.example.com:22 — you won't be asked again unless it changes." />
+
+    <TextView
+        android:id="@+id/hostKeyTrustFingerprint"
+        style="@style/TextAppearance.Sushi.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:fontFamily="monospace"
+        android:textIsSelectable="true"
+        tools:text="ssh-ed25519\nSHA256:abcd1234efgh5678..." />
+
+</LinearLayout>

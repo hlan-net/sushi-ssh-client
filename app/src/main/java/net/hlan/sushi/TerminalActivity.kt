@@ -160,7 +160,7 @@ class TerminalActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             val backend: TerminalBackend = when (config.kind) {
                 HostKind.LOCAL -> LocalShellBackend(applicationContext)
-                HostKind.SSH -> SshClient(config)
+                HostKind.SSH -> SshClient(config, newUserInfo(config), SshKnownHosts.file(applicationContext))
             }
 
             val firstAttempt = connectWith(backend, config)
@@ -178,7 +178,7 @@ class TerminalActivity : AppCompatActivity() {
 
                 delay(CONNECT_RETRY_DELAY_MS)
 
-                val retryBackend: TerminalBackend = SshClient(config)
+                val retryBackend: TerminalBackend = SshClient(config, newUserInfo(config), SshKnownHosts.file(applicationContext))
                 val secondAttempt = connectWith(retryBackend, config)
                 client = secondAttempt.first
                 result = secondAttempt.second
@@ -208,13 +208,18 @@ class TerminalActivity : AppCompatActivity() {
         }
     }
 
+    private fun newUserInfo(config: SshConnectionConfig): DialogUserInfo =
+        DialogUserInfo(this, config.displayTarget(), KeyPassphraseCache(applicationContext))
+
     private fun showErrorBanner(reason: ConnectFailure, rawMessage: String, config: SshConnectionConfig) {
         val message = when (reason) {
             ConnectFailure.NETWORK -> getString(R.string.connect_error_network)
             ConnectFailure.TIMEOUT -> getString(R.string.connect_error_timeout)
             ConnectFailure.AUTH_KEY -> getString(R.string.connect_error_auth_key)
             ConnectFailure.AUTH_PASSWORD -> getString(R.string.connect_error_auth_password)
+            ConnectFailure.AUTH_KEY_PASSPHRASE -> getString(R.string.connect_error_auth_key_passphrase)
             ConnectFailure.HOST_KEY_MISMATCH -> getString(R.string.connect_error_host_key_mismatch)
+            ConnectFailure.HOST_KEY_UNTRUSTED -> getString(R.string.connect_error_host_key_untrusted)
             ConnectFailure.JUMP_FAILED -> getString(R.string.connect_error_jump_failed)
             ConnectFailure.CHANNEL_FAILED -> getString(R.string.connect_error_channel_failed)
             ConnectFailure.UNKNOWN -> getString(R.string.connect_error_unknown, rawMessage)
@@ -224,7 +229,8 @@ class TerminalActivity : AppCompatActivity() {
 
         val actionButton = binding.terminalErrorBannerAction
         when (reason) {
-            ConnectFailure.NETWORK, ConnectFailure.TIMEOUT, ConnectFailure.UNKNOWN -> {
+            ConnectFailure.NETWORK, ConnectFailure.TIMEOUT, ConnectFailure.UNKNOWN,
+            ConnectFailure.AUTH_KEY_PASSPHRASE, ConnectFailure.HOST_KEY_UNTRUSTED -> {
                 actionButton.setText(R.string.action_retry)
                 actionButton.visibility = android.view.View.VISIBLE
                 actionButton.setOnClickListener { hideErrorBanner(); connectTerminal() }
@@ -254,7 +260,15 @@ class TerminalActivity : AppCompatActivity() {
                 }
             }
             ConnectFailure.HOST_KEY_MISMATCH -> {
-                actionButton.visibility = android.view.View.GONE
+                actionButton.setText(R.string.connect_error_action_view_host_key)
+                actionButton.visibility = android.view.View.VISIBLE
+                actionButton.setOnClickListener {
+                    hideErrorBanner()
+                    startActivity(
+                        Intent(this, HostKeysActivity::class.java)
+                            .putExtra(HostKeysActivity.EXTRA_HOST_FILTER, config.host)
+                    )
+                }
             }
             ConnectFailure.CHANNEL_FAILED -> {
                 actionButton.visibility = android.view.View.GONE

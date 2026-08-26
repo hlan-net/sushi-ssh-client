@@ -4,8 +4,12 @@ import android.os.Bundle
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.jcraft.jsch.UserInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -14,6 +18,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 import java.util.ArrayList
 import java.util.Base64
 import java.util.Collections
@@ -22,6 +27,25 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class LocalSshIntegrationTest {
+
+    /**
+     * A [UserInfo] test double that answers prompts programmatically instead of showing a
+     * dialog. `promptYesNo` accepts unconditionally so these tests keep working once host-key
+     * checking is enabled; none of the credentials used here are passphrase-protected.
+     */
+    private object TestUserInfo : UserInfo {
+        override fun getPassphrase(): String? = null
+        override fun getPassword(): String? = null
+        override fun promptPassword(message: String?): Boolean = false
+        override fun promptPassphrase(message: String?): Boolean = false
+        override fun promptYesNo(message: String?): Boolean = true
+        override fun showMessage(message: String?) {}
+    }
+
+    /** Fresh, isolated known-hosts file per SshClient construction — these tests don't exercise
+     * host-key persistence, they just need somewhere harmless for JSch to read/write. */
+    private fun newTestKnownHostsFile(): File =
+        File.createTempFile("sushi_test_known_hosts", null).apply { deleteOnExit() }
 
     @Test
     fun connectsToConfiguredHostViaSsh() {
@@ -42,7 +66,7 @@ class LocalSshIntegrationTest {
             jumpUsername = credentials.jumpUsername,
             jumpPassword = credentials.jumpPassword
         )
-        val client = SshClient(config)
+        val client = SshClient(config, TestUserInfo, newTestKnownHostsFile())
 
         val connectResult = client.connect(onLine = { line ->
             receivedLines.add(line)
@@ -218,7 +242,7 @@ class LocalSshIntegrationTest {
 
         val installMarker = "SUSHI_KEY_INSTALL_OK_${System.currentTimeMillis()}"
         val installMarkerLatch = CountDownLatch(1)
-        val passwordClient = SshClient(passwordHost)
+        val passwordClient = SshClient(passwordHost, TestUserInfo, newTestKnownHostsFile())
 
         val passwordConnectResult = passwordClient.connect(onLine = { line ->
             if (line.contains(installMarker)) {
@@ -235,6 +259,9 @@ class LocalSshIntegrationTest {
                 keysScenario.onActivity { activity ->
                     activity.findViewById<android.view.View>(R.id.generateKeyButton).performClick()
                 }
+                // Key generation now prompts for an optional passphrase first; confirm with it
+                // left blank (an explicit, supported "no passphrase" choice) to proceed.
+                onView(withText(R.string.key_passphrase_confirm)).perform(click())
 
                 waitForCondition(
                     scenario = keysScenario,
@@ -269,7 +296,7 @@ class LocalSshIntegrationTest {
         val keyOnlyHost = passwordHost.copy(password = "", privateKey = generatedPrivateKey)
         val reconnectMarker = "SUSHI_KEY_RELOGIN_OK_${System.currentTimeMillis()}"
         val reconnectMarkerLatch = CountDownLatch(1)
-        val keyClient = SshClient(keyOnlyHost)
+        val keyClient = SshClient(keyOnlyHost, TestUserInfo, newTestKnownHostsFile())
 
         val keyConnectResult = keyClient.connect(onLine = { line ->
             if (line.contains(reconnectMarker)) {
@@ -312,7 +339,7 @@ class LocalSshIntegrationTest {
             jumpUsername = credentials.jumpUsername,
             jumpPassword = credentials.jumpPassword
         )
-        val client = SshClient(config)
+        val client = SshClient(config, TestUserInfo, newTestKnownHostsFile())
 
         val connectResult = client.connect(onLine = { line ->
             receivedLines.add(line)
@@ -397,7 +424,7 @@ class LocalSshIntegrationTest {
             jumpUsername = credentials.jumpUsername,
             jumpPassword = credentials.jumpPassword
         )
-        val client = SshClient(config)
+        val client = SshClient(config, TestUserInfo, newTestKnownHostsFile())
 
         val connectResult = client.connect(onLine = { line ->
             receivedLines.add(line)
@@ -680,7 +707,7 @@ class LocalSshIntegrationTest {
             jumpUsername = credentials.jumpUsername,
             jumpPassword = credentials.jumpPassword
         )
-        val client = SshClient(config)
+        val client = SshClient(config, TestUserInfo, newTestKnownHostsFile())
         val connectResult = client.connect(onLine = {})
         assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
 
@@ -712,7 +739,7 @@ class LocalSshIntegrationTest {
             jumpUsername = credentials.jumpUsername,
             jumpPassword = credentials.jumpPassword
         )
-        val client = SshClient(config)
+        val client = SshClient(config, TestUserInfo, newTestKnownHostsFile())
         val connectResult = client.connect(onLine = {})
         assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
 
@@ -741,7 +768,7 @@ class LocalSshIntegrationTest {
             jumpUsername = credentials.jumpUsername,
             jumpPassword = credentials.jumpPassword
         )
-        val client = SshClient(config)
+        val client = SshClient(config, TestUserInfo, newTestKnownHostsFile())
         val connectResult = client.connect(onLine = {})
         assertTrue("SSH connect failed: ${connectResult.message}", connectResult.success)
 

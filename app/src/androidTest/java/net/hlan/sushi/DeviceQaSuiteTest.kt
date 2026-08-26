@@ -8,8 +8,10 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.replaceText
+import androidx.test.espresso.action.ViewActions.scrollTo
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.contrib.RecyclerViewActions
+import androidx.test.espresso.matcher.ViewMatchers.hasDescendant
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
@@ -58,7 +60,7 @@ class DeviceQaSuiteTest {
         launchActivity(MainActivity::class.java).use {
             onView(withId(R.id.sessionStatusText))
                 .check(matches(withText(not(isEmptyOrNullString()))))
-            onView(withId(R.id.mainSettingsButton)).check(matches(isDisplayed()))
+            onView(withId(R.id.mainSettingsButton)).perform(scrollTo()).check(matches(isDisplayed()))
         }
 
         // SettingsActivity — verify title and SSH page generate-key button
@@ -84,7 +86,7 @@ class DeviceQaSuiteTest {
             onView(withId(R.id.sshPortInput)).perform(replaceText("22"))
             onView(withId(R.id.sshUsernameInput)).perform(replaceText("qa-user"))
             onView(withId(R.id.sshPasswordInput)).perform(replaceText("qa-password"))
-            onView(withId(R.id.saveButton)).perform(click())
+            onView(withId(R.id.saveButton)).perform(scrollTo(), click())
         }
 
         // HostsActivity — verify host appears and can be tapped
@@ -153,6 +155,9 @@ class DeviceQaSuiteTest {
 
         launchActivity(KeysActivity::class.java).use {
             onView(withId(R.id.generateKeyButton)).perform(click())
+            // Key generation now prompts for an optional passphrase first; confirm with it
+            // left blank (an explicit, supported "no passphrase" choice) to proceed.
+            onView(withText(R.string.key_passphrase_confirm)).perform(click())
 
             waitUntil(
                 timeoutMs = 20_000,
@@ -189,20 +194,9 @@ class DeviceQaSuiteTest {
                 recycler.adapter?.itemCount ?: 0 >= 2
             }
 
-            var targetPosition = -1
-            phrasesScenario.onActivity { activity ->
-                val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.phrasesRecyclerView)
-                val adapter = recycler.adapter as? PhraseAdapter ?: return@onActivity
-                targetPosition = adapter.currentList.indexOfFirst { phrase ->
-                    phrase.name == PHRASE_REMOVE_SUSHI_KEYS && phrase.command == removePhraseCommand
-                }
-            }
-
-            assertTrue("Remove Sushi SSH Keys phrase row should exist", targetPosition >= 0)
-
             onView(withId(R.id.phrasesRecyclerView)).perform(
-                RecyclerViewActions.actionOnItemAtPosition<androidx.recyclerview.widget.RecyclerView.ViewHolder>(
-                    targetPosition, click()
+                RecyclerViewActions.actionOnItem<androidx.recyclerview.widget.RecyclerView.ViewHolder>(
+                    hasDescendant(withText(PHRASE_REMOVE_SUSHI_KEYS)), click()
                 )
             )
         }

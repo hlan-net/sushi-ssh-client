@@ -754,7 +754,11 @@ class MainActivity : AppCompatActivity() {
                 LocalShellBackend(this@MainActivity)
             } else {
                 val config = sshSettings.resolveJumpServer(host.copy(privateKey = sshSettings.getPrivateKey()))
-                SshClient(config)
+                SshClient(
+                    config,
+                    DialogUserInfo(this@MainActivity, config.displayTarget(), KeyPassphraseCache(this@MainActivity)),
+                    SshKnownHosts.file(this@MainActivity)
+                )
             }
 
             // SSH backends require an active session before execCommand can be called.

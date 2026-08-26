@@ -32,6 +32,19 @@ class SshSettings(private val context: Context) {
         }
     }
 
+    // Passphrase for the global key pair above. Only ever written when the user explicitly
+    // opts in via a "remember" toggle (KeysActivity generation, or the connect-time prompt);
+    // never persisted by default.
+    fun getKeyPassphrase(): String? = prefs.getString(KEY_KEY_PASSPHRASE, null)
+
+    fun setKeyPassphrase(passphrase: String?) {
+        if (passphrase == null) {
+            prefs.edit().remove(KEY_KEY_PASSPHRASE).apply()
+        } else {
+            prefs.edit().putString(KEY_KEY_PASSPHRASE, passphrase).apply()
+        }
+    }
+
     // Host Management
     fun getHosts(): List<SshConnectionConfig> {
         val json = prefs.getString(KEY_HOSTS_JSON, null) ?: return emptyList()
@@ -156,6 +169,7 @@ class SshSettings(private val context: Context) {
     companion object {
         private const val KEY_PRIVATE_KEY = "ssh_private_key"
         private const val KEY_PUBLIC_KEY = "ssh_public_key"
+        private const val KEY_KEY_PASSPHRASE = "ssh_key_passphrase"
         private const val KEY_HOSTS_JSON = "ssh_hosts_json"
         private const val KEY_ACTIVE_HOST_ID = "ssh_active_host_id"
     }
