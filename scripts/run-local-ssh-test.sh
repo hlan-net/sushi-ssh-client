@@ -50,6 +50,22 @@ if [[ -n "${SSH_PRIVATE_KEY_B64:-}" ]]; then
   args+=("-Pandroid.testInstrumentationRunnerArguments.sshPrivateKeyB64=${SSH_PRIVATE_KEY_B64}")
 fi
 
+# Passphrase-protected key, kept separate from the plain one so the existing
+# unencrypted-key tests keep their regression coverage.
+if [[ -n "${SSH_ENCRYPTED_PRIVATE_KEY_B64:-}" ]]; then
+  args+=("-Pandroid.testInstrumentationRunnerArguments.sshEncryptedPrivateKeyB64=${SSH_ENCRYPTED_PRIVATE_KEY_B64}")
+fi
+
+if [[ -n "${SSH_KEY_PASSPHRASE:-}" ]]; then
+  args+=("-Pandroid.testInstrumentationRunnerArguments.sshKeyPassphrase=${SSH_KEY_PASSPHRASE}")
+fi
+
+# Legacy PEM-encrypted key. JSch cannot unlock the OpenSSH-format key above (bcrypt KDF), so the
+# passphrase-classification tests need a format that actually decrypts.
+if [[ -n "${SSH_ENCRYPTED_PEM_KEY_B64:-}" ]]; then
+  args+=("-Pandroid.testInstrumentationRunnerArguments.sshEncryptedPemKeyB64=${SSH_ENCRYPTED_PEM_KEY_B64}")
+fi
+
 if [[ "${SSH_JUMP_ENABLED}" == "true" || "${SSH_JUMP_ENABLED}" == "1" ]]; then
   if [[ -z "${SSH_JUMP_HOST:-}" || -z "${SSH_JUMP_USERNAME:-}" ]]; then
     echo "SSH_JUMP_ENABLED is true but SSH_JUMP_HOST or SSH_JUMP_USERNAME is missing."

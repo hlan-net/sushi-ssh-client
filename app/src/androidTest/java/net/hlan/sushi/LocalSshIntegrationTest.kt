@@ -9,6 +9,7 @@ import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.jcraft.jsch.JSch
 import com.jcraft.jsch.UserInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -46,6 +47,208 @@ class LocalSshIntegrationTest {
      * host-key persistence, they just need somewhere harmless for JSch to read/write. */
     private fun newTestKnownHostsFile(): File =
         File.createTempFile("sushi_test_known_hosts", null).apply { deleteOnExit() }
+
+    /** Answers the passphrase prompt with a fixed value, the way a user typing one would. */
+    private class PassphraseUserInfo(private val passphrase: String) : UserInfo {
+        override fun getPassphrase(): String = passphrase
+        override fun getPassword(): String? = null
+        override fun promptPassword(message: String?): Boolean = false
+        override fun promptPassphrase(message: String?): Boolean = true
+        override fun promptYesNo(message: String?): Boolean = true
+        override fun showMessage(message: String?) {}
+    }
+
+    /**
+     * Mirrors the production [DialogUserInfo] password contract — `promptPassword` claims a
+     * password is available while `getPassword` returns null. Kept in sync with the real class
+     * deliberately: it is the combination that turns a rejected password into "Auth cancel".
+     */
+    private object ProductionLikeUserInfo : UserInfo {
+        override fun getPassphrase(): String? = null
+        override fun getPassword(): String? = null
+        override fun promptPassword(message: String?): Boolean = true
+        override fun promptPassphrase(message: String?): Boolean = false
+        override fun promptYesNo(message: String?): Boolean = true
+        override fun showMessage(message: String?) {}
+    }
+
+    private fun encryptedKeyConfig(credentials: LocalSshCredentials, key: String) =
+        SshConnectionConfig(
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = "",
+            privateKey = key,
+            jumpEnabled = false,
+            jumpHost = "",
+            jumpPort = DEFAULT_SSH_PORT,
+            jumpUsername = "",
+            jumpPassword = ""
+        )
+
+    /**
+     * `ssh-keygen` writes the OpenSSH format by default, and encrypts it with a bcrypt KDF. If
+     * this fails, the passphrase support this app advertises does not work with the keys users
+     * actually have — only with keys explicitly generated as legacy PEM (`ssh-keygen -m PEM`).
+     */
+    @Test
+    fun openSshFormatEncryptedKeyCanBeUnlocked() {
+        val credentials = readCredentialsOrSkip()
+        assumeTrue(
+            "No OpenSSH-format encrypted key configured (SSH_ENCRYPTED_PRIVATE_KEY_B64)",
+            credentials.encryptedPrivateKey != null
+        )
+        assumeTrue("No key passphrase configured", credentials.keyPassphrase.isNotBlank())
+
+        val client = SshClient(
+            encryptedKeyConfig(credentials, credentials.encryptedPrivateKey!!),
+            PassphraseUserInfo(credentials.keyPassphrase),
+            newTestKnownHostsFile()
+        )
+
+        val result = client.connect(onLine = {})
+        client.disconnect()
+
+        assertTrue(
+            "ssh-keygen's default key format should authenticate once unlocked: ${result.message}",
+            result.success
+        )
+    }
+
+    /** The positive half, on the format JSch can decrypt today. */
+    @Test
+    fun encryptedPemKeyConnectsWithTheCorrectPassphrase() {
+        val credentials = readCredentialsOrSkip()
+        assumeTrue(
+            "No PEM-format encrypted key configured (SSH_ENCRYPTED_PEM_KEY_B64)",
+            credentials.encryptedPemKey != null
+        )
+        assumeTrue("No key passphrase configured", credentials.keyPassphrase.isNotBlank())
+
+        val client = SshClient(
+            encryptedKeyConfig(credentials, credentials.encryptedPemKey!!),
+            PassphraseUserInfo(credentials.keyPassphrase),
+            newTestKnownHostsFile()
+        )
+
+        val result = client.connect(onLine = {})
+        client.disconnect()
+
+        assertTrue(
+            "Encrypted PEM key should authenticate once unlocked: ${result.message}",
+            result.success
+        )
+    }
+
+    /**
+     * A wrong passphrase must be distinguishable from "the server rejected this key" — the two
+     * need different banners and different recovery actions. Uses the PEM key so the failure
+     * under test is the classification, not the key format.
+     */
+    @Test
+    fun wrongPassphraseOnEncryptedKeyIsReportedAsAPassphraseFailure() {
+        val credentials = readCredentialsOrSkip()
+        assumeTrue(
+            "No PEM-format encrypted key configured (SSH_ENCRYPTED_PEM_KEY_B64)",
+            credentials.encryptedPemKey != null
+        )
+
+        val client = SshClient(
+            encryptedKeyConfig(credentials, credentials.encryptedPemKey!!),
+            PassphraseUserInfo("definitely-not-the-configured-passphrase"),
+            newTestKnownHostsFile()
+        )
+
+        val result = client.connect(onLine = {})
+        client.disconnect()
+
+        assertFalse("Connect should fail with a wrong passphrase", result.success)
+        assertEquals(
+            "A wrong local passphrase must not be reported as a rejected key " +
+                "(message was: ${result.message})",
+            ConnectFailure.AUTH_KEY_PASSPHRASE,
+            result.reason
+        )
+    }
+
+    /**
+     * A rejected password on a password-only host must report AUTH_PASSWORD. With the production
+     * UserInfo contract JSch raises `JSchAuthCancelException` instead of a plain auth failure,
+     * which `classifyException` maps to AUTH_KEY — so the user is told their *key* was refused.
+     */
+    @Test
+    fun wrongPasswordIsNotReportedAsAKeyFailure() {
+        val credentials = readCredentialsOrSkip(requirePassword = true)
+
+        val config = SshConnectionConfig(
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password + "-wrong",
+            privateKey = null,
+            jumpEnabled = false,
+            jumpHost = "",
+            jumpPort = DEFAULT_SSH_PORT,
+            jumpUsername = "",
+            jumpPassword = ""
+        )
+        val client = SshClient(config, ProductionLikeUserInfo, newTestKnownHostsFile())
+
+        val result = client.connect(onLine = {})
+        client.disconnect()
+
+        assertFalse("Connect should fail with a wrong password", result.success)
+        assertEquals(
+            "A rejected password must be reported as a password failure, not a key failure " +
+                "(message was: ${result.message})",
+            ConnectFailure.AUTH_PASSWORD,
+            result.reason
+        )
+    }
+
+    /**
+     * Through a jump server the target session is opened against a local forwarded port, so
+     * without an explicit host-key alias JSch would file the key under `127.0.0.1:<port>` —
+     * wrong host in the prompt, and colliding entries between different jumped hosts.
+     */
+    @Test
+    fun jumpedConnectStoresHostKeyUnderTheRealTargetHost() {
+        val credentials = readCredentialsOrSkip()
+        assumeTrue("Jump server not configured", credentials.jumpEnabled)
+
+        val knownHosts = newTestKnownHostsFile()
+        val config = SshConnectionConfig(
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password,
+            privateKey = credentials.privateKey,
+            jumpEnabled = true,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
+        )
+        val client = SshClient(config, TestUserInfo, knownHosts)
+
+        val result = client.connect(onLine = {})
+        client.disconnect()
+        assertTrue("Jumped connect should succeed: ${result.message}", result.success)
+
+        val storedHosts = SshKnownHosts.attach(JSch(), knownHosts).hostKey.orEmpty().map { it.host }
+        assertTrue(
+            "No host key was recorded for the jumped connection",
+            storedHosts.isNotEmpty()
+        )
+        assertTrue(
+            "Host keys must not be filed under the forwarded loopback address (got $storedHosts)",
+            storedHosts.none { it.startsWith("127.0.0.1") }
+        )
+        assertTrue(
+            "Expected an entry for the real target host (got $storedHosts)",
+            storedHosts.any { it.substringBeforeLast(':') == credentials.host }
+        )
+    }
 
     @Test
     fun connectsToConfiguredHostViaSsh() {
@@ -849,7 +1052,10 @@ class LocalSshIntegrationTest {
             jumpHost = jumpHost,
             jumpPort = jumpPort ?: DEFAULT_SSH_PORT,
             jumpUsername = jumpUsername,
-            jumpPassword = jumpPassword
+            jumpPassword = jumpPassword,
+            encryptedPrivateKey = decodeBase64Arg(args, ARG_ENCRYPTED_PRIVATE_KEY_B64).ifBlank { null },
+            encryptedPemKey = decodeBase64Arg(args, ARG_ENCRYPTED_PEM_KEY_B64).ifBlank { null },
+            keyPassphrase = args.getString(ARG_KEY_PASSPHRASE).orEmpty()
         )
     }
 
@@ -868,6 +1074,14 @@ class LocalSshIntegrationTest {
             }.getOrElse { "" }
         }
         return args.getString(ARG_PRIVATE_KEY).orEmpty().trim()
+    }
+
+    private fun decodeBase64Arg(args: Bundle, argName: String): String {
+        val base64Key = args.getString(argName).orEmpty().trim()
+        if (base64Key.isBlank()) return ""
+        return runCatching {
+            String(Base64.getDecoder().decode(base64Key), Charsets.UTF_8)
+        }.getOrElse { "" }
     }
 
     private fun parsePortOrNull(rawPort: String?): Int? {
@@ -1127,7 +1341,12 @@ class LocalSshIntegrationTest {
         val jumpHost: String,
         val jumpPort: Int,
         val jumpUsername: String,
-        val jumpPassword: String
+        val jumpPassword: String,
+        /** Passphrase-protected key in `ssh-keygen`'s default OpenSSH format (bcrypt KDF). */
+        val encryptedPrivateKey: String? = null,
+        /** The same passphrase, in the legacy PEM format JSch can actually decrypt. */
+        val encryptedPemKey: String? = null,
+        val keyPassphrase: String = ""
     )
 
     private fun resetAppState(context: android.content.Context) {
@@ -1149,6 +1368,9 @@ class LocalSshIntegrationTest {
         private const val ARG_PASSWORD = "sshPassword"
         private const val ARG_PRIVATE_KEY = "sshPrivateKey"
         private const val ARG_PRIVATE_KEY_B64 = "sshPrivateKeyB64"
+        private const val ARG_ENCRYPTED_PRIVATE_KEY_B64 = "sshEncryptedPrivateKeyB64"
+        private const val ARG_ENCRYPTED_PEM_KEY_B64 = "sshEncryptedPemKeyB64"
+        private const val ARG_KEY_PASSPHRASE = "sshKeyPassphrase"
         private const val ARG_JUMP_ENABLED = "sshJumpEnabled"
         private const val ARG_JUMP_HOST = "sshJumpHost"
         private const val ARG_JUMP_PORT = "sshJumpPort"

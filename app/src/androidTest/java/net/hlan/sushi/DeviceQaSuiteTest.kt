@@ -1,6 +1,7 @@
 package net.hlan.sushi
 
 import android.content.Intent
+import android.util.Base64
 import android.view.View
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
@@ -17,13 +18,21 @@ import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.jcraft.jsch.HostKey
+import com.jcraft.jsch.HostKeyRepository
+import com.jcraft.jsch.JSch
+import com.jcraft.jsch.KeyPair
 import org.hamcrest.Matchers.containsString
 import org.hamcrest.Matchers.not
 import org.hamcrest.Matchers.isEmptyOrNullString
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
+import java.io.FileOutputStream
 
 @RunWith(AndroidJUnit4::class)
 class DeviceQaSuiteTest {
@@ -49,6 +58,7 @@ class DeviceQaSuiteTest {
         PlayDatabaseHelper.resetInstance()
         context.deleteDatabase("sushi_phrases.db")
         context.deleteDatabase("sushi_plays.db")
+        SshKnownHosts.file(context).delete()
     }
 
     @Test
@@ -265,6 +275,141 @@ class DeviceQaSuiteTest {
         }
     }
 
+    /**
+     * The changed-key path: JSch calls `remove(host, type, null)` from
+     * `Session.doCheckHostKey` when the user accepts a replacement key. If the override
+     * declares `key` non-null, Kotlin's intrinsic null check throws out of `session.connect()`,
+     * the old key is never removed, the new one is never stored, and the host becomes
+     * permanently unreachable.
+     */
+    @Test
+    fun changedHostKeyCanBeReplacedTheWayJschDoesIt() {
+        val context = instrumentation.targetContext
+        val knownHosts = File(context.cacheDir, "qa_known_hosts_replace").apply { delete() }
+        val jsch = JSch()
+        val repo: HostKeyRepository = SshKnownHosts.attach(jsch, knownHosts)
+
+        val hostKey = HostKey(HOST_KEY_ALIAS, generatePublicKeyBlob(jsch))
+        repo.add(hostKey, null)
+        assertEquals(
+            "seeded key should be present before the replace",
+            1,
+            repo.getHostKey(HOST_KEY_ALIAS, hostKey.type).size
+        )
+
+        // Exactly the call JSch makes when the user confirms "replace changed key".
+        repo.remove(HOST_KEY_ALIAS, hostKey.type, null)
+
+        assertEquals(
+            "the superseded key must be removable so the replacement can be stored",
+            0,
+            repo.getHostKey(HOST_KEY_ALIAS, hostKey.type).size
+        )
+        knownHosts.delete()
+    }
+
+    /**
+     * Host keys are stored under the `host:port` alias set by `configureSession`, but the
+     * HOST_KEY_MISMATCH banner's "View host key" action passes the bare host. If the screen
+     * filters on an exact match the user always lands on the empty state.
+     */
+    @Test
+    fun hostKeysScreenShowsEntryStoredUnderHostPortAlias() {
+        val context = instrumentation.targetContext
+        val jsch = JSch()
+        val blob = generatePublicKeyBlob(jsch)
+        val entry = "$HOST_KEY_ALIAS ssh-rsa ${Base64.encodeToString(blob, Base64.NO_WRAP)}\n"
+        // java.io rather than File.writeText(): kotlin.io.FilesKt is stripped from the minified
+        // APK this suite runs against, since no app code pulls it in.
+        FileOutputStream(SshKnownHosts.file(context)).use { out ->
+            out.write(entry.toByteArray(Charsets.UTF_8))
+        }
+
+        // Control: prove the seeded entry really parses back out under the host:port alias, so a
+        // failure below can only mean the screen's filter rejected it.
+        val storedKeys = SshKnownHosts.attach(JSch(), SshKnownHosts.file(context)).hostKey.orEmpty()
+        assertEquals("seeded entry should parse back out of known_hosts", 1, storedKeys.size)
+        assertEquals("entry is stored under the host:port alias", HOST_KEY_ALIAS, storedKeys[0].host)
+
+        val intent = Intent(context, HostKeysActivity::class.java)
+            // TerminalActivity passes config.host, without the port.
+            .putExtra(HostKeysActivity.EXTRA_HOST_FILTER, HOST_KEY_HOST)
+
+        wakeAndUnlock()
+        Thread.sleep(400)
+        ActivityScenario.launch<HostKeysActivity>(intent).use { scenario ->
+            waitForCondition(scenario) { activity ->
+                activity.findViewById<androidx.recyclerview.widget.RecyclerView>(
+                    R.id.hostKeysRecyclerView
+                ).adapter?.itemCount ?: 0 > 0
+            }
+            onView(withId(R.id.hostKeysRecyclerView)).check(matches(isDisplayed()))
+            onView(withId(R.id.emptyHostKeysText)).check(matches(not(isDisplayed())))
+        }
+    }
+
+    /**
+     * `attach()` must leave a known_hosts file on disk. Otherwise JSch's `syncKnownHostsFile`
+     * raises a second, separate "…does not exist. Are you sure you want to create it?" yes/no
+     * prompt on the very first trust — the user sees the trust dialog twice, and cancelling the
+     * second one silently discards the key they just approved.
+     */
+    @Test
+    fun attachCreatesKnownHostsSoJschNeverAsksToCreateIt() {
+        val context = instrumentation.targetContext
+        val knownHosts = SshKnownHosts.file(context)
+        knownHosts.delete()
+
+        SshKnownHosts.attach(JSch(), knownHosts)
+
+        assertTrue(
+            "known_hosts must exist before the first trust prompt",
+            knownHosts.exists()
+        )
+    }
+
+    /** Declining a host key is a deliberate refusal, not a transient error to auto-retry. */
+    @Test
+    fun decliningAHostKeyDoesNotTriggerAnAutomaticReconnect() {
+        assertFalse(
+            "HOST_KEY_UNTRUSTED must not be retryable — TerminalActivity would re-show the " +
+                "same trust dialog immediately after the user cancelled it",
+            ConnectFailure.HOST_KEY_UNTRUSTED.isRetryable
+        )
+    }
+
+    /**
+     * `promptPassword` returning true while `getPassword()` returns null makes JSch raise
+     * `JSchAuthCancelException` ("Auth cancel") instead of a plain "Auth fail" on a rejected
+     * password — which `classifyException` reports as a public-key failure. That misleads every
+     * password-only host, including ones that never touch host keys or passphrases.
+     */
+    @Test
+    fun promptPasswordDoesNotClaimAPasswordItCannotSupply() {
+        launchActivity(MainActivity::class.java).use { scenario ->
+            var claimedAPassword = true
+            var suppliedPassword: String? = "unset"
+            scenario.onActivity { activity ->
+                val userInfo = DialogUserInfo(
+                    activity = activity,
+                    targetLabel = HOST_KEY_HOST,
+                    passphraseCache = KeyPassphraseCache(activity)
+                )
+                claimedAPassword = userInfo.promptPassword("Password:")
+                suppliedPassword = userInfo.password
+            }
+            assertFalse(
+                "promptPassword must return false when getPassword() has nothing to return " +
+                    "(supplied: $suppliedPassword)",
+                claimedAPassword
+            )
+        }
+    }
+
+    /** RSA-1024 keeps generation fast on low-end test devices; only the blob shape matters here. */
+    private fun generatePublicKeyBlob(jsch: JSch): ByteArray =
+        KeyPair.genKeyPair(jsch, KeyPair.RSA, 1024).publicKeyBlob
+
     private fun <T : AppCompatActivity> launchActivity(
         activityClass: Class<T>
     ): ActivityScenario<T> {
@@ -347,5 +492,9 @@ class DeviceQaSuiteTest {
     companion object {
         private const val PHRASE_INSTALL_KEY = "Install SSH Key"
         private const val PHRASE_REMOVE_SUSHI_KEYS = "Remove Sushi SSH Keys"
+
+        /** Host keys are stored under the `host:port` alias set by `configureSession`. */
+        private const val HOST_KEY_HOST = "qa-host.local"
+        private const val HOST_KEY_ALIAS = "$HOST_KEY_HOST:2222"
     }
 }
