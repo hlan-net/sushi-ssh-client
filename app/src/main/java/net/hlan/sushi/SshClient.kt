@@ -7,6 +7,7 @@ import com.jcraft.jsch.JSch
 import com.jcraft.jsch.JSchChangedHostKeyException
 import com.jcraft.jsch.JSchRevokedHostKeyException
 import com.jcraft.jsch.JSchUnknownHostKeyException
+import com.jcraft.jsch.KeyPair
 import com.jcraft.jsch.Session
 import com.jcraft.jsch.UserInfo
 import java.io.ByteArrayOutputStream
@@ -196,14 +197,63 @@ class SshClient(
         )
     }
 
+    /**
+     * Unlocks an encrypted key here rather than letting JSch prompt during `connect()`.
+     *
+     * JSch gives no way to tell a wrong passphrase from a key the server refused: on a failed
+     * decrypt `UserAuthPublicKey` silently retries a few times and then reports an ordinary
+     * authentication failure, with no distinguishing message and no typed exception. Decrypting
+     * the key ourselves turns that into a definite answer, and lets the error surface before any
+     * network round-trip. The verified passphrase is then handed to JSch, so it has no reason to
+     * call back into [userInfo] mid-connect for this.
+     */
     private fun addPrivateKeyIdentity(jsch: JSch, authPlan: AuthPlan) {
         if (!authPlan.shouldUseKey) {
             return
         }
-        // Passphrase is always null here: if the key is encrypted, JSch calls back into
-        // userInfo.promptPassphrase()/getPassphrase() synchronously during connect().
         val privateKeyBytes = config.privateKey.orEmpty().toByteArray()
-        jsch.addIdentity("key", privateKeyBytes, null, null)
+
+        val keyPair = runCatching { KeyPair.load(jsch, privateKeyBytes, null) }.getOrNull()
+        if (keyPair == null || !keyPair.isEncrypted) {
+            keyPair?.dispose()
+            jsch.addIdentity("key", privateKeyBytes, null, null)
+            return
+        }
+
+        try {
+            var passphrase: String? = null
+            // getPassphrase() only has a value once promptPassphrase() has been answered — from
+            // the cache, or from the dialog. Mirrors how JSch drives the same UserInfo.
+            if (userInfo.promptPassphrase("Passphrase for the SSH key")) {
+                passphrase = userInfo.passphrase
+            }
+            if (passphrase == null) {
+                throw ConnectionFailureException(
+                    ConnectFailure.AUTH_KEY_PASSPHRASE,
+                    IllegalStateException("Key is encrypted but no passphrase was provided.")
+                )
+            }
+
+            val passphraseBytes = passphrase.toByteArray()
+            val unlocked = try {
+                keyPair.decrypt(passphraseBytes)
+            } finally {
+                passphraseBytes.fill(0)
+            }
+            if (!unlocked) {
+                // Must not survive in the cache, or every later connect answers from it and the
+                // dialog never reappears.
+                (userInfo as? DialogUserInfo)?.forgetPassphrase()
+                throw ConnectionFailureException(
+                    ConnectFailure.AUTH_KEY_PASSPHRASE,
+                    IllegalStateException("Incorrect passphrase for the SSH key.")
+                )
+            }
+
+            jsch.addIdentity("key", privateKeyBytes, null, passphrase.toByteArray())
+        } finally {
+            keyPair.dispose()
+        }
     }
 
     private fun establishJumpSession(jsch: JSch, authPlan: AuthPlan): JumpSessionResult? {

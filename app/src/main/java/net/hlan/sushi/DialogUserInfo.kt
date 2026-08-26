@@ -70,6 +70,17 @@ class DialogUserInfo(
 
     override fun getPassphrase(): String? = lastPassphrase
 
+    /**
+     * Drops a remembered passphrase that turned out not to unlock the key. [promptPassphrase]
+     * has to store it before anything can verify it, so without this a single typo with
+     * "remember on this device" enabled would be answered from the cache on every later
+     * connect, and the dialog would never appear again.
+     */
+    fun forgetPassphrase() {
+        lastPassphrase = null
+        passphraseCache.set(null)
+    }
+
     override fun promptYesNo(message: String): Boolean {
         val repo = trackingRepo ?: return false
         val jschInstance = jsch ?: return false
