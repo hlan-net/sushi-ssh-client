@@ -40,7 +40,13 @@ class HostKeysActivity : AppCompatActivity() {
         val allEntries = repo.hostKey.orEmpty().map { key ->
             HostKeyEntry(host = key.host, type = key.type, fingerprint = key.getFingerPrint(jsch))
         }
-        val entries = hostFilter?.let { filter -> allEntries.filter { it.host == filter } } ?: allEntries
+        // Entries are keyed by the alias configureSession() sets, i.e. "host:port", while the
+        // HOST_KEY_MISMATCH banner deep-links with the bare host. Match on the host part so
+        // either form finds the entry.
+        val entries = hostFilter?.let { filter ->
+            val wanted = filter.substringBeforeLast(':')
+            allEntries.filter { it.host.substringBeforeLast(':') == wanted }
+        } ?: allEntries
 
         adapter.submitList(entries)
 

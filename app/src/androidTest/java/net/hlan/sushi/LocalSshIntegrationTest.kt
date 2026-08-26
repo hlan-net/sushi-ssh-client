@@ -59,14 +59,15 @@ class LocalSshIntegrationTest {
     }
 
     /**
-     * Mirrors the production [DialogUserInfo] password contract — `promptPassword` claims a
-     * password is available while `getPassword` returns null. Kept in sync with the real class
-     * deliberately: it is the combination that turns a rejected password into "Auth cancel".
+     * Mirrors the production [DialogUserInfo] password contract: the password comes from the
+     * connection config, so `promptPassword` declines and `getPassword` has nothing to return.
+     * `DeviceQaSuiteTest.promptPasswordDoesNotClaimAPasswordItCannotSupply` pins the real class
+     * to the same answer, so this double cannot drift away from production unnoticed.
      */
     private object ProductionLikeUserInfo : UserInfo {
         override fun getPassphrase(): String? = null
         override fun getPassword(): String? = null
-        override fun promptPassword(message: String?): Boolean = true
+        override fun promptPassword(message: String?): Boolean = false
         override fun promptPassphrase(message: String?): Boolean = false
         override fun promptYesNo(message: String?): Boolean = true
         override fun showMessage(message: String?) {}

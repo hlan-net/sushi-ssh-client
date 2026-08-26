@@ -42,6 +42,48 @@ class ConnectionFailureClassificationTest {
         return constructor.newInstance(message)
     }
 
+    // --- auth failures are classified from what was attempted, not from JSch's message ---
+
+    /**
+     * JSch reports `Auth fail for methods 'publickey,password'` — the list is what the *server*
+     * offers, not what failed, so it always contains "publickey" on a normal sshd. Reading the
+     * cause out of that string tells a password-only user their key was refused.
+     */
+    @Test
+    fun authFailure_onPasswordOnlyConnection_isAPasswordFailure() {
+        val reason = client.classifyException(
+            JSchException("Auth fail for methods 'publickey,password'"),
+            SshClient.AuthPlan(shouldUseKey = false, shouldUsePassword = true)
+        )
+        assertEquals(ConnectFailure.AUTH_PASSWORD, reason)
+    }
+
+    @Test
+    fun authFailure_onKeyOnlyConnection_isAKeyFailure() {
+        val reason = client.classifyException(
+            JSchException("Auth fail for methods 'publickey,password'"),
+            SshClient.AuthPlan(shouldUseKey = true, shouldUsePassword = false)
+        )
+        assertEquals(ConnectFailure.AUTH_KEY, reason)
+    }
+
+    /** With both methods in play there is nothing better than the message to go on. */
+    @Test
+    fun authFailure_withBothMethods_fallsBackToTheMessage() {
+        val reason = client.classifyException(
+            JSchException("Auth fail for methods 'publickey,password'"),
+            SshClient.AuthPlan(shouldUseKey = true, shouldUsePassword = true)
+        )
+        assertEquals(ConnectFailure.AUTH_KEY, reason)
+    }
+
+    /** Callers that pass no plan keep the previous message-only behaviour. */
+    @Test
+    fun authFailure_withoutAPlan_keepsTheMessageHeuristic() {
+        val reason = client.classifyException(JSchException("Auth fail for methods 'password'"))
+        assertEquals(ConnectFailure.AUTH_PASSWORD, reason)
+    }
+
     // --- isRetryable ---
 
     @Test fun retryable_network() = assertTrue(ConnectFailure.NETWORK.isRetryable)

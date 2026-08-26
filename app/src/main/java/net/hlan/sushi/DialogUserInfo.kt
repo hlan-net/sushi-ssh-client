@@ -102,7 +102,14 @@ class DialogUserInfo(
         }
     }
 
-    override fun promptPassword(message: String): Boolean = true
+    /**
+     * False, not true: the password comes from [SshConnectionConfig] via
+     * `session.setPassword()`, so there is nothing to prompt for and [getPassword] has nothing
+     * to return. Claiming otherwise makes `UserAuthPassword` retry with a null password, which
+     * JSch turns into `JSchAuthCancelException` ("Auth cancel") — classified as a *key* failure,
+     * so a rejected password on a password-only host reports the wrong cause.
+     */
+    override fun promptPassword(message: String): Boolean = false
 
     override fun getPassword(): String? = null
 

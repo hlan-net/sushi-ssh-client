@@ -76,9 +76,14 @@ enum class ConnectFailure {
     CHANNEL_FAILED,     // Session authenticated but shell channel failed to open
     UNKNOWN;            // Unclassified error
 
+    /**
+     * HOST_KEY_UNTRUSTED is deliberately absent: declining a host key is a considered refusal,
+     * not a transient error, and auto-reconnecting would re-show the trust dialog the user just
+     * cancelled. The banner's Retry button remains the way back in.
+     */
     val isRetryable: Boolean
         get() = this == NETWORK || this == TIMEOUT || this == UNKNOWN ||
-            this == AUTH_KEY_PASSPHRASE || this == HOST_KEY_UNTRUSTED
+            this == AUTH_KEY_PASSPHRASE
 }
 
 data class SshConnectResult(
@@ -115,7 +120,8 @@ class SshClient(
     private var shellInput: OutputStream? = null
     private var shellReaderThread: Thread? = null
 
-    private data class AuthPlan(
+    /** Internal rather than private so [classifyException] can take it as a parameter. */
+    internal data class AuthPlan(
         val shouldUseKey: Boolean,
         val shouldUsePassword: Boolean
     )
@@ -162,7 +168,7 @@ class SshClient(
             shellInput = null
             shellReaderThread = null
             val reason = (error as? ConnectionFailureException)?.reason
-                ?: classifyException(error)
+                ?: classifyException(error, runCatching { resolveAuthPlan(config) }.getOrNull())
             val message = error.message?.takeIf { it.isNotBlank() }
                 ?: "Unable to connect. Check host and credentials."
             SshConnectResult(false, message, reason)
@@ -273,13 +279,16 @@ class SshClient(
             establishTargetSession(jsch, targetHost, targetPort, authPlan)
         } catch (e: Exception) {
             jumpResult?.session?.disconnect()
-            throw ConnectionFailureException(classifyException(e), e)
+            throw ConnectionFailureException(classifyException(e, authPlan), e)
         }
 
         return ConnectedSessionPair(targetSession, jumpResult?.session, jumpResult?.forwardedPort)
     }
 
-    internal fun classifyException(e: Throwable): ConnectFailure {
+    internal fun classifyException(
+        e: Throwable,
+        attempted: AuthPlan? = null
+    ): ConnectFailure {
         val msg = e.message.orEmpty()
         val cause = e.cause
         return when {
@@ -299,12 +308,19 @@ class SshClient(
             msg.contains("Auth fail", ignoreCase = true) ||
             msg.contains("auth cancel", ignoreCase = true) ||
             msg.contains("userauth fail", ignoreCase = true) -> {
-                if (msg.contains("publickey", ignoreCase = true) ||
-                    msg.contains("auth cancel", ignoreCase = true) ||
-                    msg.contains("key", ignoreCase = true) && !msg.contains("password", ignoreCase = true))
-                    ConnectFailure.AUTH_KEY
-                else
-                    ConnectFailure.AUTH_PASSWORD
+                // JSch's "Auth fail for methods 'publickey,password'" lists what the *server*
+                // offers, not what failed, so the method names in it say nothing about the
+                // cause. Whenever we know which methods were actually attempted, that decides;
+                // the message heuristic below only covers callers that don't pass a plan.
+                when {
+                    attempted != null && !attempted.shouldUseKey -> ConnectFailure.AUTH_PASSWORD
+                    attempted != null && !attempted.shouldUsePassword -> ConnectFailure.AUTH_KEY
+                    msg.contains("publickey", ignoreCase = true) ||
+                        msg.contains("auth cancel", ignoreCase = true) ||
+                        msg.contains("key", ignoreCase = true) &&
+                        !msg.contains("password", ignoreCase = true) -> ConnectFailure.AUTH_KEY
+                    else -> ConnectFailure.AUTH_PASSWORD
+                }
             }
             msg.contains("timeout", ignoreCase = true) ||
             msg.contains("timed out", ignoreCase = true) ||

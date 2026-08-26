@@ -37,7 +37,13 @@ class TrackingHostKeyRepository(private val delegate: HostKeyRepository) : HostK
         delegate.remove(host, type)
     }
 
-    override fun remove(host: String, type: String, key: ByteArray) {
+    /**
+     * `key` is nullable on purpose: `Session.doCheckHostKey` passes null here when the user
+     * accepts a replacement for a changed host key. Declaring it non-null makes Kotlin's
+     * intrinsic null check throw out of `connect()`, leaving the stale key in place and the
+     * host permanently unreachable.
+     */
+    override fun remove(host: String, type: String, key: ByteArray?) {
         delegate.remove(host, type, key)
     }
 
