@@ -38,14 +38,18 @@ class DeviceQaSuiteTest {
 
     @Before
     fun clearState() {
-        // Send HOME and BACK to clear any crash dialogs or left-over password prompts
-        // that would block the next test's ActivityScenario from reaching RESUMED state.
-        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_HOME").close()
-        Thread.sleep(200)
-        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_BACK").close()
-        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_BACK").close()
-        
         wakeAndUnlock()
+        // Dismiss any crash dialogs or left-over password prompts that would block the next
+        // test's ActivityScenario from reaching RESUMED state. BACK first to close the dialog,
+        // HOME last to land on a neutral foreground; after HOME a BACK would only hit the
+        // launcher. executeShellCommand is asynchronous, so each keyevent needs its own settle
+        // delay -- closing the descriptor does not wait for the command to finish.
+        repeat(2) {
+            instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_BACK").close()
+            Thread.sleep(200)
+        }
+        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_HOME").close()
+        Thread.sleep(300)
         // Disable autofill to prevent Google Password Manager from stealing focus.
         instrumentation.uiAutomation.executeShellCommand(
             "settings put secure autofill_service null"
@@ -428,7 +432,7 @@ class DeviceQaSuiteTest {
     private fun wakeAndUnlock() {
         instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_WAKEUP").close()
         instrumentation.uiAutomation.executeShellCommand("wm dismiss-keyguard").close()
-        instrumentation.uiAutomation.executeShellCommand("input keyevent 82").close() // KEYCODE_MENU
+        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_MENU").close()
     }
 
     companion object {
