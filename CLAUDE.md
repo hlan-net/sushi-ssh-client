@@ -37,6 +37,8 @@ Lint reports go to `app/build/reports/`.
 ./scripts/setup-local-ssh-test.sh          # wizard to store SSH test credentials
 ./scripts/run-local-ssh-test.sh            # runs LocalSshIntegrationTest
 ./scripts/install-git-hooks.sh             # installs pre-push hook (runs unit tests)
+./scripts/unlock-device.sh [device]        # enters the device PIN (Espresso needs the user unlocked)
+./scripts/unlock-sim.sh [pin|puk] [device] # unlocks a SIM asking for its PIN or PUK
 sudo ./scripts/install-adb-systemd-service.sh  # Device Tests runner host: adb as a systemd service
 ```
 
