@@ -120,7 +120,10 @@ dependencies {
     // bcprov-ext-jdk18on was discontinued after 1.78.1; ML-KEM merged into bcprov since 1.79.
     implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
     implementation("androidx.security:security-crypto:1.1.0")
-    implementation("com.google.android.gms:play-services-auth:21.6.0")
+    implementation("com.google.android.gms:play-services-auth:22.0.0")
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("com.google.api-client:google-api-client-android:2.9.0")
     implementation("com.google.api-client:google-api-client-gson:2.9.0")
     implementation("com.google.http-client:google-http-client-android:2.2.0")

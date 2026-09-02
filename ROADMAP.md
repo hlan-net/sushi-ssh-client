@@ -98,7 +98,7 @@ Solid SSH client features that are not core to the conversational goal but round
 
 ## Technical Debt
 
-- **Migrate from GoogleSignIn to Credential Manager** — The old `GoogleSignIn` API was removed in `play-services-auth:22.0.0`, blocking dependency updates. Rewrite `DriveAuthManager` to use the modern Android Credential Manager API.
+- **Migrate from GoogleSignIn to Credential Manager & Identity Authorization** — Upgraded `play-services-auth` to 22.0.0 and added `androidx.credentials` + `com.google.android.libraries.identity.googleid`; rewritten `DriveAuthManager` to use modern Android Identity AuthorizationClient and CredentialManager.
 
 ---
 

@@ -4,7 +4,6 @@ import android.accounts.Account
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.ByteArrayContent
@@ -20,7 +19,7 @@ class DriveLogUploader(private val context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     fun uploadLog(
-        account: GoogleSignInAccount,
+        account: DriveAccount,
         logContent: String,
         logType: LogType = LogType.TERMINAL,
         onResult: (DriveUploadResult) -> Unit
@@ -71,12 +70,8 @@ class DriveLogUploader(private val context: Context) {
             .id
     }
 
-    private fun buildDriveService(account: GoogleSignInAccount): Drive {
+    private fun buildDriveService(account: DriveAccount): Drive {
         val selectedAccount = account.account
-            ?: Account(
-                account.email ?: throw IllegalStateException("Missing account email"),
-                "com.google"
-            )
         val credential = GoogleAccountCredential.usingOAuth2(
             context,
             listOf(DriveScopes.DRIVE_FILE)

@@ -12,6 +12,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -93,19 +94,27 @@ class SettingsActivity : AppCompatActivity() {
     private var pendingApiKey: String = ""
     private var lastConnectionDiagnostics: String = ""
 
-    private val driveSignInLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
+    private val driveAuthLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         if (result.resultCode != Activity.RESULT_OK) {
             Toast.makeText(this, getString(R.string.drive_sign_in_failed), Toast.LENGTH_SHORT).show()
+            refreshDriveState()
             return@registerForActivityResult
         }
 
-        val account = driveAuthManager.handleSignInResult(result.data)
-        if (account == null) {
-            Toast.makeText(this, getString(R.string.drive_sign_in_failed), Toast.LENGTH_SHORT).show()
-        }
-        refreshDriveState()
+        driveAuthManager.handleAuthorizationResult(
+            activity = this,
+            resultData = result.data,
+            onSuccess = {
+                refreshDriveState()
+            },
+            onFailure = { error ->
+                Log.w(TAG, "Drive authorization failed: ${error.message}", error)
+                Toast.makeText(this, getString(R.string.drive_sign_in_failed), Toast.LENGTH_SHORT).show()
+                refreshDriveState()
+            }
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -494,7 +503,22 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupDrivePage(pageBinding: PageSettingsDriveBinding) {
         drivePageBinding = pageBinding
         pageBinding.driveSignInButton.setOnClickListener {
-            driveSignInLauncher.launch(driveAuthManager.getSignInIntent())
+            driveAuthManager.requestAuthorization(
+                activity = this,
+                onResolutionRequired = { pendingIntent ->
+                    driveAuthLauncher.launch(
+                        IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                    )
+                },
+                onSuccess = {
+                    refreshDriveState()
+                },
+                onFailure = { error ->
+                    Log.w(TAG, "Drive authorization request failed: ${error.message}", error)
+                    Toast.makeText(this, getString(R.string.drive_sign_in_failed), Toast.LENGTH_SHORT).show()
+                    refreshDriveState()
+                }
+            )
         }
         pageBinding.driveSignOutButton.setOnClickListener {
             driveAuthManager.signOut {
@@ -734,7 +758,7 @@ class SettingsActivity : AppCompatActivity() {
             } else {
                 pageBinding.driveStatusText.text = getString(
                     R.string.drive_status_signed_in,
-                    account.email ?: account.displayName ?: ""
+                    account.displayName ?: account.email
                 )
                 pageBinding.driveSignOutButton.visibility = View.VISIBLE
                 pageBinding.driveSignInButton.visibility = View.GONE
