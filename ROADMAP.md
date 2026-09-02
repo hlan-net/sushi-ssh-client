@@ -96,6 +96,10 @@ Solid SSH client features that are not core to the conversational goal but round
 - **UI test reliability on Android 15+** — reduce `NoActivityResumedException` flakes by standardizing wake/unlock/stay-awake prep and documenting that secure lockscreen must be disabled for Espresso device runs.
 - **Minified androidTest dependency alignment** — keep `minifiedDebugAndroidTestRuntimeClasspath` versions aligned with app classpath (notably Guava Android flavor) to avoid AGP consistent-resolution breakage.
 
+## Technical Debt
+
+- **Migrate from GoogleSignIn to Credential Manager** — The old `GoogleSignIn` API was removed in `play-services-auth:22.0.0`, blocking dependency updates. Rewrite `DriveAuthManager` to use the modern Android Credential Manager API.
+
 ---
 
 ## Far future / ideas
