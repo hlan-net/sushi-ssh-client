@@ -112,7 +112,7 @@ class SftpDownloadActivity : AppCompatActivity() {
         binding.downloadProgressBar.visibility = View.VISIBLE
         binding.downloadStatusText.text = getString(R.string.download_downloading)
 
-        val filename = remotePath.trimEnd('/').substringAfterLast('/').ifBlank { "downloaded_file" }
+        val filename = safeFilename(remotePath)
 
         lifecycleScope.launch(Dispatchers.IO) {
             val resolvedConfig = sshSettings.resolveJumpServer(
@@ -134,7 +134,7 @@ class SftpDownloadActivity : AppCompatActivity() {
             val result = runCatching {
                 destination.outputStream().use { client.sftpDownload(remotePath, it) }
             }.getOrElse { error ->
-                SftpDownloadResult(false, error.message ?: getString(R.string.download_failed_generic))
+                SftpDownloadResult(false, error.message.orEmpty())
             }
 
             withContext(Dispatchers.Main) {
@@ -145,8 +145,11 @@ class SftpDownloadActivity : AppCompatActivity() {
                     offerOpenOrShare(destination)
                 } else {
                     destination.delete()
-                    binding.downloadStatusText.text =
-                        getString(R.string.download_failed, result.message)
+                    // Fall back to a localized generic message when the client only has a
+                    // blank/generic reason, so the UI never shows "Download failed: Download failed".
+                    val reason = result.message.takeIf { it.isNotBlank() && it != "Download failed" }
+                        ?: getString(R.string.download_failed_generic)
+                    binding.downloadStatusText.text = getString(R.string.download_failed, reason)
                 }
             }
         }
@@ -191,8 +194,22 @@ class SftpDownloadActivity : AppCompatActivity() {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        startActivity(Intent.createChooser(intent, getString(R.string.download_share)))
+        try {
+            startActivity(Intent.createChooser(intent, getString(R.string.download_share)))
+        } catch (e: android.content.ActivityNotFoundException) {
+            Toast.makeText(this, R.string.download_no_viewer, Toast.LENGTH_LONG).show()
+        }
         finish()
+    }
+
+    /**
+     * Derive a safe local filename from a remote path. Guards against the last segment being
+     * empty or a directory reference (`.` / `..`), which would otherwise resolve to a directory
+     * inside the cache and fail; falls back to a fixed default.
+     */
+    private fun safeFilename(remotePath: String): String {
+        val segment = remotePath.trimEnd('/').substringAfterLast('/').trim()
+        return if (segment.isEmpty() || segment == "." || segment == "..") "downloaded_file" else segment
     }
 
     private fun mimeTypeFor(filename: String): String {
