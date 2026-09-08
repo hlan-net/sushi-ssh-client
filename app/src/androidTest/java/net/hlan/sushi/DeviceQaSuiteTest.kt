@@ -26,6 +26,7 @@ import org.hamcrest.Matchers.isEmptyOrNullString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -256,17 +257,7 @@ class DeviceQaSuiteTest {
         val intent = Intent(context, HostEditActivity::class.java)
             .putExtra(HostEditActivity.EXTRA_HOST_ID, localHost.id)
 
-        wakeAndUnlock()
-        Thread.sleep(400)
-        ActivityScenario.launch<HostEditActivity>(intent).use { scenario ->
-            scenario.onActivity { activity ->
-                activity.window.addFlags(
-                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                        @Suppress("DEPRECATION")
-                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-                )
-            }
-
+        launchActivity<HostEditActivity>(intent).use { scenario ->
             // Alias field must be visible and editable
             onView(withId(R.id.hostAliasInput)).check(matches(isDisplayed()))
 
@@ -310,9 +301,7 @@ class DeviceQaSuiteTest {
             // TerminalActivity passes config.host, without the port.
             .putExtra(HostKeysActivity.EXTRA_HOST_FILTER, HOST_KEY_HOST)
 
-        wakeAndUnlock()
-        Thread.sleep(400)
-        ActivityScenario.launch<HostKeysActivity>(intent).use { scenario ->
+        launchActivity<HostKeysActivity>(intent).use { scenario ->
             waitForCondition(scenario) { activity ->
                 activity.findViewById<androidx.recyclerview.widget.RecyclerView>(
                     R.id.hostKeysRecyclerView
@@ -370,13 +359,40 @@ class DeviceQaSuiteTest {
         }
         // Wait for the activity to gain window focus, re-dismissing keyguard if needed.
         val deadline = System.currentTimeMillis() + 5_000
+        var hasFocus = false
         while (System.currentTimeMillis() < deadline) {
-            var hasFocus = false
             scenario.onActivity { activity -> hasFocus = activity.hasWindowFocus() }
             if (hasFocus) return scenario
             wakeAndUnlock()
             Thread.sleep(250)
         }
+        assumeTrue("Device did not grant window focus (headless emulator or locked screen)", hasFocus)
+        return scenario
+    }
+
+    private inline fun <reified T : AppCompatActivity> launchActivity(
+        intent: Intent
+    ): ActivityScenario<T> {
+        wakeAndUnlock()
+        Thread.sleep(400)
+        val scenario = ActivityScenario.launch<T>(intent)
+        scenario.onActivity { activity ->
+            activity.window.addFlags(
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                    @Suppress("DEPRECATION")
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        }
+        // Wait for the activity to gain window focus, re-dismissing keyguard if needed.
+        val deadline = System.currentTimeMillis() + 5_000
+        var hasFocus = false
+        while (System.currentTimeMillis() < deadline) {
+            scenario.onActivity { activity -> hasFocus = activity.hasWindowFocus() }
+            if (hasFocus) return scenario
+            wakeAndUnlock()
+            Thread.sleep(250)
+        }
+        assumeTrue("Device did not grant window focus (headless emulator or locked screen)", hasFocus)
         return scenario
     }
 
