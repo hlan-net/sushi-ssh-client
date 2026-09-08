@@ -99,6 +99,14 @@ class PersonaEditorActivity : AppCompatActivity() {
                         } else {
                             decodeBase64(result.message)
                         }
+                        if (content == null) {
+                            // The remote output wasn't decodable base64. Do NOT populate an empty
+                            // editor — saving that would overwrite SUSHI.md with an empty file.
+                            showConnectionError(
+                                getString(R.string.persona_editor_decode_error)
+                            ) { loadPersona(host) }
+                            return@withContext
+                        }
                         binding.personaEditorInput.setText(content)
                         binding.personaEditorStatus.text =
                             getString(R.string.persona_editor_editing, host.displayTarget())
@@ -251,11 +259,12 @@ class PersonaEditorActivity : AppCompatActivity() {
         binding.personaResetButton.isEnabled = selectedHost != null && !busy
     }
 
-    private fun decodeBase64(raw: String): String {
+    /** Decodes remote base64 output, or null when it is not valid base64. */
+    private fun decodeBase64(raw: String): String? {
         val cleaned = raw.filterNot { it.isWhitespace() }
         return runCatching {
             String(Base64.decode(cleaned, Base64.DEFAULT), Charsets.UTF_8)
-        }.getOrDefault("")
+        }.getOrNull()
     }
 
     private sealed class ConnResult<out T> {

@@ -31,6 +31,7 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:layout_marginTop="12dp"
+            android:hint="@string/persona_editor_hint"
             app:boxBackgroundMode="outline">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -40,8 +41,7 @@
                 android:fontFamily="monospace"
                 android:gravity="top|start"
                 android:inputType="textMultiLine|textNoSuggestions"
-                android:textSize="13sp"
-                android:hint="@string/persona_editor_hint" />
+                android:textSize="13sp" />
 
         </com.google.android.material.textfield.TextInputLayout>
 

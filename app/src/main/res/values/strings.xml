@@ -273,6 +273,7 @@
     <string name="persona_editor_warn_empty">Warning: the persona is empty. Saving will leave the target without a persona definition.</string>
     <string name="persona_editor_warn_missing_sections">Warning: missing recommended sections: %1$s.</string>
     <string name="persona_editor_error_title">Persona editor</string>
+    <string name="persona_editor_decode_error">Could not read the current persona (unexpected response from the host). Not opening the editor to avoid overwriting SUSHI.md with an empty file.</string>
 
     <!-- Main screen Nano status strings -->
     <string name="gemini_status_nano">Gemini Nano ready (on-device).</string>
