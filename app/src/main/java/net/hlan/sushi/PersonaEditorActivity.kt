@@ -88,33 +88,32 @@ class PersonaEditorActivity : AppCompatActivity() {
                 setBusy(false)
                 when (outcome) {
                     is ConnResult.Failure -> showConnectionError(outcome.message) { loadPersona(host) }
-                    is ConnResult.Success -> {
-                        val result = outcome.value
-                        if (!result.success) {
-                            showConnectionError(result.message) { loadPersona(host) }
-                            return@withContext
-                        }
-                        val content = if (result.message.contains(MISSING_MARKER)) {
-                            "" // No persona yet — start from a blank editor.
-                        } else {
-                            decodeBase64(result.message)
-                        }
-                        if (content == null) {
-                            // The remote output wasn't decodable base64. Do NOT populate an empty
-                            // editor — saving that would overwrite SUSHI.md with an empty file.
-                            showConnectionError(
-                                getString(R.string.persona_editor_decode_error)
-                            ) { loadPersona(host) }
-                            return@withContext
-                        }
-                        binding.personaEditorInput.setText(content)
-                        binding.personaEditorStatus.text =
-                            getString(R.string.persona_editor_editing, host.displayTarget())
-                        setEditingEnabled(true)
-                    }
+                    is ConnResult.Success -> applyReadResult(host, outcome.value)
                 }
             }
         }
+    }
+
+    /** Populate the editor from a successful read, or surface an error (with retry). */
+    private fun applyReadResult(host: SshConnectionConfig, result: SshCommandResult) {
+        if (!result.success) {
+            showConnectionError(result.message) { loadPersona(host) }
+            return
+        }
+        val content = if (result.message.contains(MISSING_MARKER)) {
+            "" // No persona yet — start from a blank editor.
+        } else {
+            decodeBase64(result.message)
+        }
+        if (content == null) {
+            // The remote output wasn't decodable base64. Do NOT populate an empty editor —
+            // saving that would overwrite SUSHI.md with an empty file.
+            showConnectionError(getString(R.string.persona_editor_decode_error)) { loadPersona(host) }
+            return
+        }
+        binding.personaEditorInput.setText(content)
+        binding.personaEditorStatus.text = getString(R.string.persona_editor_editing, host.displayTarget())
+        setEditingEnabled(true)
     }
 
     private fun onSaveClicked() {
