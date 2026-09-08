@@ -6,7 +6,26 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
-## [0.7.10] - 2026-08-13
+## [0.7.11] - 2026-09-08
+
+### Added
+- **SSH Host Key Verification (TOFU)**: Added Trust-On-First-Use host key validation with fingerprint dialog, untrusted key warnings, and mismatch detection to protect against MITM attacks (#161).
+- **Encrypted Private Key Passphrase Support**: Support for passphrase-protected private keys in both legacy PEM and OpenSSH bcrypt formats, with in-memory caching during active sessions (#161).
+- **Host Keys Management**: Added `HostKeysActivity` allowing users to view and remove stored host keys.
+
+### Changed
+- **Credential Manager Migration**: Migrated Google Drive authentication from deprecated `GoogleSignIn` to modern Android `CredentialManager` and Google Identity `AuthorizationClient` (#167).
+- Upgraded Android Gradle Plugin (AGP) to 9.4.0 (#169).
+- Upgraded Gradle Wrapper to 9.7.1 (#159).
+- Upgraded JSch (`com.github.mwiede:jsch`) to 2.28.7 (#157).
+- Upgraded Google Identity (`com.google.android.libraries.identity.googleid:googleid`) to 1.2.0 (#168).
+- Upgraded Google API Client (`com.google.api-client:google-api-client-android`) to 2.9.1 (#171).
+- Upgraded AndroidX AppCompat to 1.8.0 (#155).
+
+### Fixed
+- Fixed CI test runner argument forwarding on AGP 9.4.0+ (#169).
+- Handled headless emulator window focus in device QA tests gracefully via `assumeTrue` (#162, #169).
+- Added device and SIM unlock helpers for Espresso instrumented test runs (#163).
 
 ### Changed
 - Gari amber is now the default accent color for fresh installs (previously Coral), and is listed first in the Settings picker.
