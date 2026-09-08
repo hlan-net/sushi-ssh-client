@@ -145,9 +145,9 @@ class SftpDownloadActivity : AppCompatActivity() {
                     offerOpenOrShare(destination)
                 } else {
                     destination.delete()
-                    // Fall back to a localized generic message when the client only has a
-                    // blank/generic reason, so the UI never shows "Download failed: Download failed".
-                    val reason = result.message.takeIf { it.isNotBlank() && it != "Download failed" }
+                    // A blank message means the client had no specific detail — use the
+                    // localized generic fallback instead of coupling to any fixed wording.
+                    val reason = result.message.takeIf { it.isNotBlank() }
                         ?: getString(R.string.download_failed_generic)
                     binding.downloadStatusText.text = getString(R.string.download_failed, reason)
                 }

@@ -646,9 +646,9 @@ class SshClient(
             channel.get(remotePath, outputStream)
             SftpDownloadResult(true, "Download complete")
         }.getOrElse { error ->
-            val message = error.message?.takeIf { it.isNotBlank() }
-                ?: "Download failed"
-            SftpDownloadResult(false, message)
+            // Leave the message empty when there's no specific detail so the UI can supply a
+            // localized fallback, rather than coupling callers to a fixed English sentinel.
+            SftpDownloadResult(false, error.message?.takeIf { it.isNotBlank() }.orEmpty())
         }.also {
             runCatching { sftpChannel?.disconnect() }
             runCatching { sessionPair?.targetSession?.disconnect() }
