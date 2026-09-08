@@ -96,6 +96,11 @@
             android:name=".GeminiHistoryActivity"
             android:exported="false"
             android:label="@string/gemini_history_title" />
+        <activity
+            android:name=".PersonaEditorActivity"
+            android:exported="false"
+            android:label="@string/persona_editor_title"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>

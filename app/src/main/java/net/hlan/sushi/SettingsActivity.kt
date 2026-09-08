@@ -496,6 +496,11 @@ class SettingsActivity : AppCompatActivity() {
             startNanoDownload(pageBinding)
         }
 
+        // Persona editor
+        pageBinding.editPersonaButton.setOnClickListener {
+            startActivity(Intent(this, PersonaEditorActivity::class.java))
+        }
+
         refreshGeminiAuthStatus()
         refreshNanoStatus()
     }
