@@ -29,7 +29,6 @@ class ConversationManager(
     private var isInitialized = false
     private var sushiMdContent: String? = null
     private var systemIdentity: String? = null
-    private var currentLogFilePath: String? = null
     private var currentLogShellPath: String? = null
 
     /**
@@ -461,7 +460,7 @@ Provide a natural language interpretation of this result, responding as the syst
      * Initialize a new log file for this conversation session on the remote host.
      *
      * Uses [TerminalBackend.execCommand] so we can detect failures. Commands are chained with
-     * `&&` so the first failure short-circuits and [currentLogFilePath] is cleared.
+     * `&&` so the first failure short-circuits and [currentLogShellPath] is cleared.
      */
     private suspend fun initializeLogFile() {
         withContext(Dispatchers.IO) {
@@ -472,7 +471,6 @@ Provide a natural language interpretation of this result, responding as the syst
                 val timestamp = SimpleDateFormat("yyyy-MM-dd-HH_mm", Locale.US).format(Date())
                 // Avoid a doubled slash when logDir is exactly the root.
                 val logPath = if (logDir == "/") "/$timestamp.log" else "$logDir/$timestamp.log"
-                currentLogFilePath = logPath
 
                 val shellDir = SushiConfig.shellQuotePath(logDir)
                 val shellLogPath = SushiConfig.shellQuotePath(logPath)
@@ -486,14 +484,12 @@ Provide a natural language interpretation of this result, responding as the syst
                 val result = backend.execCommand(cmd)
                 if (!result.success) {
                     Log.w(TAG, "Failed to initialize log file: ${result.message}")
-                    currentLogFilePath = null
                     currentLogShellPath = null
                 } else {
                     Log.d(TAG, "Initialized log file: $logPath")
                 }
             }.onFailure { e ->
                 Log.w(TAG, "Failed to initialize log file", e)
-                currentLogFilePath = null
                 currentLogShellPath = null
             }
         }
