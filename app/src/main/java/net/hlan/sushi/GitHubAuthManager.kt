@@ -1,5 +1,6 @@
 package net.hlan.sushi
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -74,6 +75,10 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
                 } finally {
                     connection.disconnect()
                 }
+            } catch (cancelled: CancellationException) {
+                // The flow was cancelled (dialog dismissed / job cancelled). Propagate
+                // so the coroutine actually stops instead of looping to the deadline.
+                throw cancelled
             } catch (ex: Exception) {
                 // A single failed poll — a transient network drop while the user
                 // switches to the browser, a proxy hiccup, or a non-JSON error page —
