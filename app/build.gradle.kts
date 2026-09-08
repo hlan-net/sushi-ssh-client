@@ -29,6 +29,10 @@ android {
         versionName = versionNameOverride ?: "0.7.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val runnerArgPrefix = "android.testInstrumentationRunnerArguments."
+        providers.gradlePropertiesPrefixedBy(runnerArgPrefix).get().forEach { (key, value) ->
+            testInstrumentationRunnerArguments[key.removePrefix(runnerArgPrefix)] = value
+        }
         vectorDrawables {
             useSupportLibrary = true
         }
