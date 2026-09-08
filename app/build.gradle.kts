@@ -123,9 +123,9 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:22.0.0")
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
-    implementation("com.google.api-client:google-api-client-android:2.9.0")
-    implementation("com.google.api-client:google-api-client-gson:2.9.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.2.0")
+    implementation("com.google.api-client:google-api-client-android:2.9.1")
+    implementation("com.google.api-client:google-api-client-gson:2.9.1")
     implementation("com.google.http-client:google-http-client-android:2.2.0")
     implementation("com.google.apis:google-api-services-drive:v3-rev20230815-2.0.0")
 
