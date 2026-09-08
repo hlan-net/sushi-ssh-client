@@ -199,9 +199,11 @@ class SftpDownloadActivity : AppCompatActivity() {
      * package visibility, so we just launch and report if nothing can handle it.
      */
     private fun launchChooser(intent: Intent, uri: Uri, title: String) {
-        intent.clipData = ClipData.newRawUri(null, uri)
+        val clip = ClipData.newRawUri(null, uri)
+        intent.clipData = clip
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         val chooser = Intent.createChooser(intent, title).apply {
+            clipData = clip
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         try {
@@ -223,7 +225,7 @@ class SftpDownloadActivity : AppCompatActivity() {
     }
 
     private fun mimeTypeFor(filename: String): String {
-        val extension = filename.substringAfterLast('.', "").lowercase()
+        val extension = filename.substringAfterLast('.', "").lowercase(java.util.Locale.ROOT)
         return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
             ?: "application/octet-stream"
     }
