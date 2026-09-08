@@ -10,8 +10,8 @@ package net.hlan.sushi
  */
 object PersonaValidator {
 
-    /** Markdown section headings a well-formed persona is expected to contain. */
-    val REQUIRED_SECTIONS = listOf("System Identity", "Personality")
+    /** Markdown section headings a well-formed persona is expected to contain (warning-only). */
+    val RECOMMENDED_SECTIONS = listOf("System Identity", "Personality")
 
     data class Result(val isEmpty: Boolean, val missingSections: List<String>) {
         val hasWarnings: Boolean get() = isEmpty || missingSections.isNotEmpty()
@@ -19,15 +19,15 @@ object PersonaValidator {
 
     fun validate(content: String): Result {
         if (content.isBlank()) {
-            return Result(isEmpty = true, missingSections = REQUIRED_SECTIONS)
+            return Result(isEmpty = true, missingSections = RECOMMENDED_SECTIONS)
         }
         val headings = content.lineSequence()
             .map { it.trim() }
             .filter { it.startsWith("#") }
             .map { it.trimStart('#').trim() }
             .toList()
-        val missing = REQUIRED_SECTIONS.filter { required ->
-            headings.none { it.equals(required, ignoreCase = true) }
+        val missing = RECOMMENDED_SECTIONS.filter { recommended ->
+            headings.none { it.equals(recommended, ignoreCase = true) }
         }
         return Result(isEmpty = false, missingSections = missing)
     }

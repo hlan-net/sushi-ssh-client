@@ -27,7 +27,7 @@ class PersonaValidatorTest {
         val result = PersonaValidator.validate("   \n  ")
         assertTrue(result.isEmpty)
         assertTrue(result.hasWarnings)
-        assertEquals(PersonaValidator.REQUIRED_SECTIONS, result.missingSections)
+        assertEquals(PersonaValidator.RECOMMENDED_SECTIONS, result.missingSections)
     }
 
     @Test fun validate_missingPersonalitySection() {
@@ -58,6 +58,6 @@ class PersonaValidatorTest {
             This file describes the System Identity and Personality of the host.
         """.trimIndent()
         val result = PersonaValidator.validate(content)
-        assertEquals(PersonaValidator.REQUIRED_SECTIONS, result.missingSections)
+        assertEquals(PersonaValidator.RECOMMENDED_SECTIONS, result.missingSections)
     }
 }

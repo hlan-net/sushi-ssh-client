@@ -150,7 +150,14 @@ class PersonaEditorActivity : AppCompatActivity() {
     private fun savePersona(host: SshConnectionConfig, content: String) {
         setBusy(true)
         val encoded = Base64.encodeToString(content.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-        val command = "mkdir -p $CONFIG_DIR && printf '%s' '$encoded' | base64 -d > $SUSHI_MD_PATH"
+        // Decode into a temp file in the same directory and only move it over SUSHI.md on
+        // success. Redirecting straight to SUSHI.md would truncate it before base64 runs, so a
+        // missing/failing base64 would wipe the existing persona. The final mv is atomic (same
+        // filesystem); on any failure the temp file is removed and SUSHI.md is left untouched.
+        val command = "mkdir -p $CONFIG_DIR && " +
+            "tmp=\$(mktemp $CONFIG_DIR/.SUSHI.md.XXXXXX) && " +
+            "{ printf '%s' '$encoded' | base64 -d > \"\$tmp\" && mv -f \"\$tmp\" $SUSHI_MD_PATH; } || " +
+            "{ rm -f \"\$tmp\"; false; }"
 
         lifecycleScope.launch(Dispatchers.IO) {
             val outcome = withConnection(host) { client -> client.execCommand(command) }
