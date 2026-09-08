@@ -141,7 +141,7 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
             connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
             connection.doOutput = true
             OutputStreamWriter(connection.outputStream).use { it.write(body) }
-        } catch (ex: Throwable) {
+        } catch (ex: Exception) {
             // If opening/writing the request fails, disconnect before propagating so the
             // caller's retry loop can't leak sockets across repeated transient failures.
             connection.disconnect()
