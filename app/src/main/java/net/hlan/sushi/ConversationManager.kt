@@ -466,9 +466,12 @@ Provide a natural language interpretation of this result, responding as the syst
     private suspend fun initializeLogFile() {
         withContext(Dispatchers.IO) {
             runCatching {
-                val logDir = resolveLogDir().trimEnd('/')
+                // Keep at least "/" if the configured dir is the filesystem root (or only
+                // slashes) so trimming does not collapse it into an empty, invalid path.
+                val logDir = resolveLogDir().trimEnd('/').ifEmpty { "/" }
                 val timestamp = SimpleDateFormat("yyyy-MM-dd-HH_mm", Locale.US).format(Date())
-                val logPath = "$logDir/$timestamp.log"
+                // Avoid a doubled slash when logDir is exactly the root.
+                val logPath = if (logDir == "/") "/$timestamp.log" else "$logDir/$timestamp.log"
                 currentLogFilePath = logPath
 
                 val shellDir = SushiConfig.shellQuotePath(logDir)

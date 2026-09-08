@@ -44,10 +44,30 @@ class SushiConfigTest {
         assertNull(SushiConfig.parseLogDir("log_dir ="))
     }
 
+    @Test fun parseLogDir_ignoresKeyOutsideLoggingSection() {
+        val config = """
+            [persona]
+            log_dir = /wrong/section
+
+            [logging]
+            log_dir = /correct
+        """.trimIndent()
+        assertEquals("/correct", SushiConfig.parseLogDir(config))
+    }
+
+    @Test fun parseLogDir_honoursKeyBeforeAnySection() {
+        assertEquals("/early", SushiConfig.parseLogDir("log_dir = /early\n\n[persona]\nname = x"))
+    }
+
+    @Test fun parseLogDir_ignoresKeyInOtherSectionWithNoLoggingSection() {
+        assertNull(SushiConfig.parseLogDir("[safety]\nlog_dir = /nope"))
+    }
+
     // --- shellQuotePath --------------------------------------------------
 
-    @Test fun shellQuotePath_expandsLeadingTilde() {
-        assertEquals("~'/.sushi_logs'", SushiConfig.shellQuotePath("~/.sushi_logs"))
+    @Test fun shellQuotePath_keepsSlashAfterTildeUnquoted() {
+        // The slash right after ~ must stay unquoted or the shell won't expand the tilde.
+        assertEquals("~/'.sushi_logs'", SushiConfig.shellQuotePath("~/.sushi_logs"))
     }
 
     @Test fun shellQuotePath_bareTildeStaysBare() {
@@ -56,6 +76,10 @@ class SushiConfigTest {
 
     @Test fun shellQuotePath_absolutePathFullyQuoted() {
         assertEquals("'/mnt/logs'", SushiConfig.shellQuotePath("/mnt/logs"))
+    }
+
+    @Test fun shellQuotePath_rootFullyQuoted() {
+        assertEquals("'/'", SushiConfig.shellQuotePath("/"))
     }
 
     @Test fun shellQuotePath_quotesSpaces() {
