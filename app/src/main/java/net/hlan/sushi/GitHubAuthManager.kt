@@ -135,11 +135,18 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
 
     private fun post(url: String, body: String): HttpURLConnection {
         val connection = newConnection(url)
-        connection.requestMethod = "POST"
-        connection.setRequestProperty("Accept", "application/json")
-        connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-        connection.doOutput = true
-        OutputStreamWriter(connection.outputStream).use { it.write(body) }
+        try {
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            connection.doOutput = true
+            OutputStreamWriter(connection.outputStream).use { it.write(body) }
+        } catch (ex: Throwable) {
+            // If opening/writing the request fails, disconnect before propagating so the
+            // caller's retry loop can't leak sockets across repeated transient failures.
+            connection.disconnect()
+            throw ex
+        }
         return connection
     }
 
