@@ -54,7 +54,7 @@ Close the loop on persona editing and add the file operations that conversationa
 
 - **[Remote SUSHI.md editor](docs/features/persona-editor.md)** — read and write `~/.config/sushi/SUSHI.md` from within the app; right now customizing the persona requires a separate SSH terminal
 - **[SFTP file operations](docs/features/file-operations.md)** — "download this log to my phone" is a natural conversational request; `SshClient` already handles upload via the Share target, download is the missing half *(B-17)*
-- **Custom log location** — read `log_dir` from `~/.config/sushi/config.conf` and honour it; the config key exists, enforcement does not
+- **Custom log location** ✅ — reads `log_dir` from `~/.config/sushi/config.conf` and honours it (falling back to `~/.sushi_logs`), so conversation logs can be directed to a mount point, RAM disk, or network share
 - **Connection keep-alive in background** *(T-8)* ✅ — session survives app backgrounding via foreground service (`SshConnectionService`) and JSch `serverAliveInterval` keep-alive probes
 
 ---

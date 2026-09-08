@@ -30,6 +30,7 @@ class ConversationManager(
     private var sushiMdContent: String? = null
     private var systemIdentity: String? = null
     private var currentLogFilePath: String? = null
+    private var currentLogShellPath: String? = null
 
     /**
      * Initialize the conversation session by reading SUSHI.md from target.
@@ -465,15 +466,17 @@ Provide a natural language interpretation of this result, responding as the syst
     private suspend fun initializeLogFile() {
         withContext(Dispatchers.IO) {
             runCatching {
+                val logDir = resolveLogDir().trimEnd('/')
                 val timestamp = SimpleDateFormat("yyyy-MM-dd-HH_mm", Locale.US).format(Date())
-                val logPath = "~/.sushi_logs/$timestamp.log"
+                val logPath = "$logDir/$timestamp.log"
                 currentLogFilePath = logPath
 
+                val shellDir = SushiConfig.shellQuotePath(logDir)
+                val shellLogPath = SushiConfig.shellQuotePath(logPath)
+                currentLogShellPath = shellLogPath
+
                 val safeIdentity = (systemIdentity ?: "Unknown").replace("'", "'\\''")
-                // Keep tilde unquoted so the shell expands it; single-quote only the
-                // remainder of the path to guard against special characters in the timestamp.
-                val shellLogPath = "~/'${logPath.removePrefix("~/")}'"
-                val cmd = "mkdir -p ~/.sushi_logs && " +
+                val cmd = "mkdir -p $shellDir && " +
                     "printf '=== Sushi AI Conversation Log ===\\nSystem: %s\\n" +
                     "========================================\\n\\n' '$safeIdentity' > $shellLogPath"
 
@@ -481,22 +484,39 @@ Provide a natural language interpretation of this result, responding as the syst
                 if (!result.success) {
                     Log.w(TAG, "Failed to initialize log file: ${result.message}")
                     currentLogFilePath = null
+                    currentLogShellPath = null
                 } else {
                     Log.d(TAG, "Initialized log file: $logPath")
                 }
             }.onFailure { e ->
                 Log.w(TAG, "Failed to initialize log file", e)
                 currentLogFilePath = null
+                currentLogShellPath = null
             }
         }
+    }
+
+    /**
+     * Resolve the directory conversation logs are written to.
+     *
+     * Reads the `log_dir` key from `~/.config/sushi/config.conf` on the target and honours it,
+     * so users can direct logs to a mount point, RAM disk, or network share. Falls back to the
+     * default `~/.sushi_logs` when the config is missing, unreadable, or does not set the key.
+     */
+    private suspend fun resolveLogDir(): String {
+        val result = runCatching {
+            backend.execCommand("cat ~/.config/sushi/config.conf 2>/dev/null")
+        }.getOrNull()
+        if (result == null || !result.success) return SushiConfig.DEFAULT_LOG_DIR
+        return SushiConfig.parseLogDir(result.message) ?: SushiConfig.DEFAULT_LOG_DIR
     }
 
     /**
      * Write a conversation turn to the log file on the target system.
      */
     private suspend fun writeToLog(turn: ConversationTurn) {
-        val logPath = currentLogFilePath ?: return
-        
+        val shellLogPath = currentLogShellPath ?: return
+
         withContext(Dispatchers.IO) {
             try {
                 val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
@@ -522,10 +542,6 @@ Provide a natural language interpretation of this result, responding as the syst
                 
                 // Escape single quotes for POSIX shell single-quote strings.
                 val escapedEntry = logEntry.replace("'", "'\\''")
-
-                // Keep tilde unquoted so the shell expands it; single-quote only the
-                // remainder of the path. See initializeLogFile() for the same pattern.
-                val shellLogPath = "~/'${logPath.removePrefix("~/")}'"
 
                 // Use execCommand so that append failures surface as errors rather than
                 // silently mixing into the interactive PTY stream.
