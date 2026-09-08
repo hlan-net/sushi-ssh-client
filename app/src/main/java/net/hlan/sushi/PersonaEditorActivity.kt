@@ -195,6 +195,9 @@ class PersonaEditorActivity : AppCompatActivity() {
                     loadPersona(host) // Reload the freshly generated persona.
                 } else {
                     setBusy(false)
+                    // Restore the editing status so it doesn't stay stuck on "Regenerating…".
+                    binding.personaEditorStatus.text =
+                        getString(R.string.persona_editor_editing, host.displayTarget())
                     val msg = when (outcome) {
                         is ConnResult.Failure -> outcome.message
                         is ConnResult.Success -> outcome.value.message
