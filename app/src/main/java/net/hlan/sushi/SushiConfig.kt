@@ -1,5 +1,7 @@
 package net.hlan.sushi
 
+import java.util.Locale
+
 /**
  * Pure helpers for reading the target-side Sushi configuration (`~/.config/sushi/config.conf`)
  * and for building shell-safe remote paths.
@@ -31,7 +33,7 @@ object SushiConfig {
 
             val sectionMatch = SECTION_REGEX.find(line)
             if (sectionMatch != null) {
-                section = sectionMatch.groupValues[1].trim().lowercase()
+                section = sectionMatch.groupValues[1].trim().lowercase(Locale.ROOT)
                 continue
             }
 
