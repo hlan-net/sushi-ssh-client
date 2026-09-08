@@ -1,5 +1,6 @@
 package net.hlan.sushi
 
+import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -145,11 +146,12 @@ class SftpDownloadActivity : AppCompatActivity() {
                     offerOpenOrShare(destination)
                 } else {
                     destination.delete()
-                    // A blank message means the client had no specific detail — use the
-                    // localized generic fallback instead of coupling to any fixed wording.
-                    val reason = result.message.takeIf { it.isNotBlank() }
+                    // With a specific detail, show "Download failed: <detail>"; with none, show
+                    // the standalone generic string (not fed into the "…: %s" format, which would
+                    // otherwise read "Download failed: Download failed").
+                    binding.downloadStatusText.text = result.message.takeIf { it.isNotBlank() }
+                        ?.let { getString(R.string.download_failed, it) }
                         ?: getString(R.string.download_failed_generic)
-                    binding.downloadStatusText.text = getString(R.string.download_failed, reason)
                 }
             }
         }
@@ -176,26 +178,34 @@ class SftpDownloadActivity : AppCompatActivity() {
     private fun launchViewer(uri: Uri, mimeType: String) {
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, mimeType)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        // Pre-checking with resolveActivity() is unreliable under Android 11+ package
-        // visibility, so just launch the chooser and report if nothing can handle it.
-        try {
-            startActivity(Intent.createChooser(intent, getString(R.string.download_open)))
-        } catch (e: android.content.ActivityNotFoundException) {
-            Toast.makeText(this, R.string.download_no_viewer, Toast.LENGTH_LONG).show()
-        }
-        finish()
+        launchChooser(intent, uri, getString(R.string.download_open))
     }
 
     private fun launchShare(uri: Uri, mimeType: String) {
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = mimeType
             putExtra(Intent.EXTRA_STREAM, uri)
+        }
+        launchChooser(intent, uri, getString(R.string.download_share))
+    }
+
+    /**
+     * Launch [intent] through a chooser, granting read access to [uri] reliably. The grant flag
+     * and a [ClipData] carrying the URI are set on both the inner intent and the chooser wrapper,
+     * since it's the chooser that is actually started — otherwise the selected target can lose the
+     * temporary URI grant (notably for ACTION_SEND, where the URI rides in EXTRA_STREAM rather
+     * than the intent data). Pre-checking with resolveActivity() is unreliable under Android 11+
+     * package visibility, so we just launch and report if nothing can handle it.
+     */
+    private fun launchChooser(intent: Intent, uri: Uri, title: String) {
+        intent.clipData = ClipData.newRawUri(null, uri)
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val chooser = Intent.createChooser(intent, title).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         try {
-            startActivity(Intent.createChooser(intent, getString(R.string.download_share)))
+            startActivity(chooser)
         } catch (e: android.content.ActivityNotFoundException) {
             Toast.makeText(this, R.string.download_no_viewer, Toast.LENGTH_LONG).show()
         }
