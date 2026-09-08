@@ -3,51 +3,57 @@
 An open source Android SSH client focused on fast connections, clean session management, and a modern UI.
 
 ## Status
-- Active development with working SSH session flow and host management.
-- **NEW**: Conversational AI mode - talk directly to your connected system using Gemini.
-- Optional Gemini voice command mode (user-provided API key).
-- Optional Google Drive log uploads (Google sign-in required).
+- Active development with working SSH & local shell session flow, host management, and automated Plays.
+- **Conversational AI mode**: Talk directly to your connected system using Gemini Cloud or on-device Gemini Nano.
+- **Security**: Host key verification (TOFU), encrypted private keys with passphrase support, and AES256-GCM encrypted credential storage (`SecurePrefs`).
+- **Connection reliability**: Foreground service keep-alive (`SshConnectionService`) and TCP keep-alive probes prevent background drops.
+- **Authentication**: Modern Android Credential Manager & Identity Authorization for Google Drive log backups; GitHub OAuth Device Flow for in-app feedback.
 
-## v0.5.0 highlights
-- **Conversational AI with your target system**:
-  - Talk directly TO your connected Raspberry Pi/Linux system via Gemini
-  - System persona configured via `~/.config/sushi/SUSHI.md` on target
-  - Star Trek computer-style responses ("I am running at 52°C")
-  - Three-tier command safety: SAFE (auto-execute), CONFIRM (ask first), BLOCKED (never allow)
-  - Support for both text and voice input
-  - Conversation logs saved to `~/.sushi_logs/` on target system
-  - One-click persona initialization via managed Play
-  - Works with both Gemini Cloud and on-device Gemini Nano
-- Enhanced connection architecture:
-  - `SshConnectionHolder` singleton shares connection state between activities
-  - Conversation only available after SSH connection established
-- Target-side logging for AI conversations
+## Features
 
-## v0.3.0 highlights
-- Main screen reorganization:
-  - shared terminal session block stays visible at the top
-  - top carousel now uses focused `Terminal` and `Plays` tabs
-  - Gemini controls moved into the `Terminal` tab
-  - Plays tab now combines play actions and session logs in one flow
-- Settings redesign with carousel navigation:
-  - dedicated pages for `General`, `SSH`, `Gemini`, and `Drive`
-  - `Hosts` and `Keys` grouped into their own SSH-focused settings page
-  - improved settings tab state and section grouping
-- Theme support:
-  - `Auto` (follow system), `Light`, and `Dark` appearance modes
-- QoL updates:
-  - smarter pending-save behavior for Gemini API key changes
-  - main/settings tab memory across app restarts
-  - one-command Wi-Fi deploy helper script (`scripts/install-wifi-debug.sh`)
+### 💻 SSH & Terminal
+- Fast interactive terminal with custom `TerminalView`, ANSI/OSC escape handling, and UTF-8 support.
+- Local shell backend (`LocalShellBackend`) alongside remote SSH (`SshClient`).
+- Trust-On-First-Use (TOFU) host key verification with fingerprint verification, mismatch warnings, and `HostKeysActivity` management.
+- Password, unencrypted private key, and encrypted private key (PEM / OpenSSH bcrypt) authentication.
+- Jump server (bastion host / proxy) support.
+- Phrase management with quick-execution and automated key deployment phrases.
+- Parameterized automated Plays with live preview and description support.
+- Foreground service keep-alive ensuring sessions survive app backgrounding, switching apps, and 2FA prompts.
 
-## v0.1.3 highlights
-- Phrase management improvements:
-  - validation for empty and duplicate phrase names
-  - safer JSON import (upsert by phrase name instead of duplicate inserts)
-  - clearer delete confirmation for phrases
-- Key workflow now creates two managed phrases:
-  - `Install SSH Key`
-  - `Remove Sushi SSH Keys`
+### 🤖 Conversational AI with Target System
+- Talk directly TO your connected Linux system / Raspberry Pi via Gemini (Cloud or Nano).
+- Target-side persona (`~/.config/sushi/SUSHI.md`) automatically created on first use.
+- Three-tier command safety model: `SAFE` (auto-execute), `CONFIRM` (ask user first), and `BLOCKED` (never execute).
+- Live command output streaming (`onChunk`) and raw terminal bypass mode.
+- SQLite-backed transcript persistence and interactive session history browser (`GeminiHistoryActivity`).
+- Dual voice and text input.
+
+### 🎨 Customization & Convenience
+- Light, Dark, and System theme support with customizable accent color palette (Gari amber, Wasabi, Coral, Terracotta).
+- First-run setup checklist guiding SSH host setup, key generation, and optional cloud integrations.
+- In-app feedback system filing issues directly via GitHub Device Flow.
+- Google Drive session log backups via modern Credential Manager.
+
+## Recent Release Highlights
+
+### v0.7.11
+- **SSH Host Key Verification (TOFU)**: Fingerprint confirmation dialog on first connect, host key mismatch alerts, and host key manager screen.
+- **Encrypted SSH Key Passphrase Support**: Support for passphrase-protected private keys (legacy PEM & OpenSSH bcrypt formats) with session passphrase caching.
+- **Credential Manager Migration**: Migrated Google Drive authorization from legacy `GoogleSignIn` to Android `CredentialManager` and Google Identity `AuthorizationClient`.
+- **Infrastructure & Dependencies**: AGP 9.4.0, Gradle 9.7.1, JSch 2.28.7, GoogleId 1.2.0, Google API client 2.9.1, and AppCompat 1.8.0.
+
+### v0.7.0 – v0.7.10
+- **Background Keep-Alive**: Foreground service (`SshConnectionService`) and keep-alive packets keep SSH sessions alive when the app is backgrounded.
+- **Accent Color Picker**: Customizable primary color (Gari amber, Wasabi, Coral, Terracotta) with instant whole-app theme application.
+- **In-App Feedback**: GitHub Device Flow authentication to submit feedback issues directly from settings.
+
+### v0.6.0
+- **Terminal Backend Abstraction**: `TerminalBackend` decoupling SSH and local shell execution.
+- **Gemini Transcript Persistence**: SQLite storage for conversational turns, command outputs, and history browser.
+- **Connection Error Classification**: Actionable error banners with typed `ConnectFailure` reasons.
+- **First-Run Checklist**: Persistent onboarding card for new setups.
+- **Raw Terminal Mode & Streaming**: Direct shell toggle in Gemini dialog and incremental output streaming.
 
 ## Development
 Prerequisites:
