@@ -109,6 +109,11 @@ data class SftpUploadResult(
     val message: String
 )
 
+data class SftpDownloadResult(
+    val success: Boolean,
+    val message: String
+)
+
 class SshClient(
     private val config: SshConnectionConfig,
     private val userInfo: UserInfo,
@@ -613,6 +618,37 @@ class SshClient(
             val message = error.message?.takeIf { it.isNotBlank() }
                 ?: "Upload failed"
             SftpUploadResult(false, message)
+        }.also {
+            runCatching { sftpChannel?.disconnect() }
+            runCatching { sessionPair?.targetSession?.disconnect() }
+            runCatching { sessionPair?.jumpSession?.disconnect() }
+        }
+    }
+
+    /**
+     * Download a file from the remote host into [outputStream] over a dedicated SFTP channel.
+     *
+     * Mirrors [sftpUpload]: opens its own session (independent of any interactive shell) so a
+     * transfer can run without disturbing the terminal, and always tears the session down.
+     * The caller owns [outputStream] and is responsible for closing it.
+     */
+    fun sftpDownload(remotePath: String, outputStream: OutputStream): SftpDownloadResult {
+        var sessionPair: ConnectedSessionPair? = null
+        var sftpChannel: ChannelSftp? = null
+        return runCatching {
+            val pair = createConnectedSession()
+            sessionPair = pair
+
+            val channel = pair.targetSession.openChannel("sftp") as? ChannelSftp
+                ?: throw IllegalStateException("Unable to open SFTP channel")
+            sftpChannel = channel
+            channel.connect(SFTP_CONNECT_TIMEOUT_MS)
+            channel.get(remotePath, outputStream)
+            SftpDownloadResult(true, "Download complete")
+        }.getOrElse { error ->
+            val message = error.message?.takeIf { it.isNotBlank() }
+                ?: "Download failed"
+            SftpDownloadResult(false, message)
         }.also {
             runCatching { sftpChannel?.disconnect() }
             runCatching { sessionPair?.targetSession?.disconnect() }

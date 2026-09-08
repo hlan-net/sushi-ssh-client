@@ -43,4 +43,14 @@
         app:icon="@drawable/ic_format_quote"
         app:iconGravity="textStart" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/downloadFileButton"
+        style="@style/Widget.Sushi.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/action_download_file"
+        app:icon="@drawable/ic_download"
+        app:iconGravity="textStart" />
+
 </LinearLayout>

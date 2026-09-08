@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Files downloaded from a remote host via SFTP, shared/opened through a content:// URI. -->
+    <cache-path
+        name="downloads"
+        path="downloads/" />
+</paths>
