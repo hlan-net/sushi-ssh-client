@@ -454,10 +454,40 @@
     <string name="gemini_history_deleted">Session deleted.</string>
     <string name="gemini_history_unknown_host">Unknown host</string>
     
+    <!-- Command history -->
+    <string name="command_history_title">Command history</string>
+    <string name="action_command_history">Command history</string>
+    <string name="command_history_empty">No commands recorded yet.</string>
+    <string name="command_history_empty_filtered">No commands match this filter.</string>
+    <string name="command_history_search_hint">Search commands</string>
+    <string name="command_history_filter_title">Filter by host</string>
+    <string name="command_history_filter_all">All hosts</string>
+    <string name="command_history_filter_host">Host: %1$s</string>
+    <string name="command_history_unknown_host">Unknown host</string>
+    <string name="command_history_action_rerun">Re-run</string>
+    <string name="command_history_action_copy">Copy command</string>
+    <string name="command_history_action_delete">Delete entry</string>
+    <string name="command_history_deleted">Entry deleted.</string>
+    <string name="command_history_copied">Command copied.</string>
+    <string name="command_history_clear_all">Clear history</string>
+    <string name="command_history_clear_all_confirm">Delete all recorded commands?</string>
+    <string name="command_history_cleared">History cleared.</string>
+    <string name="command_history_meta">%1$s · %2$s</string>
+    <string name="command_history_source_conversation">AI</string>
+    <string name="command_history_source_raw">Raw</string>
+    <string name="command_history_source_play">Play</string>
+    <string name="command_history_source_unknown">Other</string>
+    <string name="command_history_status_ok">ok</string>
+    <string name="command_history_status_exit">exit %1$d</string>
+    <string name="command_history_status_failed">failed</string>
+    <string name="command_history_rerun_needs_connection">Not connected — command copied to the clipboard instead.</string>
+
     <!-- Conversation UI -->
     <string name="conversation_input_hint">Ask the system...</string>
     <string name="raw_terminal_mode_label">Raw mode</string>
     <string name="raw_terminal_mode_hint">Raw shell — commands run directly, no AI</string>
+    <string name="troubleshoot_mode_label">Multi-step troubleshooting</string>
+    <string name="troubleshoot_mode_caption">The AI keeps running safe checks until it reaches a conclusion. Commands that need confirmation still stop and ask.</string>
     <string name="action_send_message">Send message</string>
     <string name="conversation_confirm_command_title">Confirm Command</string>
     <string name="conversation_confirm_command_message">Execute this command?\n\n%1$s</string>
@@ -466,6 +496,10 @@
     <string name="conversation_initializing">Connecting to system...</string>
     <string name="conversation_init_failed">Failed to initialize conversation: %1$s</string>
     <string name="conversation_connected_to">Connected to: %1$s</string>
+    <string name="conversation_active_host">Talking to %1$s</string>
+    <string name="conversation_no_active_host">Not connected to a host</string>
+    <string name="conversation_host_switch_title">Host switched</string>
+    <string name="conversation_host_switch_detail">Now talking to %2$s. Earlier messages in this transcript were with %1$s; the system context has been reloaded.</string>
     <!-- Connection error banner -->
     <string name="action_dismiss">Dismiss</string>
     <string name="action_retry">Retry</string>

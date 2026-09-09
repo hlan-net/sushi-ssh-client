@@ -15,6 +15,16 @@
         android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/geminiDialogHostText"
+        style="@style/TextAppearance.Sushi.Body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:drawablePadding="8dp"
+        android:text="@string/conversation_no_active_host"
+        app:drawableStartCompat="@drawable/ic_dns" />
+
+    <TextView
         android:id="@+id/geminiDialogStatusText"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
@@ -28,6 +38,20 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:text="@string/raw_terminal_mode_label" />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/geminiDialogTroubleshootSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="@string/troubleshoot_mode_label" />
+
+    <TextView
+        android:id="@+id/geminiDialogTroubleshootCaption"
+        style="@style/TextAppearance.Sushi.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/troubleshoot_mode_caption" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/geminiDialogVoiceButton"

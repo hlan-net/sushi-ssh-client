@@ -54,6 +54,17 @@ data class SshConnectionConfig(
 
     fun resolvedAuthPreference(): SshAuthPreference = SshAuthPreference.from(authPreference)
 
+    /**
+     * Short human label for this host — used in the conversation status line and in command
+     * history rows, where the full [displayTarget] would be too long to scan.
+     */
+    fun shortLabel(): String = when {
+        kind == HostKind.LOCAL -> alias.ifBlank { "Local shell" }
+        alias.isNotBlank() -> alias
+        username.isNotBlank() -> "$username@$host"
+        else -> host
+    }
+
     fun displayTarget(): String {
         val core = when {
             kind == HostKind.LOCAL -> alias.ifBlank { "Local shell" }
