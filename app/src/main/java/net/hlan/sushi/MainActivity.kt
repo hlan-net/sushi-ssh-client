@@ -866,7 +866,7 @@ class MainActivity : AppCompatActivity() {
             commandHistoryDb.record(
                 CommandHistoryRecord(
                     hostId = host.id,
-                    hostLabel = host.shortLabel(),
+                    hostLabel = HostLabels.shortLabel(this, host),
                     command = result.renderedCommand,
                     outputSummary = CommandHistoryDatabaseHelper.summarizeOutput(
                         result.outputLines.joinToString("\n")
@@ -1204,7 +1204,7 @@ class MainActivity : AppCompatActivity() {
 
         val useNano = geminiSettings.getNanoPreferred() && isNanoAvailable()
         val activeConfig = sshSettings.getConfigOrNull()
-        val hostLabel = activeConfig?.shortLabel()
+        val hostLabel = activeConfig?.let { HostLabels.shortLabel(this, it) }
         val infrastructure = ConversationContextBuilder.infrastructureSection(
             hosts = sshSettings.getHosts(),
             activeHostId = activeConfig?.id

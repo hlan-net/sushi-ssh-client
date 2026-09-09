@@ -102,11 +102,30 @@ class CommandHistoryDatabaseHelper(context: Context) :
         )
     }
 
-    /** Most recent entries for [hostId] (newest first), used to seed the AI context. */
-    fun getRecentForHost(hostId: String, limit: Int = DEFAULT_CONTEXT_ENTRIES): List<CommandHistoryRecord> {
+    /**
+     * Most recent entries for [hostId] (newest first), used to seed the AI context.
+     *
+     * @param sources when given, only entries from those sources are returned. The AI context
+     * uses it to exclude Raw Terminal Mode and Play commands, which the user never asked a model
+     * to see.
+     */
+    fun getRecentForHost(
+        hostId: String,
+        limit: Int = DEFAULT_CONTEXT_ENTRIES,
+        sources: Set<CommandSource>? = null
+    ): List<CommandHistoryRecord> {
+        val selection = StringBuilder("$COL_HOST_ID = ?")
+        val args = mutableListOf(hostId)
+
+        if (!sources.isNullOrEmpty()) {
+            val placeholders = sources.joinToString(",") { "?" }
+            selection.append(" AND $COL_SOURCE IN ($placeholders)")
+            args += sources.map { it.name }
+        }
+
         return query(
-            selection = "$COL_HOST_ID = ?",
-            selectionArgs = arrayOf(hostId),
+            selection = selection.toString(),
+            selectionArgs = args.toTypedArray(),
             limit = limit
         )
     }
@@ -143,12 +162,19 @@ class CommandHistoryDatabaseHelper(context: Context) :
         )
     }
 
-    /** Distinct hosts present in history, newest activity first, for the host filter. */
+    /**
+     * Distinct hosts present in history, newest activity first, for the host filter.
+     *
+     * The label comes from each host's newest row rather than an aggregate: labels change when a
+     * host is renamed, and `MAX(label)` would surface whichever old name sorts highest.
+     * SQLite answers a bare column alongside `MAX()` with the value from the matching row, which
+     * is exactly the newest entry per host.
+     */
     fun getHostsInHistory(): List<CommandHistoryHost> {
         val hosts = mutableListOf<CommandHistoryHost>()
         val cursor = readableDatabase.rawQuery(
             """
-            SELECT $COL_HOST_ID, MAX($COL_HOST_LABEL) AS label, MAX($COL_TIMESTAMP) AS last_used
+            SELECT $COL_HOST_ID, $COL_HOST_LABEL, MAX($COL_TIMESTAMP) AS last_used
             FROM $TABLE
             GROUP BY $COL_HOST_ID
             ORDER BY last_used DESC
@@ -312,9 +338,3 @@ class CommandHistoryDatabaseHelper(context: Context) :
         }
     }
 }
-
-/** A host that appears in command history, for the browser's host filter. */
-data class CommandHistoryHost(
-    val hostId: String,
-    val hostLabel: String
-)

@@ -217,8 +217,12 @@ class ConversationManager(
      *
      * A CONFIRM step ends the run and comes back to the user for approval; confirming it calls
      * [executeConfirmedCommand], which resumes the chain from [chainStepsTaken]. A BLOCKED step
-     * ends the run with an explanation. All commands that reach the shell — every step, not just
-     * the first — are recorded in the transcript log and the local command history.
+     * ends the run with an explanation.
+     *
+     * Every command that reaches the shell gets its own row in the local command history. The
+     * conversation transcript stores one turn per run, whose narrative includes each chained
+     * command line, so the run reads back in full even though the turn's `commandExecuted`
+     * column names the last one.
      */
     private suspend fun executeCommandAndRespond(
         userMessage: String,
@@ -263,8 +267,11 @@ class ConversationManager(
     ): ConversationResult {
         chainStepsTaken++
 
-        // The first command of a turn was already explained by the response above it.
+        // The first command of a turn was already explained by the response above it. Chained
+        // ones go into the narrative as well as the live stream, so the stored transcript and
+        // the target-side log show every command the run executed, not only the last.
         if (isChainedStep) {
+            run.narrative.appendBlock("$ $command")
             run.onChunk?.invoke("\n\n$ $command\n")
         }
 
@@ -311,7 +318,7 @@ class ConversationManager(
                 run = run,
                 command = command,
                 output = output,
-                commandSucceeded = true,
+                commandSucceeded = cmdResult.success,
                 closingBlock = "Command output:\n$output"
             )
         }
@@ -324,7 +331,12 @@ class ConversationManager(
             if (nextCommand != null) {
                 Log.d(TAG, "Stopping chain: next step repeats the command just run")
             }
-            return finishRun(run = run, command = command, output = output, commandSucceeded = true)
+            return finishRun(
+                run = run,
+                command = command,
+                output = output,
+                commandSucceeded = cmdResult.success
+            )
         }
 
         return when (CommandSafety.classify(nextCommand)) {
@@ -332,7 +344,7 @@ class ConversationManager(
                 run = run,
                 command = command,
                 output = output,
-                commandSucceeded = true,
+                commandSucceeded = cmdResult.success,
                 closingBlock = "[Command blocked: ${CommandSafety.explainClassification(nextCommand)}]"
             ).copy(commandAttempted = nextCommand, commandBlocked = true)
 
@@ -344,7 +356,7 @@ class ConversationManager(
                 userMessage = run.userMessage,
                 commandExecuted = command,
                 commandOutput = output,
-                commandSuccess = true,
+                commandSuccess = cmdResult.success,
                 commandToConfirm = nextCommand,
                 needsConfirmation = true
             )
@@ -579,11 +591,17 @@ $continuation
     /**
      * Recent commands on this host, rendered as a prompt section, or "" when history is
      * unavailable or empty.
+     *
+     * Restricted to [CommandSource.CONVERSATION] entries: those already passed through the model
+     * once, so replaying them uploads nothing the model has not already seen.
      */
     private fun recentCommandsContext(): String {
         val store = commandHistoryStore ?: return ""
         val records = runCatching {
-            store.getRecentForHost(hostId.orEmpty())
+            // Only commands the AI itself issued are fed back. Raw Terminal Mode is advertised
+            // as having no AI in the loop, and rendered Play commands can carry parameters the
+            // user typed as secrets — neither may reach a cloud prompt through the back door.
+            store.getRecentForHost(hostId.orEmpty(), sources = setOf(CommandSource.CONVERSATION))
         }.getOrElse { e ->
             Log.w(TAG, "Failed to read command history", e)
             return ""

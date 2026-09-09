@@ -44,7 +44,7 @@ This lets the AI answer "has disk usage changed?" without re-running the command
 - `CommandHistoryDatabaseHelper` — SQLite store following the `PhraseDatabaseHelper` pattern: `record()` inserts and prunes the host's oldest rows beyond 500, `search()` does case-insensitive text matching over command and output with an optional host filter, `getRecentForHost()` feeds the AI context, and `entriesFlow` exposes the list reactively.
 - Recording points: `ConversationManager` records every command that reaches the shell (source `CONVERSATION` for AI-issued, `RAW` for Raw Terminal Mode), and `MainActivity.recordPlayInCommandHistory` records each Play's rendered command (source `PLAY`). Commands classified BLOCKED never execute, so they are never recorded.
 - `CommandHistoryActivity` — reachable from the Terminal tab. Search field, host filter, clear-all, and a per-entry action sheet with Re-run / Copy / Delete. Re-run returns the command to `MainActivity` (`EXTRA_RERUN_COMMAND`) instead of opening its own connection, so it goes through the normal raw-mode path and is classified by `CommandSafety` like any other command; with no live conversation it is copied to the clipboard instead.
-- AI context: `ConversationContextBuilder.recentCommandsSection` renders the last 10 entries for the connected host into the prompt below `SUSHI.md`.
+- AI context: `ConversationContextBuilder.recentCommandsSection` renders the last 10 entries for the connected host into the prompt below `SUSHI.md`. Only `CONVERSATION`-source entries are included — Raw Terminal Mode is advertised as having no AI in the loop, and rendered Play commands can carry parameters the user typed as secrets, so neither is replayed into a cloud prompt.
 
 ### Deliberate scope limits
 

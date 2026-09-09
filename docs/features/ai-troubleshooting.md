@@ -50,4 +50,6 @@ Chaining stops when any of these is true:
 - the next command is CONFIRM — the run pauses and returns to the user; approving it calls `executeConfirmedCommand`, which resumes the chain where it left off,
 - the user turned the "Multi-step troubleshooting" switch in the Gemini dialog off (`GeminiSettings.getAutoTroubleshootEnabled`, default on).
 
-Each chained step is announced in the transcript through the existing streaming callback, so the user watches the diagnosis progress rather than waiting for one long answer. Every step that reaches the shell is recorded in the conversation log, the transcript store, and the command history; the turn is persisted as a single transcript entry carrying the whole narrative.
+Each chained step is announced in the transcript through the existing streaming callback, so the user watches the diagnosis progress rather than waiting for one long answer.
+
+What gets recorded, precisely: every command that reaches the shell gets its own row in the local command history, including one that timed out (it ran and may have had side effects). The conversation transcript and the target-side log store one turn per run, whose narrative includes each chained command line — so the run reads back in full, even though the turn's `commandExecuted` column names the last command.
