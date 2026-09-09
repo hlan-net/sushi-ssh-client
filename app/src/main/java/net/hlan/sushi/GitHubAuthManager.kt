@@ -89,9 +89,6 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
                 continue
             }
 
-            // Reached GitHub and parsed a response: clear any earlier transient error.
-            lastTransientError = null
-
             when (response.optString("error")) {
                 "" -> {
                     val token = response.optString("access_token")
@@ -103,10 +100,12 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
                     }
                     return DeviceFlowResult.Failed("No access token in response")
                 }
-                "authorization_pending" -> continue
+                // Still waiting: we did reach GitHub, so drop any earlier transient error —
+                // if the code later expires it means the user never approved, not a network fault.
+                "authorization_pending" -> lastTransientError = null
                 "slow_down" -> {
                     interval += SLOW_DOWN_INCREMENT_SECONDS
-                    continue
+                    lastTransientError = null
                 }
                 "access_denied" -> return DeviceFlowResult.Denied
                 "expired_token" -> return DeviceFlowResult.Expired
