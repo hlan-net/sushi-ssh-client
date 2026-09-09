@@ -466,7 +466,7 @@ class SshClient(
     ): SshCommandResult {
         val activeSession = session
         if (activeSession == null || !activeSession.isConnected) {
-            return SshCommandResult(false, null, "Not connected", dispatched = false)
+            return SshCommandResult(false, null, NOT_CONNECTED, dispatched = false)
         }
 
         var channel: ChannelExec? = null
@@ -561,7 +561,7 @@ class SshClient(
         val activeChannel = shellChannel
         val output = shellInput
         if (activeChannel == null || !activeChannel.isConnected || output == null) {
-            return SshCommandResult(false, null, "Not connected", dispatched = false)
+            return SshCommandResult(false, null, NOT_CONNECTED, dispatched = false)
         }
 
         return runCatching {
@@ -579,7 +579,7 @@ class SshClient(
         val activeChannel = shellChannel
         val output = shellInput
         if (activeChannel == null || !activeChannel.isConnected || output == null) {
-            return SshCommandResult(false, null, "Not connected", dispatched = false)
+            return SshCommandResult(false, null, NOT_CONNECTED, dispatched = false)
         }
 
         if (text.isEmpty()) {
@@ -679,6 +679,7 @@ class SshClient(
         private const val SERVER_ALIVE_COUNT_MAX = 3
         private const val CTRL_C_ETX = 3
         private const val CTRL_D_EOT = 4
+        private const val NOT_CONNECTED = "Not connected"
     }
 
     private fun startShellReader(

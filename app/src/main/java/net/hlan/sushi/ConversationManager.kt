@@ -450,20 +450,19 @@ $continuation
         val executed = result.commandExecuted ?: return
         val declined = result.commandToConfirm
 
-        withContext(Dispatchers.IO) {
-            val response = if (declined != null) {
-                "${result.systemResponse}\n\n[Not run: $declined — confirmation declined]"
-            } else {
-                result.systemResponse
-            }
-            addToHistory(
-                result.userMessage,
-                response,
-                executed,
-                result.commandOutput,
-                result.commandSuccess
-            )
+        // No dispatcher here: addToHistory's writes each move themselves to IO.
+        val response = if (declined != null) {
+            "${result.systemResponse}\n\n[Not run: $declined — confirmation declined]"
+        } else {
+            result.systemResponse
         }
+        addToHistory(
+            result.userMessage,
+            response,
+            executed,
+            result.commandOutput,
+            result.commandSuccess
+        )
     }
 
     /**
