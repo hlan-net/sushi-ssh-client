@@ -129,7 +129,7 @@ class CommandHistoryDatabaseHelperTest {
         assertTrue(summary.startsWith("line 1"))
 
         val long = CommandHistoryDatabaseHelper.summarizeOutput("x".repeat(2_000))
-        assertEquals(CommandHistoryDatabaseHelper.OUTPUT_SUMMARY_MAX_CHARS + 1, long.length)
+        assertEquals(CommandHistoryDatabaseHelper.OUTPUT_SUMMARY_MAX_CHARS, long.length)
         assertTrue(long.endsWith("…"))
         assertEquals("", CommandHistoryDatabaseHelper.summarizeOutput(null))
     }

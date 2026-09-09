@@ -52,4 +52,4 @@ Chaining stops when any of these is true:
 
 Each chained step is announced in the transcript through the existing streaming callback, so the user watches the diagnosis progress rather than waiting for one long answer.
 
-What gets recorded, precisely: every command that reaches the shell gets its own row in the local command history, including one that timed out (it ran and may have had side effects). The conversation transcript and the target-side log store one turn per run, whose narrative includes each chained command line — so the run reads back in full, even though the turn's `commandExecuted` column names the last command.
+What gets recorded, precisely: every command that reaches the shell gets its own row in the local command history, including one that timed out (it ran and may have had side effects). The conversation transcript and the target-side log store one turn per run, whose narrative includes every command line the run executed — so the run reads back in full, even though the turn's `commandExecuted` column names the last command.

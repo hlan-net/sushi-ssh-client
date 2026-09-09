@@ -4,12 +4,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 /**
  * SQLite-backed store for executed commands (roadmap v0.8.0 — Command history).
@@ -19,21 +13,9 @@ import kotlinx.coroutines.launch
  * the oldest rows for that host are pruned on insert so the database stays bounded.
  *
  * Output is stored condensed (see [summarizeOutput]) rather than in full for the same reason.
- * Observers get an up-to-date view of the most recent entries via [entriesFlow].
  */
 class CommandHistoryDatabaseHelper(context: Context) :
     SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
-
-    private val _entriesFlow = MutableStateFlow<List<CommandHistoryRecord>>(emptyList())
-
-    /** Most recent entries across all hosts, refreshed on every write. */
-    val entriesFlow: Flow<List<CommandHistoryRecord>> = _entriesFlow.asStateFlow()
-
-    init {
-        CoroutineScope(Dispatchers.IO).launch {
-            refreshEntriesFlow()
-        }
-    }
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -79,7 +61,6 @@ class CommandHistoryDatabaseHelper(context: Context) :
         val id = db.insert(TABLE, null, values)
         if (id > 0) {
             pruneHost(db, record.hostId)
-            refreshEntriesFlow()
         }
         return id
     }
@@ -194,17 +175,10 @@ class CommandHistoryDatabaseHelper(context: Context) :
         return hosts
     }
 
-    fun deleteEntry(id: Long): Int {
-        val rows = writableDatabase.delete(TABLE, "$COL_ID = ?", arrayOf(id.toString()))
-        refreshEntriesFlow()
-        return rows
-    }
+    fun deleteEntry(id: Long): Int =
+        writableDatabase.delete(TABLE, "$COL_ID = ?", arrayOf(id.toString()))
 
-    fun clearAll(): Int {
-        val rows = writableDatabase.delete(TABLE, null, null)
-        refreshEntriesFlow()
-        return rows
-    }
+    fun clearAll(): Int = writableDatabase.delete(TABLE, null, null)
 
     fun countForHost(hostId: String): Int {
         val cursor = readableDatabase.rawQuery(
@@ -259,10 +233,6 @@ class CommandHistoryDatabaseHelper(context: Context) :
         return rows
     }
 
-    private fun refreshEntriesFlow() {
-        _entriesFlow.value = search()
-    }
-
     companion object {
         private const val DATABASE_VERSION = 1
         private const val DATABASE_NAME = "sushi_command_history.db"
@@ -302,8 +272,9 @@ class CommandHistoryDatabaseHelper(context: Context) :
 
         /**
          * Condense [output] to the first [OUTPUT_SUMMARY_LINES] non-blank lines, truncated to
-         * [OUTPUT_SUMMARY_MAX_CHARS]. Kept here (rather than at the call site) so every writer
-         * stores output the same way.
+         * [OUTPUT_SUMMARY_MAX_CHARS]. The ellipsis a truncated summary ends with counts towards
+         * that cap, so a stored summary is never longer than it. Kept here (rather than at the
+         * call site) so every writer stores output the same way.
          */
         fun summarizeOutput(output: String?): String {
             if (output.isNullOrBlank()) return ""
@@ -313,7 +284,7 @@ class CommandHistoryDatabaseHelper(context: Context) :
                 .take(OUTPUT_SUMMARY_LINES)
                 .joinToString("\n")
             return if (lines.length > OUTPUT_SUMMARY_MAX_CHARS) {
-                lines.take(OUTPUT_SUMMARY_MAX_CHARS) + "…"
+                lines.take(OUTPUT_SUMMARY_MAX_CHARS - 1) + "…"
             } else {
                 lines
             }

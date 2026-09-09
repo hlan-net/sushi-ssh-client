@@ -1,6 +1,5 @@
 package net.hlan.sushi
 
-import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -13,11 +12,12 @@ import java.util.Locale
  * Handles session state, conversation history, command execution, and persona integration.
  */
 class ConversationManager(
-    private val context: Context,
     private val backend: TerminalBackend,
-    private val geminiClient: GeminiClient?,
-    private val geminiNanoClient: GeminiNanoClient?,
-    private val useNano: Boolean = false,
+    // Not stored as properties: they exist to build the default [llm] below, which is the only
+    // thing the manager talks to once constructed.
+    geminiClient: GeminiClient?,
+    geminiNanoClient: GeminiNanoClient?,
+    useNano: Boolean = false,
     private val transcriptStore: GeminiTranscriptDatabaseHelper? = null,
     private val commandHistoryStore: CommandHistoryDatabaseHelper? = null,
     private val sessionId: String = java.util.UUID.randomUUID().toString(),
@@ -28,7 +28,21 @@ class ConversationManager(
      * [ConversationContextBuilder.infrastructureSection], so the AI knows what else exists in
      * the setup and which system it is speaking as (roadmap v0.8.0 — multi-system awareness).
      */
-    private val infrastructureContext: String = ""
+    private val infrastructureContext: String = "",
+    /**
+     * How the manager reaches the model. Defaults to the configured Gemini client (on-device
+     * when [useNano], cloud otherwise); instrumented and unit tests pass a scripted responder so
+     * the troubleshooting chain can be tested without network access.
+     */
+    private val llm: ConversationLlm = ConversationLlm { message, promptContext, history ->
+        if (useNano && geminiNanoClient != null) {
+            geminiNanoClient.generateConversationalResponse(message, promptContext, history)
+        } else if (geminiClient != null) {
+            geminiClient.generateConversationalResponse(message, promptContext, history)
+        } else {
+            GeminiResult(false, "No Gemini client available")
+        }
+    }
 ) {
     private val personaClient = PersonaClient(backend)
     private val conversationHistory = mutableListOf<ConversationTurn>()
@@ -220,9 +234,9 @@ class ConversationManager(
      * ends the run with an explanation.
      *
      * Every command that reaches the shell gets its own row in the local command history. The
-     * conversation transcript stores one turn per run, whose narrative includes each chained
-     * command line, so the run reads back in full even though the turn's `commandExecuted`
-     * column names the last one.
+     * conversation transcript stores one turn per run, whose narrative includes every command
+     * line the run executed, so the run reads back in full even though the turn's
+     * `commandExecuted` column names the last one.
      */
     private suspend fun executeCommandAndRespond(
         userMessage: String,
@@ -256,9 +270,9 @@ class ConversationManager(
      * SAFE follow-up command, recurses into the next step. Recursion (rather than a loop) keeps
      * each step's state immutable and is bounded by [MAX_TROUBLESHOOTING_STEPS].
      *
-     * @param isChainedStep false for the command the user's message produced, true for every
-     * command the AI chose afterwards — those get announced through the run's `onChunk` so the
-     * user sees the run progress.
+     * @param isChainedStep false for the command the user's message produced (or the one it
+     * paused at for confirmation), true for every command the AI chose afterwards — those get
+     * announced through the run's `onChunk` so the user sees the run progress.
      */
     private suspend fun runTroubleshootingStep(
         run: TroubleshootingRun,
@@ -267,11 +281,13 @@ class ConversationManager(
     ): ConversationResult {
         chainStepsTaken++
 
-        // The first command of a turn was already explained by the response above it. Chained
-        // ones go into the narrative as well as the live stream, so the stored transcript and
-        // the target-side log show every command the run executed, not only the last.
+        // Every command goes into the narrative, so the stored transcript and the target-side
+        // log show the whole run rather than only the last command (the one the transcript's
+        // commandExecuted column names). Chained commands are also announced on the live
+        // stream; the first one needs no announcement, because the response above it — already
+        // streamed — is what explains it.
+        run.narrative.appendBlock("$ $command")
         if (isChainedStep) {
-            run.narrative.appendBlock("$ $command")
             run.onChunk?.invoke("\n\n$ $command\n")
         }
 
@@ -622,7 +638,7 @@ $continuation
             false,
             "Persona context not available"
         )
-        val context = ConversationContextBuilder.compose(
+        val promptContext = ConversationContextBuilder.compose(
             persona,
             infrastructureContext,
             recentCommandsContext()
@@ -630,13 +646,7 @@ $continuation
 
         val history = if (includeInHistory) conversationHistory else emptyList()
 
-        return if (useNano && geminiNanoClient != null) {
-            geminiNanoClient.generateConversationalResponse(userMessage, context, history)
-        } else if (geminiClient != null) {
-            geminiClient.generateConversationalResponse(userMessage, context, history)
-        } else {
-            GeminiResult(false, "No Gemini client available")
-        }
+        return llm.respond(userMessage, promptContext, history)
     }
 
     /**

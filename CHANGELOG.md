@@ -17,6 +17,7 @@ The format is based on Keep a Changelog and follows semantic versioning.
 ### Fixed
 - **Crash on Android 12L and older when running any command**: `SshClient.execCommand` read stderr through `ByteArrayOutputStream.toString(Charset)`, which only exists from API 33; below that it throws `NoSuchMethodError` on every exec. The app's minSdk is 26.
 - **Crash on Android 8.x when sending feedback with device info**: `GitHubIssueClient` called `PackageInfo.longVersionCode` (API 28+) directly; it now goes through `AppUtils.getAppVersionInfo`, which picks the right API for the running OS.
+- **German "Frase" → "Phrase"**: The German locale used the Spanish word for the Phrases feature throughout the menu, list and dialogs.
 
 ## [0.7.12] - 2026-09-09
 

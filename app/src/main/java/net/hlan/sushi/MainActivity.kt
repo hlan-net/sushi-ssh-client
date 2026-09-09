@@ -856,10 +856,11 @@ class MainActivity : AppCompatActivity() {
     /**
      * Record a Play's rendered command in the local command history, so Plays appear alongside
      * AI- and raw-mode commands (roadmap v0.8.0). Called from the IO thread; a Play rejected
-     * before rendering (missing required parameter) has no command to record.
+     * before rendering (missing required parameter) has no command to record, and one whose
+     * command never reached a shell ([PlayRunResult.dispatched]) is not a command that ran.
      */
     private fun recordPlayInCommandHistory(host: SshConnectionConfig, result: PlayRunResult) {
-        if (result.renderedCommand.isBlank()) {
+        if (result.renderedCommand.isBlank() || !result.dispatched) {
             return
         }
         runCatching {
@@ -1227,7 +1228,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         conversationManager = ConversationManager(
-            context = this,
             backend = backend,
             geminiClient = geminiClient,
             geminiNanoClient = nanoClient,
