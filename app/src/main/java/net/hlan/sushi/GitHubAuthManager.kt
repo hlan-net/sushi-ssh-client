@@ -1,5 +1,6 @@
 package net.hlan.sushi
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -73,8 +74,15 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
                 } finally {
                     connection.disconnect()
                 }
-            } catch (ex: Exception) {
-                return DeviceFlowResult.Failed(ex.message ?: "Network error")
+            } catch (cancelled: CancellationException) {
+                // The flow was cancelled (dialog dismissed / job cancelled). Propagate
+                // so the coroutine actually stops instead of looping to the deadline.
+                throw cancelled
+            } catch (ignored: Exception) {
+                // A single failed poll — a transient network drop while the user switches to
+                // the browser, a proxy hiccup, or a non-JSON error page — must not abort the
+                // whole flow while authorization is still pending. Skip this tick and retry.
+                continue
             }
 
             when (response.optString("error")) {
@@ -88,11 +96,8 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
                     }
                     return DeviceFlowResult.Failed("No access token in response")
                 }
-                "authorization_pending" -> continue
-                "slow_down" -> {
-                    interval += SLOW_DOWN_INCREMENT_SECONDS
-                    continue
-                }
+                "authorization_pending" -> {} // keep waiting for the user to approve
+                "slow_down" -> interval += SLOW_DOWN_INCREMENT_SECONDS
                 "access_denied" -> return DeviceFlowResult.Denied
                 "expired_token" -> return DeviceFlowResult.Expired
                 else -> return DeviceFlowResult.Failed(response.optString("error_description", "Unknown error"))
@@ -118,11 +123,18 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
 
     private fun post(url: String, body: String): HttpURLConnection {
         val connection = newConnection(url)
-        connection.requestMethod = "POST"
-        connection.setRequestProperty("Accept", "application/json")
-        connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-        connection.doOutput = true
-        OutputStreamWriter(connection.outputStream).use { it.write(body) }
+        try {
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            connection.doOutput = true
+            OutputStreamWriter(connection.outputStream).use { it.write(body) }
+        } catch (ex: Exception) {
+            // If opening/writing the request fails, disconnect before propagating so the
+            // caller's retry loop can't leak sockets across repeated transient failures.
+            connection.disconnect()
+            throw ex
+        }
         return connection
     }
 
