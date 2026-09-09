@@ -112,7 +112,15 @@ private class ConnectionFailureException(
 data class SshCommandResult(
     val success: Boolean,
     val exitStatus: Int?,
-    val message: String
+    val message: String,
+    /**
+     * Whether the command actually reached the shell.
+     *
+     * False only when it never got that far — no session, or the exec channel could not be
+     * opened. A command that timed out is still dispatched: it ran and may have had side
+     * effects, so it belongs in the command history even though no exit status came back.
+     */
+    val dispatched: Boolean = true
 )
 
 data class SftpUploadResult(
@@ -469,10 +477,13 @@ class SshClient(
     ): SshCommandResult {
         val activeSession = session
         if (activeSession == null || !activeSession.isConnected) {
-            return SshCommandResult(false, null, "Not connected")
+            return SshCommandResult(false, null, "Not connected", dispatched = false)
         }
 
         var channel: ChannelExec? = null
+        // Flipped once the exec channel is open: from that point the command has been sent,
+        // so later failures (timeout, read error) still count as dispatched.
+        var dispatched = false
         return runCatching {
             channel = activeSession.openChannel("exec") as ChannelExec
             val ch = channel!!
@@ -484,6 +495,7 @@ class SshClient(
             // inputStream must be obtained before connect()
             val stdout = ch.inputStream
             ch.connect(EXEC_CONNECT_TIMEOUT_MS)
+            dispatched = true
 
             // Read output in a daemon thread so we can enforce a wall-clock timeout.
             // AtomicReference provides safe cross-thread exception propagation without
@@ -521,7 +533,8 @@ class SshClient(
                 return@runCatching SshCommandResult(
                     false,
                     null,
-                    "Command timed out after ${timeoutMs}ms"
+                    "Command timed out after ${timeoutMs}ms",
+                    dispatched = true
                 )
             }
 
@@ -549,7 +562,7 @@ class SshClient(
             SshCommandResult(exitStatus == 0, exitStatus, fullOutput)
         }.getOrElse { error ->
             val message = error.message?.takeIf { it.isNotBlank() } ?: "Exec failed"
-            SshCommandResult(false, null, message)
+            SshCommandResult(false, null, message, dispatched = dispatched)
         }.also {
             runCatching { channel?.disconnect() }
         }
@@ -559,7 +572,7 @@ class SshClient(
         val activeChannel = shellChannel
         val output = shellInput
         if (activeChannel == null || !activeChannel.isConnected || output == null) {
-            return SshCommandResult(false, null, "Not connected")
+            return SshCommandResult(false, null, "Not connected", dispatched = false)
         }
 
         return runCatching {
@@ -577,7 +590,7 @@ class SshClient(
         val activeChannel = shellChannel
         val output = shellInput
         if (activeChannel == null || !activeChannel.isConnected || output == null) {
-            return SshCommandResult(false, null, "Not connected")
+            return SshCommandResult(false, null, "Not connected", dispatched = false)
         }
 
         if (text.isEmpty()) {

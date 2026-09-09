@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <exclude domain="sharedpref" path="." />
+    <!--
+      Command history and Gemini transcripts store executed commands and their output verbatim,
+      which can contain tokens, credentials or other secrets the user printed on the target.
+      Neither belongs in a cloud backup or a device-to-device transfer.
+    -->
+    <exclude domain="database" path="sushi_command_history.db" />
+    <exclude domain="database" path="sushi_command_history.db-journal" />
+    <exclude domain="database" path="sushi_command_history.db-wal" />
+    <exclude domain="database" path="sushi_command_history.db-shm" />
+    <exclude domain="database" path="sushi_gemini_transcripts.db" />
+    <exclude domain="database" path="sushi_gemini_transcripts.db-journal" />
+    <exclude domain="database" path="sushi_gemini_transcripts.db-wal" />
+    <exclude domain="database" path="sushi_gemini_transcripts.db-shm" />
 </full-backup-content>

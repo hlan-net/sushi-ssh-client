@@ -282,8 +282,11 @@ class ConversationManager(
             ).copy(success = false)
         }
 
+        // Record before the failure branch below: a timed-out command still ran.
+        recordInCommandHistory(command, cmdResult, CommandSource.CONVERSATION)
+
         if (!cmdResult.success && cmdResult.exitStatus == null) {
-            // execCommand itself failed (e.g. not connected, timed out).
+            // execCommand did not complete (not connected, or the command timed out).
             return finishRun(
                 run = run,
                 command = command,
@@ -295,7 +298,6 @@ class ConversationManager(
 
         // Command ran — use the captured output (may be empty for commands with no output).
         val output = cmdResult.message.ifEmpty { "(no output)" }
-        recordInCommandHistory(command, cmdResult, CommandSource.CONVERSATION)
 
         val mayChain = autoTroubleshootEnabled && chainStepsTaken < MAX_TROUBLESHOOTING_STEPS
         val interpretResult = generateLlmResponse(
@@ -424,6 +426,35 @@ $continuation
     }
 
     /**
+     * Persist a run that stopped at a confirmation prompt the user then declined.
+     *
+     * The CONFIRM pause returns before the turn is written, because approving it resumes the
+     * same run and persists the whole narrative at the end. When the user declines instead,
+     * nothing would ever record the steps that already executed — this closes that gap for the
+     * transcript, the target-side log, and the in-memory history. Does nothing when the run had
+     * not executed anything yet.
+     */
+    suspend fun persistDeclinedRun(result: ConversationResult) {
+        val executed = result.commandExecuted ?: return
+        val declined = result.commandToConfirm
+
+        withContext(Dispatchers.IO) {
+            val response = if (declined != null) {
+                "${result.systemResponse}\n\n[Not run: $declined — confirmation declined]"
+            } else {
+                result.systemResponse
+            }
+            addToHistory(
+                result.userMessage,
+                response,
+                executed,
+                result.commandOutput,
+                result.commandSuccess
+            )
+        }
+    }
+
+    /**
      * Run [command] directly against [backend], bypassing the LLM entirely (Raw Terminal Mode).
      * Still goes through [CommandSafety] and the same transcript/log persistence as AI-driven
      * commands so raw-mode activity remains visible in the conversation history.
@@ -514,9 +545,10 @@ $continuation
     /**
      * Persist an executed command to the local command history (roadmap v0.8.0).
      *
-     * Only commands that actually reached the shell are stored: a null exit status means
-     * [TerminalBackend.execCommand] itself failed (not connected, timed out), and BLOCKED
-     * commands never get here because they are rejected before execution.
+     * Only commands that actually reached the shell are stored — see
+     * [SshCommandResult.dispatched], which stays true for a command that timed out because it
+     * ran and may have had side effects. BLOCKED commands never get here: they are rejected
+     * before execution.
      */
     private fun recordInCommandHistory(
         command: String,
@@ -524,7 +556,7 @@ $continuation
         source: CommandSource
     ) {
         val store = commandHistoryStore ?: return
-        if (result.exitStatus == null && !result.success) return
+        if (!result.dispatched) return
 
         runCatching {
             store.record(

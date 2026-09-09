@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivityCommandHistoryBinding
@@ -44,6 +45,12 @@ class CommandHistoryActivity : AppCompatActivity() {
 
     private var searchQuery: String = ""
     private var hostFilterId: String? = null
+
+    /**
+     * The in-flight query. Every keystroke starts a new one, and a slower earlier query would
+     * otherwise land after a newer one and show stale results, so the previous job is cancelled.
+     */
+    private var reloadJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,7 +96,8 @@ class CommandHistoryActivity : AppCompatActivity() {
     private fun reload() {
         val query = searchQuery
         val hostId = hostFilterId
-        lifecycleScope.launch(Dispatchers.IO) {
+        reloadJob?.cancel()
+        reloadJob = lifecycleScope.launch(Dispatchers.IO) {
             val entries = runCatching { db.search(query, hostId) }.getOrDefault(emptyList())
             withContext(Dispatchers.Main) {
                 adapter.submitList(entries)
@@ -154,9 +162,20 @@ class CommandHistoryActivity : AppCompatActivity() {
             .show()
     }
 
-    /** Hand the command back to the caller, which decides whether it can be run right now. */
+    /**
+     * Hand the command back to the caller, which decides whether it can be run right now.
+     *
+     * The originating host travels with it: a command recorded on one host may be harmless
+     * there and wrong somewhere else, and [CommandSafety] cannot see that difference.
+     */
     private fun rerun(record: CommandHistoryRecord) {
-        setResult(RESULT_OK, Intent().putExtra(EXTRA_RERUN_COMMAND, record.command))
+        setResult(
+            RESULT_OK,
+            Intent()
+                .putExtra(EXTRA_RERUN_COMMAND, record.command)
+                .putExtra(EXTRA_RERUN_HOST_ID, record.hostId)
+                .putExtra(EXTRA_RERUN_HOST_LABEL, record.hostLabel)
+        )
         finish()
     }
 
@@ -274,6 +293,12 @@ class CommandHistoryActivity : AppCompatActivity() {
     companion object {
         /** Result extra carrying the command the user asked to re-run. */
         const val EXTRA_RERUN_COMMAND = "extra_rerun_command"
+
+        /** Result extra carrying the id of the host the command was originally run on. */
+        const val EXTRA_RERUN_HOST_ID = "extra_rerun_host_id"
+
+        /** Result extra carrying that host's label, for the cross-host warning. */
+        const val EXTRA_RERUN_HOST_LABEL = "extra_rerun_host_label"
 
         fun createIntent(context: Context): Intent =
             Intent(context, CommandHistoryActivity::class.java)

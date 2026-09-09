@@ -481,6 +481,8 @@
     <string name="command_history_status_exit">exit %1$d</string>
     <string name="command_history_status_failed">failed</string>
     <string name="command_history_rerun_needs_connection">Not connected — command copied to the clipboard instead.</string>
+    <string name="command_history_rerun_other_host_title">Run on a different host?</string>
+    <string name="command_history_rerun_other_host_message">This command was recorded on %1$s, but you are connected to %2$s.\n\n%3$s</string>
 
     <!-- Conversation UI -->
     <string name="conversation_input_hint">Ask the system...</string>

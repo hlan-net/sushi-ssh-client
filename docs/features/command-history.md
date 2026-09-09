@@ -50,3 +50,5 @@ This lets the AI answer "has disk usage changed?" without re-running the command
 
 - **Terminal-tab keystrokes are not recorded.** `TerminalActivity` writes to an interactive PTY character by character; reconstructing commands would mean line-buffering every keystroke, which would also capture passwords typed at `sudo`/`ssh` prompts into a plaintext local database. Commands run through the conversation (AI or raw mode) and Plays are recorded instead.
 - Output is stored condensed (first 5 non-blank lines, 500 characters) rather than in full.
+- The database is excluded from cloud backup and device-to-device transfer (`backup_rules.xml`, `data_extraction_rules.xml`), since command output can contain tokens or credentials the user printed on the target. The Gemini transcript database is excluded for the same reason.
+- Re-run carries the originating host id: re-running a command on a *different* host than it was recorded on asks for confirmation first, because `CommandSafety` classifies the command text alone and cannot see which system it was meant for.

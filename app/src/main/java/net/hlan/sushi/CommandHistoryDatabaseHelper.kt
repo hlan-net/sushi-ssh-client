@@ -263,8 +263,16 @@ class CommandHistoryDatabaseHelper(context: Context) :
         /** Entries fed back into the AI prompt by default. */
         const val DEFAULT_CONTEXT_ENTRIES = 10
 
-        /** Rows loaded into the browser at once. */
-        const val DEFAULT_LIST_LIMIT = 500
+        /**
+         * Rows loaded into the browser at once.
+         *
+         * Must stay well above [MAX_ENTRIES_PER_HOST] so that the unfiltered "All hosts" view
+         * and free-text search can still reach rows the database is retaining: with a per-host
+         * cap of 500, a limit of 500 would hide everything older than the newest 500 rows
+         * across all hosts combined. This covers ten hosts at full retention, which also bounds
+         * what the list can ever load into memory.
+         */
+        const val DEFAULT_LIST_LIMIT = MAX_ENTRIES_PER_HOST * 10
 
         /**
          * Condense [output] to the first [OUTPUT_SUMMARY_LINES] non-blank lines, truncated to

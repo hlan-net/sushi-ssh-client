@@ -4,7 +4,9 @@ data class PlayRunResult(
     val success: Boolean,
     val message: String,
     val outputLines: List<String> = emptyList(),
-    val renderedCommand: String = ""
+    val renderedCommand: String = "",
+    /** Exit status of the rendered command, or null when it never produced one (timeout). */
+    val exitStatus: Int? = null
 )
 
 object PlayRunner {
@@ -61,9 +63,21 @@ object PlayRunner {
         lines.forEach { onLine(it) }
 
         return if (result.success) {
-            PlayRunResult(true, "Play completed", outputLines = lines, renderedCommand = rendered)
+            PlayRunResult(
+                true,
+                "Play completed",
+                outputLines = lines,
+                renderedCommand = rendered,
+                exitStatus = result.exitStatus
+            )
         } else {
-            PlayRunResult(false, result.message.ifBlank { "Play failed" }, outputLines = lines, renderedCommand = rendered)
+            PlayRunResult(
+                false,
+                result.message.ifBlank { "Play failed" },
+                outputLines = lines,
+                renderedCommand = rendered,
+                exitStatus = result.exitStatus
+            )
         }
     }
 

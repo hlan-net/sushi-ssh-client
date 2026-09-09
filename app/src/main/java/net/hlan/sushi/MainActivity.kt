@@ -60,6 +60,13 @@ class MainActivity : AppCompatActivity() {
     private var isRawTerminalMode = false
     /** Label of the host the live conversation is bound to, or null when not connected. */
     private var activeHostLabel: String? = null
+    /**
+     * The host the previous conversation ran on. Kept across disconnects — a host switch is a
+     * disconnect followed by a connect, so [activeHostLabel] is already null by the time the new
+     * conversation starts and cannot be used to detect the change.
+     */
+    private var lastConversationHostId: String? = null
+    private var lastConversationHostLabel: String? = null
     private var playsPageBinding: PageMainPlaysBinding? = null
     private var terminalPageBinding: PageMainTerminalBinding? = null
     private var toolsTabMediator: TabLayoutMediator? = null
@@ -119,10 +126,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val manager = conversationManager
-        if (manager != null && manager.isInitialized()) {
-            showGeminiDialog()
-            handleRawCommand(command)
-        } else {
+        if (manager == null || !manager.isInitialized()) {
             getSystemService(ClipboardManager::class.java)?.setPrimaryClip(
                 ClipData.newPlainText(getString(R.string.command_history_title), command)
             )
@@ -131,7 +135,57 @@ class MainActivity : AppCompatActivity() {
                 R.string.command_history_rerun_needs_connection,
                 Toast.LENGTH_LONG
             ).show()
+            return@registerForActivityResult
         }
+
+        val recordedHostId = result.data
+            ?.getStringExtra(CommandHistoryActivity.EXTRA_RERUN_HOST_ID)
+            .orEmpty()
+        val recordedHostLabel = result.data
+            ?.getStringExtra(CommandHistoryActivity.EXTRA_RERUN_HOST_LABEL)
+            .orEmpty()
+        val activeHostId = sshSettings.getActiveHostId().orEmpty()
+
+        // A command recorded on one host can be wrong or destructive on another (different
+        // paths, services, or data), and CommandSafety classifies the command text alone —
+        // it cannot see which system it was meant for. Ask before crossing hosts.
+        val crossesHosts = recordedHostId.isNotEmpty() &&
+            activeHostId.isNotEmpty() &&
+            recordedHostId != activeHostId
+
+        if (crossesHosts) {
+            confirmCrossHostRerun(command, recordedHostLabel)
+        } else {
+            showGeminiDialog()
+            handleRawCommand(command)
+        }
+    }
+
+    /**
+     * Ask before re-running a command on a host other than the one it was recorded on.
+     */
+    private fun confirmCrossHostRerun(command: String, recordedHostLabel: String) {
+        val recorded = recordedHostLabel.ifBlank {
+            getString(R.string.command_history_unknown_host)
+        }
+        val current = activeHostLabel ?: getString(R.string.command_history_unknown_host)
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.command_history_rerun_other_host_title)
+            .setMessage(
+                getString(
+                    R.string.command_history_rerun_other_host_message,
+                    recorded,
+                    current,
+                    command
+                )
+            )
+            .setPositiveButton(R.string.command_history_action_rerun) { _, _ ->
+                showGeminiDialog()
+                handleRawCommand(command)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private val micPermissionLauncher = registerForActivityResult(
@@ -817,7 +871,7 @@ class MainActivity : AppCompatActivity() {
                     outputSummary = CommandHistoryDatabaseHelper.summarizeOutput(
                         result.outputLines.joinToString("\n")
                     ),
-                    exitStatus = null,
+                    exitStatus = result.exitStatus,
                     success = result.success,
                     source = CommandSource.PLAY,
                     timestamp = System.currentTimeMillis()
@@ -1157,10 +1211,17 @@ class MainActivity : AppCompatActivity() {
         )
 
         withContext(Dispatchers.Main) {
-            val previousHost = activeHostLabel
-            if (previousHost != null && hostLabel != null && previousHost != hostLabel) {
-                appendHostSwitchMarker(previousHost, hostLabel)
+            val previousHostId = lastConversationHostId
+            val newHostId = activeConfig?.id
+            if (previousHostId != null && newHostId != null && previousHostId != newHostId) {
+                appendHostSwitchMarker(
+                    previousHost = lastConversationHostLabel
+                        ?: getString(R.string.command_history_unknown_host),
+                    newHost = hostLabel ?: getString(R.string.command_history_unknown_host)
+                )
             }
+            lastConversationHostId = newHostId
+            lastConversationHostLabel = hostLabel
             activeHostLabel = hostLabel
             updateGeminiDialogHost()
         }
@@ -1280,11 +1341,7 @@ class MainActivity : AppCompatActivity() {
 
                         when {
                             result.needsConfirmation -> {
-                                showCommandConfirmationDialog(
-                                    message,
-                                    result.systemResponse,
-                                    result.commandToConfirm!!
-                                )
+                                showCommandConfirmationDialog(message, result)
                             }
 
                             result.commandBlocked -> {
@@ -1374,19 +1431,44 @@ class MainActivity : AppCompatActivity() {
         return idx
     }
 
+    /**
+     * Ask before running a CONFIRM-tier command.
+     *
+     * [pending] carries the run so far: the narrative to resume from, and — when the pause
+     * happened mid-chain — the steps that already executed. Declining persists those steps, so
+     * work the AI already did is not lost from the transcript and the target-side log.
+     */
     private fun showCommandConfirmationDialog(
         userMessage: String,
-        initialResponse: String,
-        command: String
+        pending: ConversationResult
     ) {
+        val command = pending.commandToConfirm ?: return
+
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.conversation_confirm_command_title))
             .setMessage(getString(R.string.conversation_confirm_command_message, command))
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                executeConfirmedCommand(userMessage, initialResponse, command)
+                executeConfirmedCommand(userMessage, pending.systemResponse, command)
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                persistDeclinedRun(pending)
+            }
+            .setOnCancelListener { persistDeclinedRun(pending) }
             .show()
+    }
+
+    /**
+     * Write a declined run's already-executed steps to the transcript and target-side log.
+     */
+    private fun persistDeclinedRun(pending: ConversationResult) {
+        val manager = conversationManager ?: return
+        if (pending.commandExecuted == null) {
+            return
+        }
+        lifecycleScope.launch {
+            runCatching { manager.persistDeclinedRun(pending) }
+                .onFailure { e -> Log.w(TAG, "Failed to persist declined run", e) }
+        }
     }
 
     private fun executeConfirmedCommand(
@@ -1427,6 +1509,12 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     replaceOrAppendTranscriptEntry(streamEntryIndex, userMessage, result.systemResponse)
+
+                    // A troubleshooting chain can hit a second CONFIRM step after this one was
+                    // approved; without this the run would stop silently at that step.
+                    if (result.needsConfirmation) {
+                        showCommandConfirmationDialog(userMessage, result)
+                    }
 
                     updateGeminiDialogState()
                 }
