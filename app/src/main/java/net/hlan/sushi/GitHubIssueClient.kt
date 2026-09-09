@@ -30,9 +30,11 @@ class GitHubIssueClient(
         val body = buildString {
             append(feedback)
             if (includeDeviceInfo) {
-                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                // AppUtils picks the right version-code API for the running OS;
+                // packageInfo.longVersionCode alone would crash below API 28.
+                val version = AppUtils.getAppVersionInfo(context)
                 append("\n\n---\n")
-                append("- App: ${packageInfo.versionName} (${packageInfo.longVersionCode})\n")
+                append("- App: ${version.name} (${version.code})\n")
                 append("- Device: ${Build.MANUFACTURER} ${Build.MODEL}\n")
                 append("- Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
             }

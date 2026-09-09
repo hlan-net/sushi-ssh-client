@@ -539,7 +539,9 @@ class SshClient(
 
             val exitStatus = ch.exitStatus
             val stdoutStr = outputBuilder.toString().trim()
-            val stderrStr = stderrBuffer.toString(Charsets.UTF_8).trim()
+            // Not stderrBuffer.toString(Charsets.UTF_8): that overload is API 33+,
+            // and this line runs on every exec down to the app's minSdk of 26.
+            val stderrStr = String(stderrBuffer.toByteArray(), Charsets.UTF_8).trim()
 
             val fullOutput = when {
                 stdoutStr.isNotBlank() && stderrStr.isNotBlank() -> "$stdoutStr\n$stderrStr"

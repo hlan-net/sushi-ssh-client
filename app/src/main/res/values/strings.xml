@@ -8,8 +8,8 @@
     <string name="setup_checklist_generate_key">Generate an SSH key</string>
     <string name="setup_checklist_gemini_key">Set up Gemini AI (optional)</string>
     <string name="setup_checklist_drive_auth">Connect Google Drive (optional)</string>
-    <string name="setup_checklist_done_marker">✓</string>
-    <string name="setup_checklist_pending_marker">○</string>
+    <string name="setup_checklist_done_marker" translatable="false">✓</string>
+    <string name="setup_checklist_pending_marker" translatable="false">○</string>
 
     <string name="placeholder_status">Add SSH details in Settings to start a session.</string>
     <string name="placeholder_status_active">Connecting...</string>
@@ -472,7 +472,7 @@
     <string name="command_history_clear_all">Clear history</string>
     <string name="command_history_clear_all_confirm">Delete all recorded commands?</string>
     <string name="command_history_cleared">History cleared.</string>
-    <string name="command_history_meta">%1$s · %2$s</string>
+    <string name="command_history_meta" translatable="false">%1$s · %2$s</string>
     <string name="command_history_source_conversation">AI</string>
     <string name="command_history_source_raw">Raw</string>
     <string name="command_history_source_play">Play</string>
