@@ -41,6 +41,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Get version
         id: version
@@ -93,12 +95,44 @@ jobs:
           VERSION_CODE=$((BASE * 100 + ATTEMPT))
           echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
 
-      - name: Generate changelog
+      - name: Generate release notes
         id: changelog
+        env:
+          VERSION: ${{ steps.normalized-version.outputs.value }}
         run: |
-          echo "## Changes" > CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 HEAD^)..HEAD >> CHANGELOG.md || echo "- Initial release" >> CHANGELOG.md
+          # Prefer the matching section from CHANGELOG.md; fall back to the commit log.
+          # Write to RELEASE_NOTES.md so the real CHANGELOG.md is never clobbered.
+          NOTES_FILE=RELEASE_NOTES.md
+
+          if [ -f CHANGELOG.md ]; then
+            awk -v ver="$VERSION" '
+              $0 ~ "^## \\[" ver "\\]" { flag=1; next }
+              flag && /^## \[/ { flag=0 }
+              flag { print }
+            ' CHANGELOG.md > "$NOTES_FILE"
+          fi
+
+          # Strip leading and trailing blank lines.
+          if [ -s "$NOTES_FILE" ]; then
+            TRIMMED=$(sed -e '/./,$!d' -e ':a' -e '/^\n*$/{$d;N;ba}' "$NOTES_FILE")
+            printf '%s\n' "$TRIMMED" > "$NOTES_FILE"
+          fi
+
+          if [ ! -s "$NOTES_FILE" ]; then
+            echo "No CHANGELOG.md section for $VERSION; falling back to commit log." >&2
+            {
+              echo "## Changes"
+              echo ""
+              PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
+              if [ -n "$PREV_TAG" ]; then
+                git log --pretty=format:"- %s" "$PREV_TAG"..HEAD
+              else
+                git log --pretty=format:"- %s"
+              fi
+            } > "$NOTES_FILE"
+          fi
+
+          echo "Release notes:"; cat "$NOTES_FILE"
 
       - name: Create or reuse Release
         id: create-release
@@ -109,16 +143,26 @@ jobs:
             const fs = require('fs')
             const tag = `${{ steps.version.outputs.version }}`
             const releaseName = `sushi - SSH client ${tag}`
-            const body = fs.readFileSync('CHANGELOG.md', 'utf8')
+            const body = fs.readFileSync('RELEASE_NOTES.md', 'utf8')
 
             let release
             try {
-              release = await github.rest.repos.getReleaseByTag({
+              const existing = await github.rest.repos.getReleaseByTag({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag
               })
-              core.info(`Reusing existing release for tag ${tag}`)
+              // Reuse the release but refresh its name/notes so re-runs pick up changelog edits.
+              release = await github.rest.repos.updateRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: existing.data.id,
+                name: releaseName,
+                body,
+                draft: false,
+                prerelease: false
+              })
+              core.info(`Reused and updated existing release for tag ${tag}`)
             } catch (error) {
               if (error.status !== 404) {
                 throw error
