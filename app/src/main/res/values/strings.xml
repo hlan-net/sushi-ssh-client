@@ -252,6 +252,29 @@
     <string name="gemini_nano_download_complete">Gemini Nano download complete.</string>
     <string name="gemini_nano_download_failed">Gemini Nano download failed.</string>
 
+    <!-- Persona editor -->
+    <string name="persona_section_title">AI persona</string>
+    <string name="persona_section_helper">Edit the target’s SUSHI.md — the file that defines the AI’s identity, personality, and command safety.</string>
+    <string name="persona_edit_button">Edit persona</string>
+    <string name="persona_editor_title">Edit persona</string>
+    <string name="persona_editor_subtitle">Reads and writes ~/.config/sushi/SUSHI.md on the target.</string>
+    <string name="persona_editor_hint">SUSHI.md content…</string>
+    <string name="persona_editor_select_host_title">Edit persona on host</string>
+    <string name="persona_editor_loading">Loading persona from %1$s…</string>
+    <string name="persona_editor_editing">Editing persona on %1$s</string>
+    <string name="persona_editor_resetting">Regenerating default persona on %1$s…</string>
+    <string name="persona_editor_save">Save</string>
+    <string name="persona_editor_reset">Reset to default</string>
+    <string name="persona_editor_retry">Retry</string>
+    <string name="persona_editor_saved">Persona saved.</string>
+    <string name="persona_editor_reset_done">Default persona regenerated.</string>
+    <string name="persona_editor_confirm_overwrite">This will replace the current persona on %1$s. Continue?</string>
+    <string name="persona_editor_confirm_reset">Regenerate the default persona on %1$s? This overwrites the current SUSHI.md and re-runs system profiling.</string>
+    <string name="persona_editor_warn_empty">Warning: the persona is empty. Saving will leave the target without a persona definition.</string>
+    <string name="persona_editor_warn_missing_sections">Warning: missing recommended sections: %1$s.</string>
+    <string name="persona_editor_error_title">Persona editor</string>
+    <string name="persona_editor_decode_error">Could not read the current persona (unexpected response from the host). Not opening the editor to avoid overwriting SUSHI.md with an empty file.</string>
+
     <!-- Main screen Nano status strings -->
     <string name="gemini_status_nano">Gemini Nano ready (on-device).</string>
     <string name="gemini_status_nano_downloading">Gemini Nano downloading. Using cloud.</string>

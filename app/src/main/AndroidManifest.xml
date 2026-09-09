@@ -100,6 +100,11 @@
             android:name=".SftpDownloadActivity"
             android:exported="false"
             android:label="@string/download_activity_title" />
+        <activity
+            android:name=".PersonaEditorActivity"
+            android:exported="false"
+            android:label="@string/persona_editor_title"
+            android:windowSoftInputMode="adjustResize" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
