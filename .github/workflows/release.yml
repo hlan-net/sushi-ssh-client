@@ -112,10 +112,14 @@ jobs:
             ' CHANGELOG.md > "$NOTES_FILE"
           fi
 
-          # Strip leading and trailing blank lines.
+          # Strip leading and trailing blank lines (whitespace-only counts as blank),
+          # while preserving blank lines between content. Portable awk, no GNU sed.
           if [ -s "$NOTES_FILE" ]; then
-            TRIMMED=$(sed -e '/./,$!d' -e ':a' -e '/^\n*$/{$d;N;ba}' "$NOTES_FILE")
-            printf '%s\n' "$TRIMMED" > "$NOTES_FILE"
+            awk '
+              /[^[:space:]]/ { for (; pending > 0; pending--) print ""; print; started = 1; next }
+              started { pending++ }
+            ' "$NOTES_FILE" > "$NOTES_FILE.trimmed"
+            mv "$NOTES_FILE.trimmed" "$NOTES_FILE"
           fi
 
           if [ ! -s "$NOTES_FILE" ]; then
