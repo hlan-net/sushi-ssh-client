@@ -6,6 +6,12 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+### Added
+- **Command history**: Every command Sushi runs — from the AI conversation, Raw Terminal Mode, or a Play — is stored locally in SQLite (`CommandHistoryDatabaseHelper`) with its host, condensed output, exit status, and source. A new Command history screen on the Terminal tab searches the log, filters by host, and offers copy / delete / re-run; re-run hands the command back to the conversation so it still passes `CommandSafety` classification. History is capped at 500 entries per host (oldest pruned on insert) and blocked commands are never recorded.
+- **AI context from history**: The most recent commands for the connected host are injected into the model prompt alongside `SUSHI.md`, so the AI can answer "has disk usage changed since last time?" without re-running the check.
+- **AI-powered troubleshooting**: The conversation now chains multi-step diagnosis automatically — command → output → interpretation → next command — until the AI reaches a conclusion. Each step is still classified by `CommandSafety`: a CONFIRM-tier step stops and asks the user before continuing, a BLOCKED step ends the run. Chains are capped at 5 commands per message and stop on a repeated command; a "Multi-step troubleshooting" switch in the Gemini dialog turns the behaviour off.
+- **Multi-system awareness**: The AI prompt now carries an Infrastructure section describing the user's other saved hosts (role, address, jump-host relations) with the connected one marked, so cross-system questions can be answered without connecting. The Gemini dialog shows which host it is talking to, and switching hosts mid-conversation marks the boundary in the transcript.
+
 ## [0.7.12] - 2026-09-09
 
 ### Added

@@ -35,3 +35,14 @@ Start with Option B — enrich `SUSHI.md` with an infrastructure section during 
 
 - The "active host" indicator in the conversation UI should be prominent so the user always knows which system they are talking to
 - Host switching mid-conversation should reset persona context and clearly mark the switch in the transcript
+
+---
+
+## Implementation status — Option B shipped in v0.8.0
+
+- `ConversationContextBuilder.infrastructureSection` builds the `## Infrastructure` block from the app's saved hosts: name, target address (or "Android device shell" for the local host), jump-host relations, and a marker on the connected system. It is injected into the prompt next to that host's own `SUSHI.md`, so cross-system questions can be answered without connecting — and the model is told it can only run commands on the marked system. With fewer than two saved hosts the section is omitted entirely.
+- The knowledge base lives in the app (the saved host list) rather than in a `shared-knowledge.md` on a designated primary host, so it needs no target-side setup and stays correct when hosts are added or removed.
+- The Gemini dialog names the host the conversation is bound to ("Talking to <host>"), so the active system is never ambiguous.
+- Switching hosts mid-conversation builds a fresh `ConversationManager` — persona, history, and infrastructure context are all rebuilt — and appends a "Host switched" marker to the transcript so earlier bubbles are not read as the new system's answers.
+
+Option C (one AI orchestrating across several live sessions) still needs multi-session SSH and cross-host safety rules, and remains future work.
