@@ -37,6 +37,12 @@ An open source Android SSH client focused on fast connections, clean session man
 
 ## Recent Release Highlights
 
+### v0.7.12
+- **Remote Persona Editor**: Read and edit the target's `~/.config/sushi/SUSHI.md` from Settings → Gemini → Edit persona, with save validation, overwrite confirmation, and a "Reset to default" option.
+- **SFTP Download**: A "Download file" action on the terminal tab pulls a remote file to the phone and offers Open/Share.
+- **Custom Log Location**: Honours the `log_dir` key in `~/.config/sushi/config.conf` for conversation logs.
+- **GitHub Sign-In Reliability**: Device-flow login no longer fails on a transient network hiccup while authorizing in the browser.
+
 ### v0.7.11
 - **SSH Host Key Verification (TOFU)**: Fingerprint confirmation dialog on first connect, host key mismatch alerts, and host key manager screen.
 - **Encrypted SSH Key Passphrase Support**: Support for passphrase-protected private keys (legacy PEM & OpenSSH bcrypt formats) with session passphrase caching.

@@ -6,6 +6,16 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.7.12] - 2026-09-09
+
+### Added
+- **Remote persona editor**: Read and edit the target's `~/.config/sushi/SUSHI.md` from Settings → Gemini → Edit persona, with save validation, an overwrite confirmation, and a "Reset to default" that re-runs the init script. Content is written via a temp file and atomic move so a failed save can't truncate the existing persona (#174).
+- **SFTP download (host → phone)**: New "Download file" action on the terminal tab pulls a remote file to the device and offers Open/Share through a `FileProvider` `content://` URI; adds `SshClient.sftpDownload` mirroring the existing upload path (#173, B-17).
+- **Custom conversation log location**: Reads the `log_dir` key from `~/.config/sushi/config.conf` on the target and honours it (falling back to `~/.sushi_logs`), so conversation logs can be directed to a mount point, RAM disk, or network share (#172).
+
+### Fixed
+- **GitHub sign-in reliability**: The device-flow login no longer aborts on a single transient poll error (e.g. a momentary network drop while switching to the browser); the flow keeps polling until the code is approved or expires, cancellation is propagated, and genuine OAuth errors still end it immediately (#176, fixes #175).
+
 ## [0.7.11] - 2026-09-08
 
 ### Added
