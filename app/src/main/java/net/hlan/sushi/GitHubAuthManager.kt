@@ -59,7 +59,6 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
     suspend fun pollForToken(deviceCode: DeviceCode): DeviceFlowResult {
         var interval = deviceCode.interval
         val deadline = System.currentTimeMillis() + deviceCode.expiresIn * 1000L
-        var lastTransientError: String? = null
 
         while (System.currentTimeMillis() < deadline) {
             delay(interval * 1000L)
@@ -79,13 +78,10 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
                 // The flow was cancelled (dialog dismissed / job cancelled). Propagate
                 // so the coroutine actually stops instead of looping to the deadline.
                 throw cancelled
-            } catch (ex: Exception) {
-                // A single failed poll — a transient network drop while the user
-                // switches to the browser, a proxy hiccup, or a non-JSON error page —
-                // must not abort the whole flow while authorization is still pending.
-                // Remember it and try again on the next tick; only surface it if we
-                // never manage to reach GitHub before the code expires.
-                lastTransientError = ex.message?.takeIf { it.isNotBlank() } ?: "Network error"
+            } catch (ignored: Exception) {
+                // A single failed poll — a transient network drop while the user switches to
+                // the browser, a proxy hiccup, or a non-JSON error page — must not abort the
+                // whole flow while authorization is still pending. Skip this tick and retry.
                 continue
             }
 
@@ -100,21 +96,14 @@ class GitHubAuthManager(private val settings: FeedbackSettings) {
                     }
                     return DeviceFlowResult.Failed("No access token in response")
                 }
-                // Still waiting: we did reach GitHub, so drop any earlier transient error —
-                // if the code later expires it means the user never approved, not a network fault.
-                "authorization_pending" -> lastTransientError = null
-                "slow_down" -> {
-                    interval += SLOW_DOWN_INCREMENT_SECONDS
-                    lastTransientError = null
-                }
+                "authorization_pending" -> {} // keep waiting for the user to approve
+                "slow_down" -> interval += SLOW_DOWN_INCREMENT_SECONDS
                 "access_denied" -> return DeviceFlowResult.Denied
                 "expired_token" -> return DeviceFlowResult.Expired
                 else -> return DeviceFlowResult.Failed(response.optString("error_description", "Unknown error"))
             }
         }
-        // Ran out of time. Distinguish "the user never approved" (Expired) from
-        // "we could never reach GitHub" (a persistent network problem).
-        return lastTransientError?.let { DeviceFlowResult.Failed(it) } ?: DeviceFlowResult.Expired
+        return DeviceFlowResult.Expired
     }
 
     private fun fetchUsername(token: String): String? {
