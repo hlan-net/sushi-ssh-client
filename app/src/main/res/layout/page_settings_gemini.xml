@@ -170,5 +170,38 @@
             android:layout_marginTop="4dp"
             android:text="@string/gemini_nano_preferred_helper" />
 
+        <!-- ── Persona section ── -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="24dp"
+            android:background="?attr/colorOutline" />
+
+        <TextView
+            android:id="@+id/personaSectionTitle"
+            style="@style/TextAppearance.Sushi.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/persona_section_title" />
+
+        <TextView
+            android:id="@+id/personaSectionHelper"
+            style="@style/TextAppearance.Sushi.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/persona_section_helper" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/editPersonaButton"
+            style="@style/Widget.Sushi.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/persona_edit_button"
+            app:icon="@drawable/ic_edit"
+            app:iconGravity="textStart" />
+
     </LinearLayout>
 </ScrollView>
