@@ -422,6 +422,24 @@
     <string name="share_nothing_to_share">Nothing to share.</string>
     <string name="share_could_not_read">Could not read shared content.</string>
 
+    <string name="download_activity_title">Download file</string>
+    <string name="action_download_file">Download file</string>
+    <string name="download_select_host_title">Download from host</string>
+    <string name="download_from_host">Download from %1$s</string>
+    <string name="download_remote_path_label">Remote file path (e.g. /var/log/syslog)</string>
+    <string name="download_button">Download</string>
+    <string name="download_preparing">Preparing…</string>
+    <string name="download_downloading">Downloading…</string>
+    <string name="download_success">Downloaded %1$s</string>
+    <string name="download_failed">Download failed: %1$s</string>
+    <string name="download_failed_generic">Download failed</string>
+    <string name="download_complete_title">Download complete</string>
+    <string name="download_saved_as">Saved as %1$s</string>
+    <string name="download_open">Open</string>
+    <string name="download_share">Share</string>
+    <string name="download_done">Done</string>
+    <string name="download_no_viewer">No app can open this file type.</string>
+
     <string name="gemini_transcript_label">Conversation history</string>
     <string name="gemini_transcript_you_label">You</string>
     <string name="gemini_transcript_gemini_label">Gemini</string>

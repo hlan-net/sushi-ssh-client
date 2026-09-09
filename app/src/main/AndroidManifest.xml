@@ -97,10 +97,24 @@
             android:exported="false"
             android:label="@string/gemini_history_title" />
         <activity
+            android:name=".SftpDownloadActivity"
+            android:exported="false"
+            android:label="@string/download_activity_title" />
+        <activity
             android:name=".PersonaEditorActivity"
             android:exported="false"
             android:label="@string/persona_editor_title"
             android:windowSoftInputMode="adjustResize" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

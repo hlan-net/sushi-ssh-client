@@ -252,6 +252,9 @@ class MainActivity : AppCompatActivity() {
         pageBinding.phrasesButton.setOnClickListener {
             showPhraseCopyPicker()
         }
+        pageBinding.downloadFileButton.setOnClickListener {
+            startActivity(Intent(this, SftpDownloadActivity::class.java))
+        }
         updateGeminiState()
         if (binding.mainToolsViewPager.currentItem == PAGE_TERMINAL) {
             binding.mainToolsViewPager.post { adjustToolsPagerHeight(PAGE_TERMINAL) }
