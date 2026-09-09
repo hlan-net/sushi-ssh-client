@@ -225,134 +225,174 @@ class ConversationManager(
         initialResponse: String,
         command: String,
         onChunk: ((String) -> Unit)? = null
+    ): ConversationResult = runTroubleshootingStep(
+        userMessage = userMessage,
+        narrative = StringBuilder(ExecuteDirective.strip(initialResponse)),
+        command = command,
+        isChainedStep = false,
+        onChunk = onChunk
+    )
+
+    /**
+     * Run one step of a troubleshooting chain, appending what happened to [narrative].
+     *
+     * Returns the finished [ConversationResult] when the run ends here; when the AI asks for a
+     * SAFE follow-up command, recurses into the next step. Recursion (rather than a loop) keeps
+     * each step's state immutable and is bounded by [MAX_TROUBLESHOOTING_STEPS].
+     *
+     * @param isChainedStep false for the command the user's message produced, true for every
+     * command the AI chose afterwards — those get announced through [onChunk] so the user sees
+     * the run progress.
+     */
+    private suspend fun runTroubleshootingStep(
+        userMessage: String,
+        narrative: StringBuilder,
+        command: String,
+        isChainedStep: Boolean,
+        onChunk: ((String) -> Unit)?
     ): ConversationResult {
-        val narrative = StringBuilder(ExecuteDirective.strip(initialResponse))
-        var currentCommand = command
-        var isChainedStep = false
+        chainStepsTaken++
 
-        while (true) {
-            chainStepsTaken++
+        // The first command of a turn was already explained by the response above it.
+        if (isChainedStep) {
+            onChunk?.invoke("\n\n$ $command\n")
+        }
 
-            // Announce chained steps so the user sees what the AI decided to run next; the
-            // first command of a turn was already explained by the response above it.
-            if (isChainedStep) {
-                onChunk?.invoke("\n\n$ $currentCommand\n")
+        val cmdResult = try {
+            backend.execCommand(command, onChunk = onChunk)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error executing command", e)
+            return finishRun(
+                userMessage = userMessage,
+                narrative = narrative,
+                closingBlock = "[Error executing command: ${e.message}]",
+                command = command,
+                output = null,
+                commandSucceeded = false,
+                runSucceeded = false
+            )
+        }
+
+        if (!cmdResult.success && cmdResult.exitStatus == null) {
+            // execCommand itself failed (e.g. not connected, timed out).
+            return finishRun(
+                userMessage = userMessage,
+                narrative = narrative,
+                closingBlock = "[Command failed: ${cmdResult.message}]",
+                command = command,
+                output = cmdResult.message,
+                commandSucceeded = false
+            )
+        }
+
+        // Command ran — use the captured output (may be empty for commands with no output).
+        val output = cmdResult.message.ifEmpty { "(no output)" }
+        recordInCommandHistory(command, cmdResult, CommandSource.CONVERSATION)
+
+        val mayChain = autoTroubleshootEnabled && chainStepsTaken < MAX_TROUBLESHOOTING_STEPS
+        val interpretResult = generateLlmResponse(
+            buildInterpretPrompt(cmdResult.exitStatus, output, mayChain),
+            includeInHistory = false
+        )
+
+        if (!interpretResult.success) {
+            // Fallback: show raw output.
+            return finishRun(
+                userMessage = userMessage,
+                narrative = narrative,
+                closingBlock = "Command output:\n$output",
+                command = command,
+                output = output,
+                commandSucceeded = true
+            )
+        }
+
+        val interpretation = interpretResult.message
+        narrative.appendBlock(ExecuteDirective.strip(interpretation))
+
+        val nextCommand = if (mayChain) ExecuteDirective.parse(interpretation) else null
+        if (nextCommand == null || nextCommand == command) {
+            if (nextCommand != null) {
+                Log.d(TAG, "Stopping chain: next step repeats the command just run")
             }
+            return finishRun(
+                userMessage = userMessage,
+                narrative = narrative,
+                closingBlock = null,
+                command = command,
+                output = output,
+                commandSucceeded = true
+            )
+        }
 
-            val cmdResult = try {
-                backend.execCommand(currentCommand, onChunk = onChunk)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error executing command", e)
-                narrative.appendBlock("[Error executing command: ${e.message}]")
-                val response = narrative.toString()
-                addToHistory(userMessage, response, currentCommand, null, false)
-                return ConversationResult(
-                    success = false,
-                    systemResponse = response,
-                    userMessage = userMessage,
-                    commandExecuted = currentCommand
-                )
-            }
-
-            if (!cmdResult.success && cmdResult.exitStatus == null) {
-                // execCommand itself failed (e.g. not connected, timed out).
-                narrative.appendBlock("[Command failed: ${cmdResult.message}]")
-                val response = narrative.toString()
-                addToHistory(userMessage, response, currentCommand, null, false)
-
-                return ConversationResult(
-                    success = true,
-                    systemResponse = response,
-                    userMessage = userMessage,
-                    commandExecuted = currentCommand,
-                    commandOutput = cmdResult.message,
-                    commandSuccess = false
-                )
-            }
-
-            // Command ran — use the captured output (may be empty for commands with no output).
-            val output = cmdResult.message.ifEmpty { "(no output)" }
-            recordInCommandHistory(currentCommand, cmdResult, CommandSource.CONVERSATION)
-
-            val mayChain = autoTroubleshootEnabled && chainStepsTaken < MAX_TROUBLESHOOTING_STEPS
-            val interpretResult = generateLlmResponse(
-                buildInterpretPrompt(cmdResult.exitStatus, output, mayChain),
-                includeInHistory = false
+        return when (CommandSafety.classify(nextCommand)) {
+            CommandSafety.SafetyLevel.BLOCKED -> finishRun(
+                userMessage = userMessage,
+                narrative = narrative,
+                closingBlock = "[Command blocked: ${CommandSafety.explainClassification(nextCommand)}]",
+                command = command,
+                output = output,
+                commandSucceeded = true,
+                blockedCommand = nextCommand
             )
 
-            if (!interpretResult.success) {
-                // Fallback: show raw output.
-                narrative.appendBlock("Command output:\n$output")
-                val response = narrative.toString()
-                addToHistory(userMessage, response, currentCommand, output, true)
-                return ConversationResult(
-                    success = true,
-                    systemResponse = response,
-                    userMessage = userMessage,
-                    commandExecuted = currentCommand,
-                    commandOutput = output,
-                    commandSuccess = true
-                )
-            }
+            // Pause the chain for user approval; executeConfirmedCommand resumes it. The turn is
+            // not written to history yet — the resumed run persists the whole narrative.
+            CommandSafety.SafetyLevel.CONFIRM -> ConversationResult(
+                success = true,
+                systemResponse = narrative.toString(),
+                userMessage = userMessage,
+                commandExecuted = command,
+                commandOutput = output,
+                commandSuccess = true,
+                commandToConfirm = nextCommand,
+                needsConfirmation = true
+            )
 
-            val interpretation = interpretResult.message
-            narrative.appendBlock(ExecuteDirective.strip(interpretation))
-
-            val nextCommand = if (mayChain) ExecuteDirective.parse(interpretation) else null
-            if (nextCommand == null || nextCommand == currentCommand) {
-                if (nextCommand != null) {
-                    Log.d(TAG, "Stopping chain: next step repeats the command just run")
-                }
-                val response = narrative.toString()
-                addToHistory(userMessage, response, currentCommand, output, true)
-                return ConversationResult(
-                    success = true,
-                    systemResponse = response,
-                    userMessage = userMessage,
-                    commandExecuted = currentCommand,
-                    commandOutput = output,
-                    commandSuccess = true
-                )
-            }
-
-            when (CommandSafety.classify(nextCommand)) {
-                CommandSafety.SafetyLevel.BLOCKED -> {
-                    val explanation = CommandSafety.explainClassification(nextCommand)
-                    narrative.appendBlock("[Command blocked: $explanation]")
-                    val response = narrative.toString()
-                    addToHistory(userMessage, response, currentCommand, output, true)
-                    return ConversationResult(
-                        success = true,
-                        systemResponse = response,
-                        userMessage = userMessage,
-                        commandExecuted = currentCommand,
-                        commandOutput = output,
-                        commandSuccess = true,
-                        commandAttempted = nextCommand,
-                        commandBlocked = true
-                    )
-                }
-
-                CommandSafety.SafetyLevel.CONFIRM -> {
-                    // Pause the chain for user approval; executeConfirmedCommand resumes it.
-                    return ConversationResult(
-                        success = true,
-                        systemResponse = narrative.toString(),
-                        userMessage = userMessage,
-                        commandExecuted = currentCommand,
-                        commandOutput = output,
-                        commandSuccess = true,
-                        commandToConfirm = nextCommand,
-                        needsConfirmation = true
-                    )
-                }
-
-                CommandSafety.SafetyLevel.SAFE -> {
-                    currentCommand = nextCommand
-                    isChainedStep = true
-                }
-            }
+            CommandSafety.SafetyLevel.SAFE -> runTroubleshootingStep(
+                userMessage = userMessage,
+                narrative = narrative,
+                command = nextCommand,
+                isChainedStep = true,
+                onChunk = onChunk
+            )
         }
+    }
+
+    /**
+     * Close out a troubleshooting run: append [closingBlock] if there is one, persist the turn,
+     * and build the result. Every exit from [runTroubleshootingStep] except the CONFIRM pause
+     * goes through here, so the narrative and the stored transcript never diverge.
+     *
+     * @param commandSucceeded whether the last command itself succeeded.
+     * @param runSucceeded false only when the run failed outright (an exception, not a command
+     * that merely returned a non-zero exit status).
+     * @param blockedCommand the follow-up command safety refused, when that is what ended the run.
+     */
+    private suspend fun finishRun(
+        userMessage: String,
+        narrative: StringBuilder,
+        closingBlock: String?,
+        command: String,
+        output: String?,
+        commandSucceeded: Boolean,
+        runSucceeded: Boolean = true,
+        blockedCommand: String? = null
+    ): ConversationResult {
+        closingBlock?.let { narrative.appendBlock(it) }
+        val response = narrative.toString()
+        addToHistory(userMessage, response, command, output, commandSucceeded)
+
+        return ConversationResult(
+            success = runSucceeded,
+            systemResponse = response,
+            userMessage = userMessage,
+            commandExecuted = command,
+            commandOutput = output,
+            commandSuccess = commandSucceeded,
+            commandAttempted = blockedCommand,
+            commandBlocked = blockedCommand != null
+        )
     }
 
     /** Append [block] to the running narrative, separated by a blank line. */
