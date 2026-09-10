@@ -46,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     private val sshSettings by lazy { SshSettings(this) }
     private val playDb by lazy { PlayDatabaseHelper.getInstance(this) }
     private val phraseDb by lazy { PhraseDatabaseHelper.getInstance(this) }
+    private val commandHistoryDb by lazy { CommandHistoryDatabaseHelper.getInstance(this) }
 
     private var isPlayRunning = false
     private var geminiDialog: AlertDialog? = null
@@ -57,6 +58,15 @@ class MainActivity : AppCompatActivity() {
     private var transcriptAdapter: GeminiTranscriptAdapter? = null
     /** Raw Terminal Mode — input goes straight to the shell, bypassing Gemini. Persists across dialog re-opens. */
     private var isRawTerminalMode = false
+    /** Label of the host the live conversation is bound to, or null when not connected. */
+    private var activeHostLabel: String? = null
+    /**
+     * The host the previous conversation ran on. Kept across disconnects — a host switch is a
+     * disconnect followed by a connect, so [activeHostLabel] is already null by the time the new
+     * conversation starts and cannot be used to detect the change.
+     */
+    private var lastConversationHostId: String? = null
+    private var lastConversationHostLabel: String? = null
     private var playsPageBinding: PageMainPlaysBinding? = null
     private var terminalPageBinding: PageMainTerminalBinding? = null
     private var toolsTabMediator: TabLayoutMediator? = null
@@ -95,6 +105,87 @@ class MainActivity : AppCompatActivity() {
             updateGeminiDialogState()
             requestGeminiCommand(voiceText)
         }
+    }
+
+    /**
+     * Re-run request coming back from [CommandHistoryActivity]. The command goes through the
+     * same raw-mode path as a user-typed one, so [CommandSafety] still classifies it. With no
+     * live conversation there is nothing to run it on, so it is copied to the clipboard instead.
+     */
+    private val commandHistoryLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != Activity.RESULT_OK) {
+            return@registerForActivityResult
+        }
+        val command = result.data
+            ?.getStringExtra(CommandHistoryActivity.EXTRA_RERUN_COMMAND)
+            ?.trim()
+        if (command.isNullOrEmpty()) {
+            return@registerForActivityResult
+        }
+
+        val manager = conversationManager
+        if (manager == null || !manager.isInitialized()) {
+            getSystemService(ClipboardManager::class.java)?.setPrimaryClip(
+                ClipData.newPlainText(getString(R.string.command_history_title), command)
+            )
+            Toast.makeText(
+                this,
+                R.string.command_history_rerun_needs_connection,
+                Toast.LENGTH_LONG
+            ).show()
+            return@registerForActivityResult
+        }
+
+        val recordedHostId = result.data
+            ?.getStringExtra(CommandHistoryActivity.EXTRA_RERUN_HOST_ID)
+            .orEmpty()
+        val recordedHostLabel = result.data
+            ?.getStringExtra(CommandHistoryActivity.EXTRA_RERUN_HOST_LABEL)
+            .orEmpty()
+        val activeHostId = sshSettings.getActiveHostId().orEmpty()
+
+        // A command recorded on one host can be wrong or destructive on another (different
+        // paths, services, or data), and CommandSafety classifies the command text alone —
+        // it cannot see which system it was meant for. Ask before crossing hosts.
+        val crossesHosts = recordedHostId.isNotEmpty() &&
+            activeHostId.isNotEmpty() &&
+            recordedHostId != activeHostId
+
+        if (crossesHosts) {
+            confirmCrossHostRerun(command, recordedHostLabel)
+        } else {
+            showGeminiDialog()
+            handleRawCommand(command)
+        }
+    }
+
+    /**
+     * Ask before re-running a command on a host other than the one it was recorded on.
+     */
+    private fun confirmCrossHostRerun(command: String, recordedHostLabel: String) {
+        val recorded = recordedHostLabel.ifBlank {
+            getString(R.string.command_history_unknown_host)
+        }
+        val current = activeHostLabel ?: getString(R.string.command_history_unknown_host)
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.command_history_rerun_other_host_title)
+            .setMessage(
+                getString(
+                    R.string.command_history_rerun_other_host_message,
+                    recorded,
+                    current,
+                    command
+                )
+            )
+            .setPositiveButton(R.string.command_history_action_rerun) { _, _ ->
+                showGeminiDialog()
+                handleRawCommand(command)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private val micPermissionLauncher = registerForActivityResult(
@@ -251,6 +342,9 @@ class MainActivity : AppCompatActivity() {
         }
         pageBinding.phrasesButton.setOnClickListener {
             showPhraseCopyPicker()
+        }
+        pageBinding.commandHistoryButton.setOnClickListener {
+            commandHistoryLauncher.launch(CommandHistoryActivity.createIntent(this))
         }
         pageBinding.downloadFileButton.setOnClickListener {
             startActivity(Intent(this, SftpDownloadActivity::class.java))
@@ -441,6 +535,14 @@ class MainActivity : AppCompatActivity() {
             updateGeminiDialogState()
         }
 
+        dialogBinding.geminiDialogTroubleshootSwitch.isChecked =
+            geminiSettings.getAutoTroubleshootEnabled()
+        dialogBinding.geminiDialogTroubleshootSwitch.setOnCheckedChangeListener { _, checked ->
+            geminiSettings.setAutoTroubleshootEnabled(checked)
+            conversationManager?.autoTroubleshootEnabled = checked
+            updateGeminiDialogState()
+        }
+
         // NEW: Send button for text input
         dialogBinding.geminiDialogSendButton.setOnClickListener {
             val text = dialogBinding.geminiDialogTextInput.text?.toString()?.trim()
@@ -490,6 +592,7 @@ class MainActivity : AppCompatActivity() {
         }
         geminiDialog = dialog
         updateGeminiState()
+        updateGeminiDialogHost()
         updateGeminiDialogState()
         dialog.show()
     }
@@ -513,6 +616,10 @@ class MainActivity : AppCompatActivity() {
         dialogBinding.geminiDialogTextInputLayout.hint = getString(
             if (isRawTerminalMode) R.string.raw_terminal_mode_hint else R.string.conversation_input_hint
         )
+
+        // Raw mode bypasses the AI entirely, so there is nothing for it to chain.
+        dialogBinding.geminiDialogTroubleshootSwitch.isEnabled = !isBusy && !isRawTerminalMode
+        dialogBinding.geminiDialogTroubleshootCaption.isEnabled = !isRawTerminalMode
 
         val hasCommand = !isBusy
             && lastGeminiOutput.isNotBlank()
@@ -746,6 +853,36 @@ class MainActivity : AppCompatActivity() {
         return if (hasError) null else values
     }
 
+    /**
+     * Record a Play's rendered command in the local command history, so Plays appear alongside
+     * AI- and raw-mode commands (roadmap v0.8.0). Called from the IO thread; a Play rejected
+     * before rendering (missing required parameter) has no command to record, and one whose
+     * command never reached a shell ([PlayRunResult.dispatched]) is not a command that ran.
+     */
+    private fun recordPlayInCommandHistory(host: SshConnectionConfig, result: PlayRunResult) {
+        if (result.renderedCommand.isBlank() || !result.dispatched) {
+            return
+        }
+        runCatching {
+            commandHistoryDb.record(
+                CommandHistoryRecord(
+                    hostId = host.id,
+                    hostLabel = HostLabels.shortLabel(this, host),
+                    command = result.renderedCommand,
+                    outputSummary = CommandHistoryDatabaseHelper.summarizeOutput(
+                        result.outputLines.joinToString("\n")
+                    ),
+                    exitStatus = result.exitStatus,
+                    success = result.success,
+                    source = CommandSource.PLAY,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }.onFailure { e ->
+            Log.w(TAG, "Failed to record play in command history", e)
+        }
+    }
+
     private fun runPlay(play: Play, host: SshConnectionConfig, values: Map<String, String>) {
         isPlayRunning = true
         updateSessionUi()
@@ -786,6 +923,7 @@ class MainActivity : AppCompatActivity() {
                     values = values,
                     onLine = { line -> appendSessionLog("[Play] ${line.trimEnd()}") }
                 )
+                recordPlayInCommandHistory(host, result)
                 withContext(Dispatchers.Main) {
                     isPlayRunning = false
                     if (result.success) {
@@ -1042,7 +1180,9 @@ class MainActivity : AppCompatActivity() {
                 lifecycleScope.launch(Dispatchers.Main) {
                     conversationManager?.clearHistory()
                     conversationManager = null
+                    activeHostLabel = null
                     updateConversationStatus(null)
+                    updateGeminiDialogHost()
                 }
             }
         }
@@ -1065,22 +1205,42 @@ class MainActivity : AppCompatActivity() {
 
         val useNano = geminiSettings.getNanoPreferred() && isNanoAvailable()
         val activeConfig = sshSettings.getConfigOrNull()
-        val hostLabel = when {
-            activeConfig?.kind == HostKind.LOCAL -> activeConfig.alias.ifBlank { "Local shell" }
-            activeConfig != null -> activeConfig.alias.ifBlank { "${activeConfig.username}@${activeConfig.host}" }
-            else -> null
+        val hostLabel = activeConfig?.let { HostLabels.shortLabel(this, it) }
+        val infrastructure = ConversationContextBuilder.infrastructureSection(
+            hosts = sshSettings.getHosts(),
+            activeHostId = activeConfig?.id
+        )
+
+        withContext(Dispatchers.Main) {
+            val previousHostId = lastConversationHostId
+            val newHostId = activeConfig?.id
+            if (previousHostId != null && newHostId != null && previousHostId != newHostId) {
+                appendHostSwitchMarker(
+                    previousHost = lastConversationHostLabel
+                        ?: getString(R.string.command_history_unknown_host),
+                    newHost = hostLabel ?: getString(R.string.command_history_unknown_host)
+                )
+            }
+            lastConversationHostId = newHostId
+            lastConversationHostLabel = hostLabel
+            activeHostLabel = hostLabel
+            updateGeminiDialogHost()
         }
+
         conversationManager = ConversationManager(
-            context = this,
             backend = backend,
             geminiClient = geminiClient,
             geminiNanoClient = nanoClient,
             useNano = useNano,
             transcriptStore = GeminiTranscriptDatabaseHelper.getInstance(this),
+            commandHistoryStore = commandHistoryDb,
             sessionId = java.util.UUID.randomUUID().toString(),
             hostId = activeConfig?.id,
-            hostLabel = hostLabel
-        )
+            hostLabel = hostLabel,
+            infrastructureContext = infrastructure
+        ).apply {
+            autoTroubleshootEnabled = geminiSettings.getAutoTroubleshootEnabled()
+        }
 
         val initResult = withContext(Dispatchers.IO) {
             conversationManager?.initialize()
@@ -1106,6 +1266,36 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         }
+    }
+
+    /**
+     * Show which system the conversation is talking to, so the active host is never ambiguous
+     * (roadmap v0.8.0 — multi-system awareness).
+     */
+    private fun updateGeminiDialogHost() {
+        val binding = geminiDialogBinding ?: return
+        val label = activeHostLabel
+        binding.geminiDialogHostText.text = if (label.isNullOrBlank()) {
+            getString(R.string.conversation_no_active_host)
+        } else {
+            getString(R.string.conversation_active_host, label)
+        }
+    }
+
+    /**
+     * Mark a mid-conversation host switch in the transcript. The persona context is rebuilt for
+     * the new host anyway; this makes the boundary visible so earlier bubbles are not mistaken
+     * for the new system's answers.
+     */
+    private fun appendHostSwitchMarker(previousHost: String, newHost: String) {
+        if (geminiTranscript.isEmpty()) {
+            return
+        }
+        replaceOrAppendTranscriptEntry(
+            entryIndex = -1,
+            prompt = getString(R.string.conversation_host_switch_title),
+            response = getString(R.string.conversation_host_switch_detail, previousHost, newHost)
+        )
     }
 
     private fun updateConversationStatus(status: String?) {
@@ -1151,11 +1341,7 @@ class MainActivity : AppCompatActivity() {
 
                         when {
                             result.needsConfirmation -> {
-                                showCommandConfirmationDialog(
-                                    message,
-                                    result.systemResponse,
-                                    result.commandToConfirm!!
-                                )
+                                showCommandConfirmationDialog(message, result)
                             }
 
                             result.commandBlocked -> {
@@ -1245,19 +1431,44 @@ class MainActivity : AppCompatActivity() {
         return idx
     }
 
+    /**
+     * Ask before running a CONFIRM-tier command.
+     *
+     * [pending] carries the run so far: the narrative to resume from, and — when the pause
+     * happened mid-chain — the steps that already executed. Declining persists those steps, so
+     * work the AI already did is not lost from the transcript and the target-side log.
+     */
     private fun showCommandConfirmationDialog(
         userMessage: String,
-        initialResponse: String,
-        command: String
+        pending: ConversationResult
     ) {
+        val command = pending.commandToConfirm ?: return
+
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.conversation_confirm_command_title))
             .setMessage(getString(R.string.conversation_confirm_command_message, command))
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                executeConfirmedCommand(userMessage, initialResponse, command)
+                executeConfirmedCommand(userMessage, pending.systemResponse, command)
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                persistDeclinedRun(pending)
+            }
+            .setOnCancelListener { persistDeclinedRun(pending) }
             .show()
+    }
+
+    /**
+     * Write a declined run's already-executed steps to the transcript and target-side log.
+     */
+    private fun persistDeclinedRun(pending: ConversationResult) {
+        val manager = conversationManager ?: return
+        if (pending.commandExecuted == null) {
+            return
+        }
+        lifecycleScope.launch {
+            runCatching { manager.persistDeclinedRun(pending) }
+                .onFailure { e -> Log.w(TAG, "Failed to persist declined run", e) }
+        }
     }
 
     private fun executeConfirmedCommand(
@@ -1298,6 +1509,12 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     replaceOrAppendTranscriptEntry(streamEntryIndex, userMessage, result.systemResponse)
+
+                    // A troubleshooting chain can hit a second CONFIRM step after this one was
+                    // approved; without this the run would stop silently at that step.
+                    if (result.needsConfirmation) {
+                        showCommandConfirmationDialog(userMessage, result)
+                    }
 
                     updateGeminiDialogState()
                 }

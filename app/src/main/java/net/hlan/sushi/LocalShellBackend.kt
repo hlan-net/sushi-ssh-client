@@ -31,7 +31,7 @@ class LocalShellBackend(private val context: Context) : TerminalBackend {
 
     override fun sendText(text: String): SshCommandResult {
         val h = nativeHandle
-        if (h == 0L) return SshCommandResult(false, null, "Not connected")
+        if (h == 0L) return SshCommandResult(false, null, "Not connected", dispatched = false)
         if (text.isEmpty()) return SshCommandResult(true, null, "No input")
         return runCatching {
             val n = nativeWrite(h, text.toByteArray(Charsets.UTF_8))
@@ -82,10 +82,14 @@ class LocalShellBackend(private val context: Context) : TerminalBackend {
         timeoutMs: Long,
         onChunk: ((String) -> Unit)?
     ): SshCommandResult {
+        // Flipped once the subprocess exists: from that point the command has run, so a later
+        // failure still counts as dispatched (mirrors [SshClient.execCommand]).
+        var dispatched = false
         return runCatching {
             val process = ProcessBuilder("sh", "-c", command)
                 .redirectErrorStream(true)
                 .start()
+            dispatched = true
 
             // StringBuffer (not StringBuilder) because the reader thread keeps appending after
             // process.waitFor() returns; if readerThread.join(500) times out while a read is
@@ -113,14 +117,19 @@ class LocalShellBackend(private val context: Context) : TerminalBackend {
             if (!finished) {
                 process.destroyForcibly()
                 readerThread.join(500)
-                return SshCommandResult(false, null, "Command timed out after ${timeoutMs}ms")
+                return SshCommandResult(
+                    false,
+                    null,
+                    "Command timed out after ${timeoutMs}ms",
+                    dispatched = true
+                )
             }
 
             readerThread.join(500)
             val exitCode = process.exitValue()
             SshCommandResult(exitCode == 0, exitCode, outputBuilder.toString().trim())
         }.getOrElse { e ->
-            SshCommandResult(false, null, e.message ?: "Exec failed")
+            SshCommandResult(false, null, e.message ?: "Exec failed", dispatched = dispatched)
         }
     }
 

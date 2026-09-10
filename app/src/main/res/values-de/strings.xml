@@ -1,4 +1,11 @@
 <resources>
+    <!-- Setup checklist -->
+    <string name="setup_checklist_title">Erste Schritte</string>
+    <string name="setup_checklist_subtitle">Erledige die folgenden Schritte, um Sushi zu nutzen.</string>
+    <string name="setup_checklist_add_host">SSH-Host hinzufügen</string>
+    <string name="setup_checklist_generate_key">SSH-Schlüssel erzeugen</string>
+    <string name="setup_checklist_gemini_key">Gemini-KI einrichten (optional)</string>
+    <string name="setup_checklist_drive_auth">Google Drive verbinden (optional)</string>
     <string name="placeholder_status">SSH-Details in Einstellungen hinzufügen, um eine Sitzung zu starten.</string>
     <string name="placeholder_status_active">Verbinde…</string>
     <string name="session_title">Terminalsitzung</string>
@@ -55,11 +62,17 @@
     <string name="clipboard_session_log_label">SSH-Sitzungsprotokoll</string>
     <string name="placeholder_footer">sushi v%1$s - Open source SSH client</string>
     <string name="action_start_session">Sitzung starten</string>
+    <string name="action_start_session_host">Mit %1$s verbinden</string>
+    <string name="action_end_session_host">Verbindung zu %1$s trennen</string>
+    <string name="phrase_sent_log">[Phrase] Gesendet: %1$s</string>
+    <string name="phrase_copied_toast">Kopiert: %1$s</string>
     <string name="action_return_terminal">Zurück zum Terminal</string>
     <string name="action_configure_host">Host konfigurieren</string>
+    <string name="action_switch_host">Host wechseln</string>
     <string name="action_end_session">Sitzung beenden</string>
     <string name="action_open_terminal_mode">Dedizierten Terminal öffnen</string>
     <string name="action_copy_log">Protokoll kopieren</string>
+    <string name="action_paste">Einfügen</string>
     <string name="action_clear_log">Protokoll löschen</string>
     <string name="terminal_title">Terminalmodus</string>
     <string name="terminal_status_disconnected">Terminal getrennt</string>
@@ -74,6 +87,9 @@
     <string name="terminal_connect_failed_log">[Terminal] Verbindung fehlgeschlagen: %1$s</string>
     <string name="terminal_connection_lost_log">[Terminal] Verbindung unerwartet verloren.</string>
     <string name="terminal_connection_lost_toast">Verbindung verloren. Du kannst jetzt erneut verbinden.</string>
+    <string name="ssh_notification_channel_name">Aktive Sitzung</string>
+    <string name="ssh_notification_title">Sitzung aktiv</string>
+    <string name="ssh_notification_action_disconnect">Trennen</string>
     <string name="action_show_tools">Werkzeuge anzeigen</string>
     <string name="action_hide_tools">Werkzeuge ausblenden</string>
     <string name="ssh_section_title">SSH-Verbindung</string>
@@ -100,6 +116,7 @@
     <string name="jump_required_selection">Jumpserver aus der Hostliste auswählen.</string>
     <string name="jump_invalid_port">Jumpserver-Port muss eine Zahl sein. Verwende 22.</string>
     <string name="ssh_missing_config">SSH-Daten in Einstellungen hinzufügen, um zu verbinden.</string>
+    <string name="local_shell_default_alias">Lokale Shell</string>
     <string name="ssh_invalid_port">Port muss eine Zahl sein. Verwende 22.</string>
     <string name="action_manage_hosts">Hosts verwalten</string>
     <string name="hosts_title">SSH-Hosts</string>
@@ -132,6 +149,7 @@
     <string name="action_gemini_voice">Mit Gemini sprechen</string>
     <string name="action_open_gemini">Gemini öffnen</string>
     <string name="action_gemini_settings">Einstellungen</string>
+    <string name="action_gemini_history">Verlauf</string>
     <string name="gemini_dialog_title">Gemini-Sprachassistent</string>
     <string name="action_copy_command">Befehl kopieren</string>
     <string name="gemini_command_copied">Befehl kopiert.</string>
@@ -148,6 +166,13 @@
     <string name="theme_mode_auto">Automatisch (Geräteeinstellung)</string>
     <string name="theme_mode_light">Hell</string>
     <string name="theme_mode_dark">Dunkel</string>
+    <string name="accent_section_title">Akzentfarbe</string>
+    <string name="accent_section_subtitle">Wähle die Farbe für die primäre Aktion auf jedem Bildschirm.</string>
+    <string name="accent_variant_label">Akzentfarbe</string>
+    <string name="accent_variant_coral">Koralle</string>
+    <string name="accent_variant_wasabi">Wasabi</string>
+    <string name="accent_variant_gari_amber">Gari-Bernstein</string>
+    <string name="accent_variant_terracotta">Terrakotta</string>
     <string name="settings_hosts_keys_title">Hosts und Schlüssel</string>
     <string name="settings_summary_title">Aktueller Status</string>
     <string name="settings_summary_host_label">Aktiver Host</string>
@@ -178,7 +203,7 @@
     <string name="action_hosts">Hosts</string>
     <string name="action_keys_short">Schlüssel</string>
     <string name="action_plays_short">Plays</string>
-    <string name="action_phrases_short">Frasen</string>
+    <string name="action_phrases_short">Phrasen</string>
     <string name="language_section_title">Sprache</string>
     <string name="language_section_subtitle">Wähle die App-Sprache. Die Systemeinstellung folgt deiner Telefonsprache.</string>
     <string name="language_label">App-Sprache</string>
@@ -200,10 +225,14 @@
     <string name="gemini_saved">Gemini-Einstellungen gespeichert.</string>
     <string name="settings_saved">Einstellungen gespeichert.</string>
     <string name="gemini_missing_key_message">API-Schlüssel fehlt. In den Einstellungen hinzufügen.</string>
+
+    <!-- Cloud model selector -->
     <string name="gemini_model_section_title">Cloud-Modell</string>
     <string name="gemini_model_flash">Flash (schnell)</string>
     <string name="gemini_model_pro">Pro (intelligenter)</string>
     <string name="gemini_model_helper">Pro liefert bessere Ergebnisse bei komplexen Anfragen. Flash ist schneller und günstiger.</string>
+
+    <!-- On-device Nano section -->
     <string name="gemini_nano_section_title">On-Device KI (Gemini Nano)</string>
     <string name="gemini_nano_status_unavailable">Auf diesem Gerät nicht unterstützt.</string>
     <string name="gemini_nano_status_downloadable">Bereit zum Herunterladen (~1 GB).</string>
@@ -215,6 +244,31 @@
     <string name="gemini_nano_download_started">Gemini Nano wird heruntergeladen\u2026</string>
     <string name="gemini_nano_download_complete">Gemini Nano-Download abgeschlossen.</string>
     <string name="gemini_nano_download_failed">Gemini Nano-Download fehlgeschlagen.</string>
+
+    <!-- Persona editor -->
+    <string name="persona_section_title">KI-Persona</string>
+    <string name="persona_section_helper">Bearbeite die SUSHI.md des Zielsystems — die Datei, die Identität, Persönlichkeit und Befehlssicherheit der KI festlegt.</string>
+    <string name="persona_edit_button">Persona bearbeiten</string>
+    <string name="persona_editor_title">Persona bearbeiten</string>
+    <string name="persona_editor_subtitle">Liest und schreibt ~/.config/sushi/SUSHI.md auf dem Zielsystem.</string>
+    <string name="persona_editor_hint">SUSHI.md-Inhalt…</string>
+    <string name="persona_editor_select_host_title">Persona auf Host bearbeiten</string>
+    <string name="persona_editor_loading">Persona wird von %1$s geladen…</string>
+    <string name="persona_editor_editing">Persona auf %1$s wird bearbeitet</string>
+    <string name="persona_editor_resetting">Standard-Persona auf %1$s wird neu erzeugt…</string>
+    <string name="persona_editor_save">Speichern</string>
+    <string name="persona_editor_reset">Auf Standard zurücksetzen</string>
+    <string name="persona_editor_retry">Erneut versuchen</string>
+    <string name="persona_editor_saved">Persona gespeichert.</string>
+    <string name="persona_editor_reset_done">Standard-Persona neu erzeugt.</string>
+    <string name="persona_editor_confirm_overwrite">Dies ersetzt die aktuelle Persona auf %1$s. Fortfahren?</string>
+    <string name="persona_editor_confirm_reset">Standard-Persona auf %1$s neu erzeugen? Dies überschreibt die aktuelle SUSHI.md und führt die Systemanalyse erneut aus.</string>
+    <string name="persona_editor_warn_empty">Warnung: Die Persona ist leer. Beim Speichern bleibt das Zielsystem ohne Persona-Definition.</string>
+    <string name="persona_editor_warn_missing_sections">Warnung: Empfohlene Abschnitte fehlen: %1$s.</string>
+    <string name="persona_editor_error_title">Persona-Editor</string>
+    <string name="persona_editor_decode_error">Die aktuelle Persona konnte nicht gelesen werden (unerwartete Antwort vom Host). Der Editor wird nicht geöffnet, damit SUSHI.md nicht mit einer leeren Datei überschrieben wird.</string>
+
+    <!-- Main screen Nano status strings -->
     <string name="gemini_status_nano">Gemini Nano bereit (On-Device).</string>
     <string name="gemini_status_nano_downloading">Gemini Nano wird heruntergeladen. Cloud wird verwendet.</string>
     <string name="gemini_status_nano_downloadable">Gemini Nano zum Download verfügbar. Siehe Einstellungen.</string>
@@ -248,28 +302,48 @@
     <string name="key_generated_success">Neuer SSH-Schlüssel generiert</string>
     <string name="key_generation_failed">Schlüsselgenerierung fehlgeschlagen: %1$s</string>
     <string name="key_deleted">SSH-Schlüssel gelöscht</string>
-    <string name="phrases_title">Frasen</string>
+    <string name="key_passphrase_title">Schlüssel-Passphrase</string>
+    <string name="key_passphrase_hint">Passphrase</string>
+    <string name="key_passphrase_remember_toggle">Auf diesem Gerät merken</string>
+    <string name="key_passphrase_confirm">Entsperren</string>
+    <string name="key_passphrase_required_error">Gib die Passphrase ein oder brich ab, wenn der Schlüssel unverschlüsselt ist</string>
+    <string name="host_key_trust_title">Serveridentität prüfen</string>
+    <string name="host_key_trust_message">Sushi kann jetzt Serveridentitäten prüfen. Bestätige, dass dies der erwartete Schlüssel für %1$s ist — du wirst nur wieder gefragt, wenn er sich ändert.</string>
+    <string name="host_key_trust_confirm">Vertrauen und verbinden</string>
+    <string name="host_key_changed_title">Host-Schlüssel geändert</string>
+    <string name="host_key_changed_warning">WARNUNG: Der Host-Schlüssel für %1$s hat sich geändert. Das bedeutet nicht zwangsläufig einen Angriff, ist aber möglich — es kann auch nach einer legitimen Neuinstallation des Servers passieren. Kläre das mit der Serververwaltung, bevor du fortfährst.</string>
+    <string name="host_key_changed_old_label">Zuvor vertrauter Schlüssel</string>
+    <string name="host_key_changed_new_label">Jetzt präsentierter Schlüssel</string>
+    <string name="host_key_changed_confirm_checkbox">Ich habe geprüft, dass diese Schlüsseländerung erwartet ist</string>
+    <string name="host_key_changed_confirm_button">Schlüssel ersetzen und verbinden</string>
+    <string name="host_keys_title">Host-Schlüssel</string>
+    <string name="host_keys_subtitle">Serverschlüssel, denen Sushi vertraut. Entferne einen, um beim nächsten Verbinden erneut gefragt zu werden.</string>
+    <string name="host_keys_subtitle_filtered">Zeigt den vertrauten Schlüssel für %1$s.</string>
+    <string name="host_keys_empty">Noch keine vertrauten Host-Schlüssel.</string>
+    <string name="action_delete_host_key">Löschen</string>
+    <string name="host_key_deleted">Host-Schlüssel entfernt</string>
+    <string name="phrases_title">Phrasen</string>
     <string name="phrases_subtitle">Wiederverwendbare Makros und Befehle verwalten.</string>
-    <string name="phrases_empty_toast">Keine Frasen gespeichert. Füge welche im Frasen-Menü hinzu.</string>
-    <string name="action_phrases">Frasen</string>
+    <string name="phrases_empty_toast">Keine Phrasen gespeichert. Füge welche im Phrasen-Menü hinzu.</string>
+    <string name="action_phrases">Phrasen</string>
     <string name="action_manage">Verwalten</string>
     <string name="action_delete">Löschen</string>
-    <string name="action_add_phrase">Neue Frase hinzufügen</string>
-    <string name="action_edit_phrase">Frase bearbeiten</string>
-    <string name="action_export_phrases">Frasen exportieren</string>
-    <string name="action_import_phrases">Frasen importieren</string>
-    <string name="phrase_name_hint">Frasenname</string>
+    <string name="action_add_phrase">Neue Phrase hinzufügen</string>
+    <string name="action_edit_phrase">Phrase bearbeiten</string>
+    <string name="action_export_phrases">Phrasen exportieren</string>
+    <string name="action_import_phrases">Phrasen importieren</string>
+    <string name="phrase_name_hint">Phrasenname</string>
     <string name="phrase_command_hint">Befehl / Skript</string>
-    <string name="phrase_name_required">Frasenname ist erforderlich</string>
+    <string name="phrase_name_required">Phrasenname ist erforderlich</string>
     <string name="phrase_command_required">Befehl ist erforderlich</string>
-    <string name="phrase_name_exists">Eine Frase mit diesem Namen existiert bereits</string>
+    <string name="phrase_name_exists">Eine Phrase mit diesem Namen existiert bereits</string>
     <string name="phrase_save">Speichern</string>
     <string name="phrase_cancel">Abbrechen</string>
-    <string name="phrase_delete_confirm">Frase löschen?</string>
+    <string name="phrase_delete_confirm">Phrase löschen?</string>
     <string name="phrase_delete_confirm_title">"%1$s" löschen?</string>
     <string name="phrase_delete_confirm_message">Diese Aktion kann nicht rückgängig gemacht werden.</string>
-    <string name="export_clipboard_label">Exportierte Frasen</string>
-    <string name="export_success_toast">Frasen in Zwischenablage exportiert</string>
+    <string name="export_clipboard_label">Exportierte Phrasen</string>
+    <string name="export_success_toast">Phrasen in Zwischenablage exportiert</string>
     <string name="import_parse_error_toast">JSON aus Zwischenablage konnte nicht gelesen werden</string>
     <string name="import_empty_clipboard_toast">Zwischenablage ist leer</string>
     <string name="import_success_toast_with_updates">%1$d neue importiert, %2$d bestehende aktualisiert</string>
@@ -294,6 +368,9 @@
     <string name="play_run_failed">[Play] %1$s fehlgeschlagen: %2$s</string>
     <string name="play_missing_hosts">Füge mindestens einen Host hinzu, bevor du Plays ausführst.</string>
     <string name="play_parameter_required">Dieser Wert ist erforderlich</string>
+    <string name="play_script_hint_params">Verwende {{ NAME }} für Parameter. Beispiel: restart {{ service }}</string>
+    <string name="play_param_example_prefix">z. B. %1$s</string>
+    <string name="play_param_back">Zurück</string>
     <string name="play_status_running_toast">Warte, bis das aktuelle Play beendet ist.</string>
     <string name="action_run_play">Play ausführen</string>
     <string name="play_param_username">Benutzername</string>
@@ -312,10 +389,9 @@
     <string name="terminal_font_size_large">Groß</string>
     <string name="terminal_font_size_xl">Sehr groß</string>
     <plurals name="import_success_toast">
-        <item quantity="one">%d Frase importiert</item>
-        <item quantity="other">%d Frasen importiert</item>
+        <item quantity="one">%d Phrase importiert</item>
+        <item quantity="other">%d Phrasen importiert</item>
     </plurals>
-
     <string name="share_activity_title">An Sushi teilen</string>
     <string name="share_select_host_title">An Host senden</string>
     <string name="share_host_item_active">%1$s (aktiv)</string>
@@ -330,13 +406,72 @@
     <string name="share_no_hosts">Keine Hosts konfiguriert. Fügen Sie einen in den Sushi-Einstellungen hinzu.</string>
     <string name="share_nothing_to_share">Nichts zum Teilen.</string>
     <string name="share_could_not_read">Geteilter Inhalt konnte nicht gelesen werden.</string>
-
+    <string name="download_activity_title">Datei herunterladen</string>
+    <string name="action_download_file">Datei herunterladen</string>
+    <string name="download_select_host_title">Von Host herunterladen</string>
+    <string name="download_from_host">Von %1$s herunterladen</string>
+    <string name="download_remote_path_label">Pfad der Datei auf dem Host (z. B. /var/log/syslog)</string>
+    <string name="download_button">Herunterladen</string>
+    <string name="download_preparing">Wird vorbereitet…</string>
+    <string name="download_downloading">Wird heruntergeladen…</string>
+    <string name="download_success">%1$s heruntergeladen</string>
+    <string name="download_failed">Download fehlgeschlagen: %1$s</string>
+    <string name="download_failed_generic">Download fehlgeschlagen</string>
+    <string name="download_complete_title">Download abgeschlossen</string>
+    <string name="download_saved_as">Gespeichert als %1$s</string>
+    <string name="download_open">Öffnen</string>
+    <string name="download_share">Teilen</string>
+    <string name="download_done">Fertig</string>
+    <string name="download_no_viewer">Keine App kann diesen Dateityp öffnen.</string>
     <string name="gemini_transcript_label">Gesprächsverlauf</string>
     <string name="gemini_transcript_you_label">Du</string>
     <string name="gemini_transcript_gemini_label">Gemini</string>
-    
+    <string name="gemini_transcript_command_label">Ausgeführter Befehl</string>
+    <string name="gemini_transcript_output_label">Ausgabe</string>
+
+    <!-- Gemini History Activity -->
+    <string name="gemini_history_title">Gemini-Verlauf</string>
+    <string name="gemini_history_empty">Noch keine Unterhaltungen.</string>
+    <string name="gemini_history_session_title">Unterhaltung</string>
+    <string name="gemini_history_delete_session">Sitzung löschen</string>
+    <string name="gemini_history_deleted">Sitzung gelöscht.</string>
+    <string name="gemini_history_unknown_host">Unbekannter Host</string>
+
+    <!-- Command history -->
+    <string name="command_history_title">Befehlsverlauf</string>
+    <string name="action_command_history">Befehlsverlauf</string>
+    <string name="command_history_empty">Noch keine Befehle aufgezeichnet.</string>
+    <string name="command_history_empty_filtered">Keine Befehle passen zu diesem Filter.</string>
+    <string name="command_history_search_hint">Befehle suchen</string>
+    <string name="command_history_filter_title">Nach Host filtern</string>
+    <string name="command_history_filter_all">Alle Hosts</string>
+    <string name="command_history_filter_host">Host: %1$s</string>
+    <string name="command_history_unknown_host">Unbekannter Host</string>
+    <string name="command_history_action_rerun">Erneut ausführen</string>
+    <string name="command_history_action_copy">Befehl kopieren</string>
+    <string name="command_history_action_delete">Eintrag löschen</string>
+    <string name="command_history_deleted">Eintrag gelöscht.</string>
+    <string name="command_history_copied">Befehl kopiert.</string>
+    <string name="command_history_clear_all">Verlauf löschen</string>
+    <string name="command_history_clear_all_confirm">Alle aufgezeichneten Befehle löschen?</string>
+    <string name="command_history_cleared">Verlauf gelöscht.</string>
+    <string name="command_history_source_conversation">KI</string>
+    <string name="command_history_source_raw">Roh</string>
+    <string name="command_history_source_play">Play</string>
+    <string name="command_history_source_unknown">Sonstige</string>
+    <string name="command_history_status_ok">ok</string>
+    <string name="command_history_status_exit">Exit-Code %1$d</string>
+    <string name="command_history_status_failed">fehlgeschlagen</string>
+    <string name="command_history_rerun_needs_connection">Nicht verbunden — der Befehl wurde stattdessen in die Zwischenablage kopiert.</string>
+    <string name="command_history_rerun_other_host_title">Auf einem anderen Host ausführen?</string>
+    <string name="command_history_rerun_other_host_message">Dieser Befehl wurde auf %1$s aufgezeichnet, du bist aber mit %2$s verbunden.\n\n%3$s</string>
+
     <!-- Conversation UI -->
     <string name="conversation_input_hint">Frag das System...</string>
+    <string name="raw_terminal_mode_label">Rohmodus</string>
+    <string name="raw_terminal_mode_hint">Rohe Shell — Befehle laufen direkt, ohne KI</string>
+    <string name="troubleshoot_mode_label">Mehrstufige Fehlersuche</string>
+    <string name="troubleshoot_mode_caption">Die KI führt weiter sichere Prüfungen aus, bis sie zu einem Ergebnis kommt. Befehle, die eine Bestätigung brauchen, halten weiterhin an und fragen nach.</string>
     <string name="action_send_message">Nachricht senden</string>
     <string name="conversation_confirm_command_title">Befehl bestätigen</string>
     <string name="conversation_confirm_command_message">Diesen Befehl ausführen?\n\n%1$s</string>
@@ -345,5 +480,58 @@
     <string name="conversation_initializing">Verbinde mit System...</string>
     <string name="conversation_init_failed">Konversation konnte nicht initialisiert werden: %1$s</string>
     <string name="conversation_connected_to">Verbunden mit: %1$s</string>
+    <string name="conversation_active_host">Verbunden mit %1$s</string>
+    <string name="conversation_no_active_host">Mit keinem Host verbunden</string>
+    <string name="conversation_host_switch_title">Host gewechselt</string>
+    <string name="conversation_host_switch_detail">Du sprichst jetzt mit %2$s. Frühere Nachrichten in diesem Protokoll waren mit %1$s; der Systemkontext wurde neu geladen.</string>
 
+    <!-- Connection error banner -->
+    <string name="action_dismiss">Schließen</string>
+    <string name="action_retry">Erneut versuchen</string>
+    <string name="connect_error_network">Netzwerkfehler — prüfe Hostadresse und Verbindung.</string>
+    <string name="connect_error_timeout">Zeitüberschreitung — der Host ist womöglich nicht erreichbar oder langsam.</string>
+    <string name="connect_error_auth_key">Public-Key-Authentifizierung fehlgeschlagen — der Host hat den Schlüssel nicht akzeptiert.</string>
+    <string name="connect_error_auth_password">Passwort-Authentifizierung fehlgeschlagen — falsche Zugangsdaten.</string>
+    <string name="connect_error_auth_key_passphrase">Falsche Passphrase — der private Schlüssel ließ sich nicht entsperren.</string>
+    <string name="connect_error_host_key_mismatch">Host-Schlüssel stimmt nicht überein — der Schlüssel der Gegenstelle hat sich geändert. Nicht verbinden, bevor das geklärt ist.</string>
+    <string name="connect_error_host_key_untrusted">Host-Schlüssel nicht vertrauenswürdig — Verbindung abgebrochen.</string>
+    <string name="connect_error_jump_failed">Verbindung zum Jump-Server fehlgeschlagen — prüfe die Bastion-Host-Einstellungen.</string>
+    <string name="connect_error_channel_failed">Der Shell-Kanal ließ sich nach der Authentifizierung nicht öffnen.</string>
+    <string name="connect_error_unknown">Verbindung fehlgeschlagen: %1$s</string>
+    <string name="connect_error_action_try_password">Passwort versuchen</string>
+    <string name="connect_error_action_edit_credentials">Zugangsdaten bearbeiten</string>
+    <string name="connect_error_action_edit_jump_host">Jump-Host bearbeiten</string>
+    <string name="connect_error_action_view_host_key">Host-Schlüssel anzeigen</string>
+
+    <!-- Plurals -->
+    <plurals name="gemini_history_turns">
+        <item quantity="one">%1$d Zug</item>
+        <item quantity="other">%1$d Züge</item>
+    </plurals>
+
+    <!-- In-app feedback (GitHub issues) -->
+    <string name="feedback_section_title">Feedback</string>
+    <string name="feedback_section_subtitle">Sende Feedback direkt an die GitHub-Issues des Projekts. Melde dich einmal bei GitHub an, um das zu aktivieren.</string>
+    <string name="github_not_signed_in">Nicht angemeldet</string>
+    <string name="github_signed_in_as">Angemeldet als %1$s</string>
+    <string name="github_signed_in_generic">Angemeldet</string>
+    <string name="github_sign_in_button">Mit GitHub anmelden</string>
+    <string name="github_sign_out_button">Abmelden</string>
+    <string name="github_device_flow_instructions">Gehe auf einem beliebigen Gerät zu github.com/login/device und gib diesen Code ein:</string>
+    <string name="github_device_flow_open_button">github.com/login/device öffnen</string>
+    <string name="github_device_flow_waiting">Warten auf Autorisierung…</string>
+    <string name="github_device_flow_failed">Anmeldung fehlgeschlagen: %1$s</string>
+    <string name="github_device_flow_denied">Die Anmeldung wurde abgelehnt</string>
+    <string name="github_device_flow_expired">Code abgelaufen — versuche es erneut</string>
+    <string name="github_device_flow_success">Angemeldet als %1$s</string>
+    <string name="feedback_send_button">Feedback senden</string>
+    <string name="feedback_dialog_title">Feedback senden</string>
+    <string name="feedback_text_hint">Was ist passiert, oder was könnte besser sein?</string>
+    <string name="feedback_include_device_info">App-Version und Geräteinfos mitsenden</string>
+    <string name="feedback_send">Senden</string>
+    <string name="feedback_missing_token">Melde dich zuerst in den Einstellungen bei GitHub an</string>
+    <string name="feedback_missing_text">Schreibe zuerst etwas</string>
+    <string name="feedback_default_title">Feedback aus der App</string>
+    <string name="feedback_sent">Feedback gesendet: %1$s</string>
+    <string name="feedback_send_failed">Senden des Feedbacks fehlgeschlagen</string>
 </resources>

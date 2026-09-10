@@ -101,7 +101,15 @@ private class ConnectionFailureException(
 data class SshCommandResult(
     val success: Boolean,
     val exitStatus: Int?,
-    val message: String
+    val message: String,
+    /**
+     * Whether the command actually reached the shell.
+     *
+     * False only when it never got that far — no session, or the exec channel could not be
+     * opened. A command that timed out is still dispatched: it ran and may have had side
+     * effects, so it belongs in the command history even though no exit status came back.
+     */
+    val dispatched: Boolean = true
 )
 
 data class SftpUploadResult(
@@ -458,10 +466,13 @@ class SshClient(
     ): SshCommandResult {
         val activeSession = session
         if (activeSession == null || !activeSession.isConnected) {
-            return SshCommandResult(false, null, "Not connected")
+            return SshCommandResult(false, null, NOT_CONNECTED, dispatched = false)
         }
 
         var channel: ChannelExec? = null
+        // Flipped once the exec channel is open: from that point the command has been sent,
+        // so later failures (timeout, read error) still count as dispatched.
+        var dispatched = false
         return runCatching {
             channel = activeSession.openChannel("exec") as ChannelExec
             val ch = channel!!
@@ -473,6 +484,7 @@ class SshClient(
             // inputStream must be obtained before connect()
             val stdout = ch.inputStream
             ch.connect(EXEC_CONNECT_TIMEOUT_MS)
+            dispatched = true
 
             // Read output in a daemon thread so we can enforce a wall-clock timeout.
             // AtomicReference provides safe cross-thread exception propagation without
@@ -510,7 +522,8 @@ class SshClient(
                 return@runCatching SshCommandResult(
                     false,
                     null,
-                    "Command timed out after ${timeoutMs}ms"
+                    "Command timed out after ${timeoutMs}ms",
+                    dispatched = true
                 )
             }
 
@@ -526,7 +539,9 @@ class SshClient(
 
             val exitStatus = ch.exitStatus
             val stdoutStr = outputBuilder.toString().trim()
-            val stderrStr = stderrBuffer.toString(Charsets.UTF_8).trim()
+            // Not stderrBuffer.toString(Charsets.UTF_8): that overload is API 33+,
+            // and this line runs on every exec down to the app's minSdk of 26.
+            val stderrStr = String(stderrBuffer.toByteArray(), Charsets.UTF_8).trim()
 
             val fullOutput = when {
                 stdoutStr.isNotBlank() && stderrStr.isNotBlank() -> "$stdoutStr\n$stderrStr"
@@ -538,7 +553,7 @@ class SshClient(
             SshCommandResult(exitStatus == 0, exitStatus, fullOutput)
         }.getOrElse { error ->
             val message = error.message?.takeIf { it.isNotBlank() } ?: "Exec failed"
-            SshCommandResult(false, null, message)
+            SshCommandResult(false, null, message, dispatched = dispatched)
         }.also {
             runCatching { channel?.disconnect() }
         }
@@ -548,7 +563,7 @@ class SshClient(
         val activeChannel = shellChannel
         val output = shellInput
         if (activeChannel == null || !activeChannel.isConnected || output == null) {
-            return SshCommandResult(false, null, "Not connected")
+            return SshCommandResult(false, null, NOT_CONNECTED, dispatched = false)
         }
 
         return runCatching {
@@ -566,7 +581,7 @@ class SshClient(
         val activeChannel = shellChannel
         val output = shellInput
         if (activeChannel == null || !activeChannel.isConnected || output == null) {
-            return SshCommandResult(false, null, "Not connected")
+            return SshCommandResult(false, null, NOT_CONNECTED, dispatched = false)
         }
 
         if (text.isEmpty()) {
@@ -666,6 +681,7 @@ class SshClient(
         private const val SERVER_ALIVE_COUNT_MAX = 3
         private const val CTRL_C_ETX = 3
         private const val CTRL_D_EOT = 4
+        private const val NOT_CONNECTED = "Not connected"
     }
 
     private fun startShellReader(

@@ -98,6 +98,14 @@ android {
         viewBinding = true
     }
 
+    testOptions {
+        unitTests {
+            // JVM unit tests exercise classes that log through android.util.Log (e.g.
+            // ConversationManager); without this every Log call throws "not mocked".
+            isReturnDefaultValues = true
+        }
+    }
+
     lint {
         baseline = file("lint-baseline.xml")
     }

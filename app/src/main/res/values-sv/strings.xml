@@ -1,4 +1,11 @@
 <resources>
+    <!-- Setup checklist -->
+    <string name="setup_checklist_title">Kom igång</string>
+    <string name="setup_checklist_subtitle">Gör stegen nedan för att börja använda Sushi.</string>
+    <string name="setup_checklist_add_host">Lägg till en SSH-host</string>
+    <string name="setup_checklist_generate_key">Generera en SSH-nyckel</string>
+    <string name="setup_checklist_gemini_key">Konfigurera Gemini-AI (valfritt)</string>
+    <string name="setup_checklist_drive_auth">Anslut Google Drive (valfritt)</string>
     <string name="placeholder_status">Lägg till SSH-uppgifter i Inställningar för att starta en session.</string>
     <string name="placeholder_status_active">Ansluter…</string>
     <string name="session_title">Terminalsession</string>
@@ -55,11 +62,17 @@
     <string name="clipboard_session_log_label">SSH-sessionslogg</string>
     <string name="placeholder_footer">sushi v%1$s - Open source SSH client</string>
     <string name="action_start_session">Starta session</string>
+    <string name="action_start_session_host">Anslut till %1$s</string>
+    <string name="action_end_session_host">Koppla från %1$s</string>
+    <string name="phrase_sent_log">[Fras] Skickad: %1$s</string>
+    <string name="phrase_copied_toast">Kopierad: %1$s</string>
     <string name="action_return_terminal">Tillbaka till terminal</string>
     <string name="action_configure_host">Konfigurera host</string>
+    <string name="action_switch_host">Byt host</string>
     <string name="action_end_session">Avsluta session</string>
     <string name="action_open_terminal_mode">Öppna dedikerad terminal</string>
     <string name="action_copy_log">Kopiera logg</string>
+    <string name="action_paste">Klistra in</string>
     <string name="action_clear_log">Rensa logg</string>
     <string name="terminal_title">Terminalläge</string>
     <string name="terminal_status_disconnected">Terminal frånkopplad</string>
@@ -74,6 +87,9 @@
     <string name="terminal_connect_failed_log">[Terminal] Anslutning misslyckades: %1$s</string>
     <string name="terminal_connection_lost_log">[Terminal] Anslutning förlorad oväntat.</string>
     <string name="terminal_connection_lost_toast">Anslutning förlorad. Du kan återansluta nu.</string>
+    <string name="ssh_notification_channel_name">Aktiv session</string>
+    <string name="ssh_notification_title">Sessionen är aktiv</string>
+    <string name="ssh_notification_action_disconnect">Koppla från</string>
     <string name="action_show_tools">Visa verktyg</string>
     <string name="action_hide_tools">Dölj verktyg</string>
     <string name="ssh_section_title">SSH-anslutning</string>
@@ -100,6 +116,7 @@
     <string name="jump_required_selection">Välj en hoppserver från hostlistan.</string>
     <string name="jump_invalid_port">Hoppserverns port måste vara ett tal. Använder 22.</string>
     <string name="ssh_missing_config">Lägg till SSH-uppgifter i Inställningar för att ansluta.</string>
+    <string name="local_shell_default_alias">Lokalt skal</string>
     <string name="ssh_invalid_port">Porten måste vara ett tal. Använder 22.</string>
     <string name="action_manage_hosts">Hantera hostar</string>
     <string name="hosts_title">SSH-hostar</string>
@@ -132,6 +149,7 @@
     <string name="action_gemini_voice">Prata med Gemini</string>
     <string name="action_open_gemini">Öppna Gemini</string>
     <string name="action_gemini_settings">Inställningar</string>
+    <string name="action_gemini_history">Historik</string>
     <string name="gemini_dialog_title">Gemini röstassistent</string>
     <string name="action_copy_command">Kopiera kommando</string>
     <string name="gemini_command_copied">Kommando kopierat.</string>
@@ -148,6 +166,13 @@
     <string name="theme_mode_auto">Auto (enhetsinställning)</string>
     <string name="theme_mode_light">Ljust</string>
     <string name="theme_mode_dark">Mörkt</string>
+    <string name="accent_section_title">Accentfärg</string>
+    <string name="accent_section_subtitle">Välj färgen som används för den primära åtgärden på varje skärm.</string>
+    <string name="accent_variant_label">Accentfärg</string>
+    <string name="accent_variant_coral">Korall</string>
+    <string name="accent_variant_wasabi">Wasabi</string>
+    <string name="accent_variant_gari_amber">Gari-bärnsten</string>
+    <string name="accent_variant_terracotta">Terrakotta</string>
     <string name="settings_hosts_keys_title">Hostar och nycklar</string>
     <string name="settings_summary_title">Aktuell status</string>
     <string name="settings_summary_host_label">Aktiv host</string>
@@ -200,10 +225,14 @@
     <string name="gemini_saved">Gemini-inställningar sparade.</string>
     <string name="settings_saved">Inställningar sparade.</string>
     <string name="gemini_missing_key_message">API-nyckel saknas. Lägg till en i inställningar.</string>
+
+    <!-- Cloud model selector -->
     <string name="gemini_model_section_title">Molnmodell</string>
     <string name="gemini_model_flash">Flash (snabb)</string>
     <string name="gemini_model_pro">Pro (smartare)</string>
     <string name="gemini_model_helper">Pro ger bättre resultat för komplexa förfrågningar. Flash är snabbare och billigare.</string>
+
+    <!-- On-device Nano section -->
     <string name="gemini_nano_section_title">AI på enheten (Gemini Nano)</string>
     <string name="gemini_nano_status_unavailable">Stöds inte på denna enhet.</string>
     <string name="gemini_nano_status_downloadable">Redo att ladda ner (~1 GB).</string>
@@ -215,6 +244,31 @@
     <string name="gemini_nano_download_started">Laddar ner Gemini Nano\u2026</string>
     <string name="gemini_nano_download_complete">Gemini Nano-nedladdning klar.</string>
     <string name="gemini_nano_download_failed">Gemini Nano-nedladdning misslyckades.</string>
+
+    <!-- Persona editor -->
+    <string name="persona_section_title">AI-persona</string>
+    <string name="persona_section_helper">Redigera målsystemets SUSHI.md — filen som definierar AI:ns identitet, personlighet och kommandosäkerhet.</string>
+    <string name="persona_edit_button">Redigera persona</string>
+    <string name="persona_editor_title">Redigera persona</string>
+    <string name="persona_editor_subtitle">Läser och skriver ~/.config/sushi/SUSHI.md på målsystemet.</string>
+    <string name="persona_editor_hint">SUSHI.md-innehåll…</string>
+    <string name="persona_editor_select_host_title">Redigera persona på host</string>
+    <string name="persona_editor_loading">Laddar persona från %1$s…</string>
+    <string name="persona_editor_editing">Redigerar persona på %1$s</string>
+    <string name="persona_editor_resetting">Återskapar standardpersona på %1$s…</string>
+    <string name="persona_editor_save">Spara</string>
+    <string name="persona_editor_reset">Återställ till standard</string>
+    <string name="persona_editor_retry">Försök igen</string>
+    <string name="persona_editor_saved">Personan sparad.</string>
+    <string name="persona_editor_reset_done">Standardpersonan återskapad.</string>
+    <string name="persona_editor_confirm_overwrite">Detta ersätter den nuvarande personan på %1$s. Fortsätta?</string>
+    <string name="persona_editor_confirm_reset">Återskapa standardpersonan på %1$s? Detta skriver över nuvarande SUSHI.md och kör systemprofileringen på nytt.</string>
+    <string name="persona_editor_warn_empty">Varning: personan är tom. Om du sparar lämnas målsystemet utan personadefinition.</string>
+    <string name="persona_editor_warn_missing_sections">Varning: rekommenderade avsnitt saknas: %1$s.</string>
+    <string name="persona_editor_error_title">Personaredigerare</string>
+    <string name="persona_editor_decode_error">Kunde inte läsa den nuvarande personan (oväntat svar från hosten). Redigeraren öppnas inte, så att SUSHI.md inte skrivs över med en tom fil.</string>
+
+    <!-- Main screen Nano status strings -->
     <string name="gemini_status_nano">Gemini Nano redo (på enheten).</string>
     <string name="gemini_status_nano_downloading">Gemini Nano laddas ner. Använder molnet.</string>
     <string name="gemini_status_nano_downloadable">Gemini Nano tillgänglig att ladda ner. Se inställningar.</string>
@@ -248,6 +302,26 @@
     <string name="key_generated_success">Ny SSH-nyckel genererad</string>
     <string name="key_generation_failed">Nyckelgenerering misslyckades: %1$s</string>
     <string name="key_deleted">SSH-nyckel raderad</string>
+    <string name="key_passphrase_title">Nyckelns lösenfras</string>
+    <string name="key_passphrase_hint">Lösenfras</string>
+    <string name="key_passphrase_remember_toggle">Kom ihåg på den här enheten</string>
+    <string name="key_passphrase_confirm">Lås upp</string>
+    <string name="key_passphrase_required_error">Ange lösenfrasen, eller avbryt om nyckeln är okrypterad</string>
+    <string name="host_key_trust_title">Verifiera serverns identitet</string>
+    <string name="host_key_trust_message">Sushi kan nu verifiera serveridentiteter. Bekräfta att detta är nyckeln du förväntar dig för %1$s — du tillfrågas inte igen om den inte ändras.</string>
+    <string name="host_key_trust_confirm">Lita på och anslut</string>
+    <string name="host_key_changed_title">Hostnyckeln har ändrats</string>
+    <string name="host_key_changed_warning">VARNING: hostnyckeln för %1$s har ändrats. Det behöver inte betyda att du utsätts för en attack, men det är möjligt — det kan också hända efter en legitim ominstallation av servern. Stäm av med den som förvaltar servern innan du fortsätter.</string>
+    <string name="host_key_changed_old_label">Tidigare betrodd nyckel</string>
+    <string name="host_key_changed_new_label">Nyckel som presenteras nu</string>
+    <string name="host_key_changed_confirm_checkbox">Jag har verifierat att nyckeländringen är väntad</string>
+    <string name="host_key_changed_confirm_button">Ersätt nyckeln och anslut</string>
+    <string name="host_keys_title">Hostnycklar</string>
+    <string name="host_keys_subtitle">Servernycklar som Sushi litar på. Ta bort en för att bli tillfrågad igen vid nästa anslutning.</string>
+    <string name="host_keys_subtitle_filtered">Visar den betrodda nyckeln för %1$s.</string>
+    <string name="host_keys_empty">Inga betrodda hostnycklar ännu.</string>
+    <string name="action_delete_host_key">Ta bort</string>
+    <string name="host_key_deleted">Hostnyckeln har tagits bort</string>
     <string name="phrases_title">Fraser</string>
     <string name="phrases_subtitle">Hantera återanvändbara makron och kommandon.</string>
     <string name="phrases_empty_toast">Inga fraser sparade. Lägg till i Fraser-menyn.</string>
@@ -294,6 +368,9 @@
     <string name="play_run_failed">[Play] %1$s misslyckades: %2$s</string>
     <string name="play_missing_hosts">Lägg till minst en host innan du kör plays.</string>
     <string name="play_parameter_required">Detta värde krävs</string>
+    <string name="play_script_hint_params">Använd {{ NAMN }} för parametrar. Exempel: restart {{ service }}</string>
+    <string name="play_param_example_prefix">t.ex. %1$s</string>
+    <string name="play_param_back">Tillbaka</string>
     <string name="play_status_running_toast">Vänta tills pågående play är klar.</string>
     <string name="action_run_play">Kör play</string>
     <string name="play_param_username">Användarnamn</string>
@@ -315,7 +392,6 @@
         <item quantity="one">Importerade %d fras</item>
         <item quantity="other">Importerade %d fraser</item>
     </plurals>
-
     <string name="share_activity_title">Dela till Sushi</string>
     <string name="share_select_host_title">Skicka till värd</string>
     <string name="share_host_item_active">%1$s (aktiv)</string>
@@ -330,13 +406,72 @@
     <string name="share_no_hosts">Inga värdar konfigurerade. Lägg till en i Sushi-inställningarna.</string>
     <string name="share_nothing_to_share">Inget att dela.</string>
     <string name="share_could_not_read">Kunde inte läsa delat innehåll.</string>
-
+    <string name="download_activity_title">Ladda ned fil</string>
+    <string name="action_download_file">Ladda ned fil</string>
+    <string name="download_select_host_title">Ladda ned från host</string>
+    <string name="download_from_host">Ladda ned från %1$s</string>
+    <string name="download_remote_path_label">Filsökväg på hosten (t.ex. /var/log/syslog)</string>
+    <string name="download_button">Ladda ned</string>
+    <string name="download_preparing">Förbereder…</string>
+    <string name="download_downloading">Laddar ned…</string>
+    <string name="download_success">Laddade ned %1$s</string>
+    <string name="download_failed">Nedladdningen misslyckades: %1$s</string>
+    <string name="download_failed_generic">Nedladdningen misslyckades</string>
+    <string name="download_complete_title">Nedladdningen klar</string>
+    <string name="download_saved_as">Sparad som %1$s</string>
+    <string name="download_open">Öppna</string>
+    <string name="download_share">Dela</string>
+    <string name="download_done">Klar</string>
+    <string name="download_no_viewer">Ingen app kan öppna den här filtypen.</string>
     <string name="gemini_transcript_label">Konversationshistorik</string>
     <string name="gemini_transcript_you_label">Du</string>
     <string name="gemini_transcript_gemini_label">Gemini</string>
-    
+    <string name="gemini_transcript_command_label">Kört kommando</string>
+    <string name="gemini_transcript_output_label">Utdata</string>
+
+    <!-- Gemini History Activity -->
+    <string name="gemini_history_title">Gemini-historik</string>
+    <string name="gemini_history_empty">Inga konversationer ännu.</string>
+    <string name="gemini_history_session_title">Konversation</string>
+    <string name="gemini_history_delete_session">Ta bort session</string>
+    <string name="gemini_history_deleted">Sessionen togs bort.</string>
+    <string name="gemini_history_unknown_host">Okänd host</string>
+
+    <!-- Command history -->
+    <string name="command_history_title">Kommandohistorik</string>
+    <string name="action_command_history">Kommandohistorik</string>
+    <string name="command_history_empty">Inga kommandon registrerade ännu.</string>
+    <string name="command_history_empty_filtered">Inga kommandon matchar filtret.</string>
+    <string name="command_history_search_hint">Sök kommandon</string>
+    <string name="command_history_filter_title">Filtrera efter host</string>
+    <string name="command_history_filter_all">Alla hostar</string>
+    <string name="command_history_filter_host">Host: %1$s</string>
+    <string name="command_history_unknown_host">Okänd host</string>
+    <string name="command_history_action_rerun">Kör igen</string>
+    <string name="command_history_action_copy">Kopiera kommando</string>
+    <string name="command_history_action_delete">Ta bort posten</string>
+    <string name="command_history_deleted">Posten togs bort.</string>
+    <string name="command_history_copied">Kommandot kopierades.</string>
+    <string name="command_history_clear_all">Rensa historiken</string>
+    <string name="command_history_clear_all_confirm">Ta bort alla registrerade kommandon?</string>
+    <string name="command_history_cleared">Historiken rensades.</string>
+    <string name="command_history_source_conversation">AI</string>
+    <string name="command_history_source_raw">Rått</string>
+    <string name="command_history_source_play">Play</string>
+    <string name="command_history_source_unknown">Annat</string>
+    <string name="command_history_status_ok">ok</string>
+    <string name="command_history_status_exit">slutkod %1$d</string>
+    <string name="command_history_status_failed">misslyckades</string>
+    <string name="command_history_rerun_needs_connection">Inte ansluten — kommandot kopierades till urklipp i stället.</string>
+    <string name="command_history_rerun_other_host_title">Köra på en annan host?</string>
+    <string name="command_history_rerun_other_host_message">Kommandot registrerades på %1$s, men du är ansluten till %2$s.\n\n%3$s</string>
+
     <!-- Conversation UI -->
     <string name="conversation_input_hint">Fråga systemet...</string>
+    <string name="raw_terminal_mode_label">Råläge</string>
+    <string name="raw_terminal_mode_hint">Rått skal — kommandon körs direkt, utan AI</string>
+    <string name="troubleshoot_mode_label">Flerstegsfelsökning</string>
+    <string name="troubleshoot_mode_caption">AI:n fortsätter köra säkra kontroller tills den når en slutsats. Kommandon som kräver bekräftelse stannar fortfarande och frågar.</string>
     <string name="action_send_message">Skicka meddelande</string>
     <string name="conversation_confirm_command_title">Bekräfta kommando</string>
     <string name="conversation_confirm_command_message">Kör det här kommandot?\n\n%1$s</string>
@@ -345,5 +480,58 @@
     <string name="conversation_initializing">Ansluter till systemet...</string>
     <string name="conversation_init_failed">Kunde inte initiera konversation: %1$s</string>
     <string name="conversation_connected_to">Ansluten till: %1$s</string>
+    <string name="conversation_active_host">Pratar med %1$s</string>
+    <string name="conversation_no_active_host">Inte ansluten till någon host</string>
+    <string name="conversation_host_switch_title">Host bytt</string>
+    <string name="conversation_host_switch_detail">Du pratar nu med %2$s. Tidigare meddelanden i den här utskriften var med %1$s; systemkontexten har laddats om.</string>
 
+    <!-- Connection error banner -->
+    <string name="action_dismiss">Stäng</string>
+    <string name="action_retry">Försök igen</string>
+    <string name="connect_error_network">Nätverksfel — kontrollera hostadress och anslutning.</string>
+    <string name="connect_error_timeout">Anslutningen tog för lång tid — hosten kan vara onåbar eller långsam.</string>
+    <string name="connect_error_auth_key">Autentisering med publik nyckel misslyckades — hosten godtog inte nyckeln.</string>
+    <string name="connect_error_auth_password">Lösenordsautentisering misslyckades — fel uppgifter.</string>
+    <string name="connect_error_auth_key_passphrase">Fel lösenfras — den privata nyckeln kunde inte låsas upp.</string>
+    <string name="connect_error_host_key_mismatch">Hostnyckeln stämmer inte — fjärrnyckeln har ändrats. Anslut inte förrän du verifierat den.</string>
+    <string name="connect_error_host_key_untrusted">Hostnyckeln är inte betrodd — anslutningen avbröts.</string>
+    <string name="connect_error_jump_failed">Anslutningen till jump-servern misslyckades — kontrollera inställningarna för bastion-hosten.</string>
+    <string name="connect_error_channel_failed">Skalkanalen kunde inte öppnas efter autentiseringen.</string>
+    <string name="connect_error_unknown">Anslutningen misslyckades: %1$s</string>
+    <string name="connect_error_action_try_password">Prova lösenord</string>
+    <string name="connect_error_action_edit_credentials">Redigera uppgifter</string>
+    <string name="connect_error_action_edit_jump_host">Redigera jump-host</string>
+    <string name="connect_error_action_view_host_key">Visa hostnyckel</string>
+
+    <!-- Plurals -->
+    <plurals name="gemini_history_turns">
+        <item quantity="one">%1$d tur</item>
+        <item quantity="other">%1$d turer</item>
+    </plurals>
+
+    <!-- In-app feedback (GitHub issues) -->
+    <string name="feedback_section_title">Feedback</string>
+    <string name="feedback_section_subtitle">Skicka feedback direkt till projektets GitHub-issues. Logga in med GitHub en gång för att aktivera det.</string>
+    <string name="github_not_signed_in">Inte inloggad</string>
+    <string name="github_signed_in_as">Inloggad som %1$s</string>
+    <string name="github_signed_in_generic">Inloggad</string>
+    <string name="github_sign_in_button">Logga in med GitHub</string>
+    <string name="github_sign_out_button">Logga ut</string>
+    <string name="github_device_flow_instructions">Gå till github.com/login/device på valfri enhet och ange den här koden:</string>
+    <string name="github_device_flow_open_button">Öppna github.com/login/device</string>
+    <string name="github_device_flow_waiting">Väntar på auktorisering…</string>
+    <string name="github_device_flow_failed">Inloggningen misslyckades: %1$s</string>
+    <string name="github_device_flow_denied">Inloggningen nekades</string>
+    <string name="github_device_flow_expired">Koden har gått ut — försök igen</string>
+    <string name="github_device_flow_success">Inloggad som %1$s</string>
+    <string name="feedback_send_button">Skicka feedback</string>
+    <string name="feedback_dialog_title">Skicka feedback</string>
+    <string name="feedback_text_hint">Vad hände, eller vad kunde vara bättre?</string>
+    <string name="feedback_include_device_info">Inkludera appversion och enhetsinfo</string>
+    <string name="feedback_send">Skicka</string>
+    <string name="feedback_missing_token">Logga in med GitHub i Inställningar först</string>
+    <string name="feedback_missing_text">Skriv något först</string>
+    <string name="feedback_default_title">Feedback från appen</string>
+    <string name="feedback_sent">Feedback skickad: %1$s</string>
+    <string name="feedback_send_failed">Det gick inte att skicka feedbacken</string>
 </resources>

@@ -30,3 +30,26 @@ This is the natural extension of the existing `EXECUTE:` directive model into mu
 Currently, each user message produces one AI response with at most one `EXECUTE:` directive. Multi-step troubleshooting requires the app to re-enter the conversation loop automatically after each command result, feeding the output back to Gemini until the AI signals completion (e.g., "Issue resolved" with no further `EXECUTE:` directive).
 
 The main addition is a "keep going" mode that chains command → output → LLM → command automatically, pausing only at CONFIRM-level steps.
+
+---
+
+## Implementation status — shipped in v0.8.0
+
+The "keep going" mode described above lives in `ConversationManager.executeCommandAndRespond`, which is now a loop rather than a single exchange:
+
+1. Run the command and capture real stdout/stderr via `TerminalBackend.execCommand`.
+2. Record it in the command history and send the output back to the model for interpretation.
+3. Parse the interpretation with `ExecuteDirective`. If it asks for another command, classify it and continue.
+
+Chaining stops when any of these is true:
+
+- the model returns no further `EXECUTE:` directive (the run reached a conclusion),
+- `ConversationManager.MAX_TROUBLESHOOTING_STEPS` (5 commands per user message) is reached,
+- the next command is identical to the one just executed (no progress),
+- the next command is BLOCKED — the run ends with the safety explanation,
+- the next command is CONFIRM — the run pauses and returns to the user; approving it calls `executeConfirmedCommand`, which resumes the chain where it left off,
+- the user turned the "Multi-step troubleshooting" switch in the Gemini dialog off (`GeminiSettings.getAutoTroubleshootEnabled`, default on).
+
+Each chained step is announced in the transcript through the existing streaming callback, so the user watches the diagnosis progress rather than waiting for one long answer.
+
+What gets recorded, precisely: every command that reaches the shell gets its own row in the local command history, including one that timed out (it ran and may have had side effects). The conversation transcript and the target-side log store one turn per run, whose narrative includes every command line the run executed — so the run reads back in full, even though the turn's `commandExecuted` column names the last command.

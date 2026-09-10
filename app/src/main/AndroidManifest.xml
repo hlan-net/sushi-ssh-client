@@ -97,6 +97,10 @@
             android:exported="false"
             android:label="@string/gemini_history_title" />
         <activity
+            android:name=".CommandHistoryActivity"
+            android:exported="false"
+            android:label="@string/command_history_title" />
+        <activity
             android:name=".SftpDownloadActivity"
             android:exported="false"
             android:label="@string/download_activity_title" />

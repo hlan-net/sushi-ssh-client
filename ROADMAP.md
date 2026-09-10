@@ -7,7 +7,7 @@ Sushi is an SSH client where the primary interface is talking *to* the connected
 
 ---
 
-## Current state — v0.5.0 + unreleased polish
+## Current state — v0.7.12 + unreleased v0.8.0 work
 
 The conversational foundation is complete:
 
@@ -63,9 +63,9 @@ Close the loop on persona editing and add the file operations that conversationa
 
 Expand what the AI layer can do and scale to more than one host.
 
-- **[AI-powered troubleshooting](docs/features/ai-troubleshooting.md)** — structured diagnosis: check service → read logs → suggest fix → confirm → verify; builds on the existing safety model
-- **[Command history](docs/features/command-history.md)** — store past executed commands in SQLite; surface them in conversation ("run the same disk check as last time") and as a browsable list
-- **[Multiple host persona awareness](docs/features/multi-system.md)** — each host has its own `SUSHI.md`; conversation context should make clear which system is active and allow switching without losing state
+- **[AI-powered troubleshooting](docs/features/ai-troubleshooting.md)** ✅ — the conversation chains diagnosis automatically (command → output → interpretation → next command) until the AI concludes. Every step still goes through `CommandSafety`: CONFIRM pauses for the user and resumes on approval, BLOCKED ends the run. Capped at 5 commands per message, stops on a repeated command, and switchable off in the Gemini dialog
+- **[Command history](docs/features/command-history.md)** ✅ — `CommandHistoryDatabaseHelper` stores every executed command (AI, raw mode, Play) with host, condensed output, exit status and source; browsable and searchable from the Terminal tab with copy / delete / re-run, capped at 500 entries per host. Recent entries for the connected host are injected into the AI prompt so it can compare against previous results. Terminal-tab PTY keystrokes are deliberately *not* recorded — line-buffering raw input would capture typed passwords
+- **[Multiple host persona awareness](docs/features/multi-system.md)** ✅ — Option B: an Infrastructure section built from the saved hosts (addresses, jump-host relations, which one is connected) is injected alongside each host's own `SUSHI.md`, so cross-system questions can be answered without connecting. The Gemini dialog names the active host, and switching hosts mid-conversation rebuilds the persona context and marks the boundary in the transcript
 
 ---
 
@@ -118,4 +118,4 @@ Interesting directions that depend on the conversational core being solid first.
 
 ---
 
-*Last updated: 2026-07-21*
+*Last updated: 2026-09-09*

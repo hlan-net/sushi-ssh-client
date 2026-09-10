@@ -1,6 +1,5 @@
 package net.hlan.sushi
 
-import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -13,15 +12,37 @@ import java.util.Locale
  * Handles session state, conversation history, command execution, and persona integration.
  */
 class ConversationManager(
-    private val context: Context,
     private val backend: TerminalBackend,
-    private val geminiClient: GeminiClient?,
-    private val geminiNanoClient: GeminiNanoClient?,
-    private val useNano: Boolean = false,
+    // Not stored as properties: they exist to build the default [llm] below, which is the only
+    // thing the manager talks to once constructed.
+    geminiClient: GeminiClient?,
+    geminiNanoClient: GeminiNanoClient?,
+    useNano: Boolean = false,
     private val transcriptStore: GeminiTranscriptDatabaseHelper? = null,
+    private val commandHistoryStore: CommandHistoryDatabaseHelper? = null,
     private val sessionId: String = java.util.UUID.randomUUID().toString(),
     private val hostId: String? = null,
-    private val hostLabel: String? = null
+    private val hostLabel: String? = null,
+    /**
+     * Description of the user's other saved hosts, built by
+     * [ConversationContextBuilder.infrastructureSection], so the AI knows what else exists in
+     * the setup and which system it is speaking as (roadmap v0.8.0 — multi-system awareness).
+     */
+    private val infrastructureContext: String = "",
+    /**
+     * How the manager reaches the model. Defaults to the configured Gemini client (on-device
+     * when [useNano], cloud otherwise); instrumented and unit tests pass a scripted responder so
+     * the troubleshooting chain can be tested without network access.
+     */
+    private val llm: ConversationLlm = ConversationLlm { message, promptContext, history ->
+        if (useNano && geminiNanoClient != null) {
+            geminiNanoClient.generateConversationalResponse(message, promptContext, history)
+        } else if (geminiClient != null) {
+            geminiClient.generateConversationalResponse(message, promptContext, history)
+        } else {
+            GeminiResult(false, "No Gemini client available")
+        }
+    }
 ) {
     private val personaClient = PersonaClient(backend)
     private val conversationHistory = mutableListOf<ConversationTurn>()
@@ -30,6 +51,15 @@ class ConversationManager(
     private var sushiMdContent: String? = null
     private var systemIdentity: String? = null
     private var currentLogShellPath: String? = null
+
+    /**
+     * Whether the AI may chain SAFE follow-up commands on its own (multi-step troubleshooting).
+     * Mirrors the toggle in the Gemini dialog, so it can change mid-session.
+     */
+    var autoTroubleshootEnabled: Boolean = true
+
+    /** Commands executed so far in the current troubleshooting chain. */
+    private var chainStepsTaken = 0
 
     /**
      * Initialize the conversation session by reading SUSHI.md from target.
@@ -109,12 +139,12 @@ class ConversationManager(
 
                 // Parse response for EXECUTE: directive
                 val response = llmResult.message
-                val executeMatch = Regex("EXECUTE:\\s*(.+?)(?:\n|$)", RegexOption.MULTILINE)
-                    .find(response)
-                
-                if (executeMatch != null) {
-                    val command = executeMatch.groupValues[1].trim()
-                    
+                val command = ExecuteDirective.parse(response)
+
+                if (command != null) {
+                    // Every user message starts a fresh troubleshooting chain.
+                    chainStepsTaken = 0
+
                     // Classify command safety
                     val safety = CommandSafety.classify(command)
                     
@@ -122,8 +152,8 @@ class ConversationManager(
                         CommandSafety.SafetyLevel.BLOCKED -> {
                             // Command is blocked - don't execute
                             val explanation = CommandSafety.explainClassification(command)
-                            val finalResponse = response.replace(executeMatch.value, "")
-                                .trim() + "\n\n[Command blocked: $explanation]"
+                            val finalResponse = ExecuteDirective.strip(response) +
+                                "\n\n[Command blocked: $explanation]"
                             
                             addToHistory(userMessage, finalResponse, command, null, false)
                             
@@ -188,84 +218,267 @@ class ConversationManager(
     }
 
     /**
-     * Execute command via SSH exec channel and generate final conversational response.
+     * Execute [command] and let the AI work the problem to its end (roadmap v0.8.0 —
+     * AI-powered troubleshooting).
      *
-     * Uses [TerminalBackend.execCommand] (not [TerminalBackend.sendCommand]) so that actual
-     * stdout/stderr is captured and returned to the LLM for interpretation.
+     * Each step runs the command via [TerminalBackend.execCommand] (not [TerminalBackend.sendCommand])
+     * so real stdout/stderr goes back to the LLM, which interprets the result and may ask for the
+     * next diagnostic step with another `EXECUTE:` directive. Chaining continues while:
+     * - [autoTroubleshootEnabled] is on,
+     * - fewer than [MAX_TROUBLESHOOTING_STEPS] commands have run for this user message,
+     * - the next command is classified SAFE, and
+     * - it differs from the one just executed (an identical repeat means no progress).
+     *
+     * A CONFIRM step ends the run and comes back to the user for approval; confirming it calls
+     * [executeConfirmedCommand], which resumes the chain from [chainStepsTaken]. A BLOCKED step
+     * ends the run with an explanation.
+     *
+     * Every command that reaches the shell gets its own row in the local command history. The
+     * conversation transcript stores one turn per run, whose narrative includes every command
+     * line the run executed, so the run reads back in full even though the turn's
+     * `commandExecuted` column names the last one.
      */
     private suspend fun executeCommandAndRespond(
         userMessage: String,
         initialResponse: String,
         command: String,
         onChunk: ((String) -> Unit)? = null
+    ): ConversationResult = runTroubleshootingStep(
+        run = TroubleshootingRun(
+            userMessage = userMessage,
+            narrative = StringBuilder(ExecuteDirective.strip(initialResponse)),
+            onChunk = onChunk
+        ),
+        command = command,
+        isChainedStep = false
+    )
+
+    /**
+     * State shared by every step of one troubleshooting chain: the message that started it, the
+     * narrative being assembled across steps, and where streamed output goes.
+     */
+    private class TroubleshootingRun(
+        val userMessage: String,
+        val narrative: StringBuilder,
+        val onChunk: ((String) -> Unit)?
+    )
+
+    /**
+     * Run one step of a troubleshooting chain, appending what happened to the run's narrative.
+     *
+     * Returns the finished [ConversationResult] when the run ends here; when the AI asks for a
+     * SAFE follow-up command, recurses into the next step. Recursion (rather than a loop) keeps
+     * each step's state immutable and is bounded by [MAX_TROUBLESHOOTING_STEPS].
+     *
+     * @param isChainedStep false for the command the user's message produced (or the one it
+     * paused at for confirmation), true for every command the AI chose afterwards — those get
+     * announced through the run's `onChunk` so the user sees the run progress.
+     */
+    private suspend fun runTroubleshootingStep(
+        run: TroubleshootingRun,
+        command: String,
+        isChainedStep: Boolean
     ): ConversationResult {
-        return try {
-            // Use execCommand so we get real output back, not just "Command sent".
-            val cmdResult = backend.execCommand(command, onChunk = onChunk)
+        chainStepsTaken++
 
-            if (!cmdResult.success && cmdResult.exitStatus == null) {
-                // execCommand itself failed (e.g. not connected, timed out).
-                val errorResponse = initialResponse.replace(
-                    Regex("EXECUTE:.+"),
-                    "[Command failed: ${cmdResult.message}]"
-                )
-                addToHistory(userMessage, errorResponse, command, null, false)
+        // Every command goes into the narrative, so the stored transcript and the target-side
+        // log show the whole run rather than only the last command (the one the transcript's
+        // commandExecuted column names). Chained commands are also announced on the live
+        // stream; the first one needs no announcement, because the response above it — already
+        // streamed — is what explains it.
+        run.narrative.appendBlock("$ $command")
+        if (isChainedStep) {
+            run.onChunk?.invoke("\n\n$ $command\n")
+        }
 
-                return ConversationResult(
-                    success = true,
-                    systemResponse = errorResponse,
-                    userMessage = userMessage,
-                    commandExecuted = command,
-                    commandOutput = cmdResult.message,
-                    commandSuccess = false
-                )
+        val cmdResult = try {
+            backend.execCommand(command, onChunk = run.onChunk)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error executing command", e)
+            // The run itself failed here, not merely the command it was running.
+            return finishRun(
+                run = run,
+                command = command,
+                output = null,
+                commandSucceeded = false,
+                closingBlock = "[Error executing command: ${e.message}]"
+            ).copy(success = false)
+        }
+
+        // Record before the failure branch below: a timed-out command still ran.
+        recordInCommandHistory(command, cmdResult, CommandSource.CONVERSATION)
+
+        if (!cmdResult.success && cmdResult.exitStatus == null) {
+            // execCommand did not complete (not connected, or the command timed out).
+            return finishRun(
+                run = run,
+                command = command,
+                output = cmdResult.message,
+                commandSucceeded = false,
+                closingBlock = "[Command failed: ${cmdResult.message}]"
+            )
+        }
+
+        // Command ran — use the captured output (may be empty for commands with no output).
+        val output = cmdResult.message.ifEmpty { "(no output)" }
+
+        val mayChain = autoTroubleshootEnabled && chainStepsTaken < MAX_TROUBLESHOOTING_STEPS
+        val interpretResult = generateLlmResponse(
+            buildInterpretPrompt(cmdResult.exitStatus, output, mayChain),
+            includeInHistory = false
+        )
+
+        if (!interpretResult.success) {
+            // Fallback: show raw output.
+            return finishRun(
+                run = run,
+                command = command,
+                output = output,
+                commandSucceeded = cmdResult.success,
+                closingBlock = "Command output:\n$output"
+            )
+        }
+
+        val interpretation = interpretResult.message
+        run.narrative.appendBlock(ExecuteDirective.strip(interpretation))
+
+        val nextCommand = if (mayChain) ExecuteDirective.parse(interpretation) else null
+        if (nextCommand == null || nextCommand == command) {
+            if (nextCommand != null) {
+                Log.d(TAG, "Stopping chain: next step repeats the command just run")
             }
+            return finishRun(
+                run = run,
+                command = command,
+                output = output,
+                commandSucceeded = cmdResult.success
+            )
+        }
 
-            // Command ran — use the captured output (may be empty for commands with no output).
-            val output = cmdResult.message.ifEmpty { "(no output)" }
-            val interpretPrompt = """
-The command was executed. Exit code: ${cmdResult.exitStatus ?: "unknown"}.
+        return when (CommandSafety.classify(nextCommand)) {
+            CommandSafety.SafetyLevel.BLOCKED -> finishRun(
+                run = run,
+                command = command,
+                output = output,
+                commandSucceeded = cmdResult.success,
+                closingBlock = "[Command blocked: ${CommandSafety.explainClassification(nextCommand)}]"
+            ).copy(commandAttempted = nextCommand, commandBlocked = true)
+
+            // Pause the chain for user approval; executeConfirmedCommand resumes it. The turn is
+            // not written to history yet — the resumed run persists the whole narrative.
+            CommandSafety.SafetyLevel.CONFIRM -> ConversationResult(
+                success = true,
+                systemResponse = run.narrative.toString(),
+                userMessage = run.userMessage,
+                commandExecuted = command,
+                commandOutput = output,
+                commandSuccess = cmdResult.success,
+                commandToConfirm = nextCommand,
+                needsConfirmation = true
+            )
+
+            CommandSafety.SafetyLevel.SAFE -> runTroubleshootingStep(
+                run = run,
+                command = nextCommand,
+                isChainedStep = true
+            )
+        }
+    }
+
+    /**
+     * Close out a troubleshooting run: append [closingBlock] if there is one, persist the turn,
+     * and build the result. Every exit from [runTroubleshootingStep] except the CONFIRM pause
+     * goes through here, so the narrative and the stored transcript never diverge. The two
+     * exits that need more than this — an outright run failure, and a blocked follow-up — copy
+     * the returned result with those fields set.
+     *
+     * @param commandSucceeded whether the last command itself succeeded.
+     */
+    private suspend fun finishRun(
+        run: TroubleshootingRun,
+        command: String,
+        output: String?,
+        commandSucceeded: Boolean,
+        closingBlock: String? = null
+    ): ConversationResult {
+        closingBlock?.let { run.narrative.appendBlock(it) }
+        val response = run.narrative.toString()
+        addToHistory(run.userMessage, response, command, output, commandSucceeded)
+
+        return ConversationResult(
+            success = true,
+            systemResponse = response,
+            userMessage = run.userMessage,
+            commandExecuted = command,
+            commandOutput = output,
+            commandSuccess = commandSucceeded
+        )
+    }
+
+    /** Append [block] to the running narrative, separated by a blank line. */
+    private fun StringBuilder.appendBlock(block: String) {
+        val trimmed = block.trim()
+        if (trimmed.isEmpty()) return
+        if (isNotEmpty()) append("\n\n")
+        append(trimmed)
+    }
+
+    /**
+     * Prompt asking the model to interpret a command result.
+     *
+     * When [mayChain] is true the model is invited to request the next diagnostic step, which is
+     * what turns a single question into an end-to-end troubleshooting run; when the step budget
+     * is spent (or the user turned chaining off) it is told to wrap up instead, so the run cannot
+     * continue past its limit.
+     */
+    private fun buildInterpretPrompt(exitStatus: Int?, output: String, mayChain: Boolean): String {
+        val continuation = if (mayChain) {
+            """
+If the problem is not yet diagnosed or fixed, say what you are checking next and add a line:
+EXECUTE: <command>
+If nothing further is needed, state the conclusion and do not add an EXECUTE line.
+            """.trimIndent()
+        } else {
+            "Summarise where things stand. Do not request any further command."
+        }
+
+        return """
+The command was executed. Exit code: ${exitStatus ?: "unknown"}.
 Output:
 
 $output
 
 Provide a natural language interpretation of this result, responding as the system.
-            """.trimIndent()
+$continuation
+        """.trimIndent()
+    }
 
-            val interpretResult = generateLlmResponse(interpretPrompt, includeInHistory = false)
-            
-            val finalResponse = if (interpretResult.success) {
-                // Remove EXECUTE: line from initial response and add interpretation
-                val cleanInitial = initialResponse.replace(Regex("EXECUTE:.+"), "").trim()
-                "$cleanInitial\n\n${interpretResult.message}"
-            } else {
-                // Fallback: show raw output
-                val cleanInitial = initialResponse.replace(Regex("EXECUTE:.+"), "").trim()
-                "$cleanInitial\n\nCommand output:\n$output"
-            }
+    /**
+     * Persist a run that stopped at a confirmation prompt the user then declined.
+     *
+     * The CONFIRM pause returns before the turn is written, because approving it resumes the
+     * same run and persists the whole narrative at the end. When the user declines instead,
+     * nothing would ever record the steps that already executed — this closes that gap for the
+     * transcript, the target-side log, and the in-memory history. Does nothing when the run had
+     * not executed anything yet.
+     */
+    suspend fun persistDeclinedRun(result: ConversationResult) {
+        val executed = result.commandExecuted ?: return
+        val declined = result.commandToConfirm
 
-            addToHistory(userMessage, finalResponse, command, output, true)
-            
-            ConversationResult(
-                success = true,
-                systemResponse = finalResponse,
-                userMessage = userMessage,
-                commandExecuted = command,
-                commandOutput = output,
-                commandSuccess = true
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error executing command", e)
-            val errorResponse = "$initialResponse\n\n[Error executing command: ${e.message}]"
-            addToHistory(userMessage, errorResponse, command, null, false)
-            
-            ConversationResult(
-                success = false,
-                systemResponse = errorResponse,
-                userMessage = userMessage,
-                commandExecuted = command
-            )
+        // No dispatcher here: addToHistory's writes each move themselves to IO.
+        val response = if (declined != null) {
+            "${result.systemResponse}\n\n[Not run: $declined — confirmation declined]"
+        } else {
+            result.systemResponse
         }
+        addToHistory(
+            result.userMessage,
+            response,
+            executed,
+            result.commandOutput,
+            result.commandSuccess
+        )
     }
 
     /**
@@ -325,6 +538,7 @@ Provide a natural language interpretation of this result, responding as the syst
         return try {
             val cmdResult = backend.execCommand(command, onChunk = onChunk)
             val output = cmdResult.message.ifEmpty { "(no output)" }
+            recordInCommandHistory(command, cmdResult, CommandSource.RAW)
             addToHistory(rawPrompt(command), output, command, output, cmdResult.success)
 
             ConversationResult(
@@ -356,26 +570,83 @@ Provide a natural language interpretation of this result, responding as the syst
     private fun rawPrompt(command: String): String = "$ $command"
 
     /**
+     * Persist an executed command to the local command history (roadmap v0.8.0).
+     *
+     * Only commands that actually reached the shell are stored — see
+     * [SshCommandResult.dispatched], which stays true for a command that timed out because it
+     * ran and may have had side effects. BLOCKED commands never get here: they are rejected
+     * before execution.
+     */
+    private fun recordInCommandHistory(
+        command: String,
+        result: SshCommandResult,
+        source: CommandSource
+    ) {
+        val store = commandHistoryStore ?: return
+        if (!result.dispatched) return
+
+        runCatching {
+            store.record(
+                CommandHistoryRecord(
+                    hostId = hostId.orEmpty(),
+                    hostLabel = hostLabel.orEmpty(),
+                    command = command,
+                    outputSummary = CommandHistoryDatabaseHelper.summarizeOutput(result.message),
+                    exitStatus = result.exitStatus,
+                    success = result.success,
+                    source = source,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }.onFailure { e ->
+            Log.w(TAG, "Failed to record command history", e)
+        }
+    }
+
+    /**
+     * Recent commands on this host, rendered as a prompt section, or "" when history is
+     * unavailable or empty.
+     *
+     * Restricted to [CommandSource.CONVERSATION] entries: those already passed through the model
+     * once, so replaying them uploads nothing the model has not already seen.
+     */
+    private fun recentCommandsContext(): String {
+        val store = commandHistoryStore ?: return ""
+        val records = runCatching {
+            // Only commands the AI itself issued are fed back. Raw Terminal Mode is advertised
+            // as having no AI in the loop, and rendered Play commands can carry parameters the
+            // user typed as secrets — neither may reach a cloud prompt through the back door.
+            store.getRecentForHost(hostId.orEmpty(), sources = setOf(CommandSource.CONVERSATION))
+        }.getOrElse { e ->
+            Log.w(TAG, "Failed to read command history", e)
+            return ""
+        }
+        return ConversationContextBuilder.recentCommandsSection(
+            records = records,
+            hostLabel = hostLabel.orEmpty()
+        )
+    }
+
+    /**
      * Generate LLM response using configured client (Nano or Cloud).
      */
     private suspend fun generateLlmResponse(
         userMessage: String,
         includeInHistory: Boolean = true
     ): GeminiResult {
-        val context = sushiMdContent ?: return GeminiResult(
+        val persona = sushiMdContent ?: return GeminiResult(
             false,
             "Persona context not available"
         )
-        
+        val promptContext = ConversationContextBuilder.compose(
+            persona,
+            infrastructureContext,
+            recentCommandsContext()
+        )
+
         val history = if (includeInHistory) conversationHistory else emptyList()
 
-        return if (useNano && geminiNanoClient != null) {
-            geminiNanoClient.generateConversationalResponse(userMessage, context, history)
-        } else if (geminiClient != null) {
-            geminiClient.generateConversationalResponse(userMessage, context, history)
-        } else {
-            GeminiResult(false, "No Gemini client available")
-        }
+        return llm.respond(userMessage, promptContext, history)
     }
 
     /**
@@ -554,6 +825,13 @@ Provide a natural language interpretation of this result, responding as the syst
 
     companion object {
         private const val TAG = "ConversationManager"
+
+        /**
+         * Commands a single user message may trigger, including the first one. Bounds an
+         * automatic troubleshooting run so a model that keeps asking for "one more check"
+         * cannot execute indefinitely.
+         */
+        const val MAX_TROUBLESHOOTING_STEPS = 5
     }
 }
 

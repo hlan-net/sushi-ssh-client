@@ -28,6 +28,23 @@
 }
 -keep class net.hlan.sushi.GeminiTranscriptDatabaseHelper$Companion { void resetInstance(); }
 
+# CommandHistoryDatabaseHelper.resetInstance() (companion) and countForHost() have no
+# production callers; R8 removes them. Keep for test setUp/tearDown and assertions.
+-keepclassmembers class net.hlan.sushi.CommandHistoryDatabaseHelper {
+    public int clearAll();
+    public int countForHost(java.lang.String);
+}
+-keep class net.hlan.sushi.CommandHistoryDatabaseHelper$Companion { void resetInstance(); }
+
+# CommandHistoryRecord/CommandHistoryHost accessors are read by instrumented test assertions;
+# R8 inlines or drops the ones production only writes. Keep all public members.
+-keepclassmembers class net.hlan.sushi.CommandHistoryRecord {
+    public *;
+}
+-keepclassmembers class net.hlan.sushi.CommandHistoryHost {
+    public *;
+}
+
 # The test APK resolves app R classes at runtime (androidTest R fields are non-final
 # field references, not inlined constants). R8 strips R classes from the app APK,
 # breaking e.g. LayoutInflationTest with NoClassDefFoundError: R$style.

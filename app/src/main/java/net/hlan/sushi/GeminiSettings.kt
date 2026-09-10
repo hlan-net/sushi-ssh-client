@@ -32,10 +32,22 @@ class GeminiSettings(context: Context) {
         prefs.edit().putBoolean(KEY_NANO_PREFERRED, preferred).apply()
     }
 
+    /**
+     * Whether the AI may chain follow-up commands automatically while troubleshooting
+     * (roadmap v0.8.0). Safety classification still applies to every step, so CONFIRM-tier
+     * commands stop the chain and ask. Defaults to true.
+     */
+    fun getAutoTroubleshootEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_TROUBLESHOOT, true)
+
+    fun setAutoTroubleshootEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_TROUBLESHOOT, enabled).apply()
+    }
+
     companion object {
         private const val KEY_ENABLED = "gemini_enabled"
         private const val KEY_API_KEY = "gemini_api_key"
         private const val KEY_CLOUD_MODEL = "gemini_cloud_model"
         private const val KEY_NANO_PREFERRED = "gemini_nano_preferred"
+        private const val KEY_AUTO_TROUBLESHOOT = "gemini_auto_troubleshoot"
     }
 }
