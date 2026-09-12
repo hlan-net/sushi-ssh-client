@@ -8,6 +8,16 @@ data class PlayRunResult(
     /** Exit status of the rendered command, or null when it never produced one (timeout). */
     val exitStatus: Int? = null,
     /**
+     * Whether [renderedCommand] has the value of a `secret` parameter substituted into it — the
+     * managed "change user password" play renders the typed password straight into
+     * `echo user:pass | sudo chpasswd`, for example.
+     *
+     * Such a command must not be persisted or shown outside the run that produced it: the
+     * command history is an unencrypted local database whose entries are searchable, copyable
+     * to the clipboard, and re-runnable. Callers record a run only when this is false.
+     */
+    val carriesSecretValues: Boolean = false,
+    /**
      * Whether the rendered command actually reached a shell — see [SshCommandResult.dispatched].
      * False when the play was rejected before execution, or the backend could not start it at
      * all; callers must not record such a run as a command that ran.
@@ -64,6 +74,8 @@ object PlayRunner {
             return PlayRunResult(false, "Rendered command is empty")
         }
 
+        val carriesSecretValues = carriesSecretValues(parameters, effectiveValues)
+
         val result = backend.execCommand(rendered, timeoutSec * 1_000L)
         val lines = result.message.lines().filter { it.isNotEmpty() }
         lines.forEach { onLine(it) }
@@ -75,6 +87,7 @@ object PlayRunner {
                 outputLines = lines,
                 renderedCommand = rendered,
                 exitStatus = result.exitStatus,
+                carriesSecretValues = carriesSecretValues,
                 dispatched = result.dispatched
             )
         } else {
@@ -84,9 +97,22 @@ object PlayRunner {
                 outputLines = lines,
                 renderedCommand = rendered,
                 exitStatus = result.exitStatus,
+                carriesSecretValues = carriesSecretValues,
                 dispatched = result.dispatched
             )
         }
+    }
+
+    /**
+     * Whether rendering [parameters] with [effectiveValues] substitutes a secret into the
+     * command — the test for [PlayRunResult.carriesSecretValues]. A secret parameter left blank
+     * puts nothing in the command, so it does not count.
+     */
+    internal fun carriesSecretValues(
+        parameters: List<PlayParameter>,
+        effectiveValues: Map<String, String>
+    ): Boolean = parameters.any { parameter ->
+        parameter.secret && !effectiveValues[parameter.key].isNullOrBlank()
     }
 
     private fun renderTemplate(template: String, values: Map<String, String>): String {

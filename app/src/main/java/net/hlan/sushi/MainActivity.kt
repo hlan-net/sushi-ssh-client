@@ -858,9 +858,21 @@ class MainActivity : AppCompatActivity() {
      * AI- and raw-mode commands (roadmap v0.8.0). Called from the IO thread; a Play rejected
      * before rendering (missing required parameter) has no command to record, and one whose
      * command never reached a shell ([PlayRunResult.dispatched]) is not a command that ran.
+     *
+     * A Play that substituted a `secret` parameter into its command is skipped entirely
+     * ([PlayRunResult.carriesSecretValues]): the rendered command holds the typed value in
+     * plaintext — the managed "change user password" play is exactly that — and the history is
+     * an unencrypted database that is searched, copied to the clipboard and re-run. Storing a
+     * redacted command instead is worse than storing nothing, because re-running it would send
+     * the mask to the shell as if it were the password. This is the same reason the interactive
+     * terminal's keystrokes are not recorded.
      */
     private fun recordPlayInCommandHistory(host: SshConnectionConfig, result: PlayRunResult) {
         if (result.renderedCommand.isBlank() || !result.dispatched) {
+            return
+        }
+        if (result.carriesSecretValues) {
+            Log.d(TAG, "Not recording play in command history: command carries a secret value")
             return
         }
         runCatching {
