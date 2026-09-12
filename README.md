@@ -37,6 +37,13 @@ An open source Android SSH client focused on fast connections, clean session man
 
 ## Recent Release Highlights
 
+### v0.8.0
+- **Command History**: Every command Sushi runs — AI-issued, Raw Terminal Mode, or a Play — is stored locally in SQLite and browsable from the Terminal tab, with search, per-host filter, and copy / delete / re-run. Capped at 500 entries per host; Plays carrying a secret parameter are never recorded.
+- **AI-Powered Troubleshooting**: The conversation chains diagnosis automatically (command → output → interpretation → next command) until it reaches a conclusion, with every step still classified by `CommandSafety` and a switch in the Gemini dialog to turn it off.
+- **Multi-System Awareness**: The AI prompt carries an Infrastructure section describing your other saved hosts, so cross-system questions can be answered without connecting; the Gemini dialog names the active host.
+- **Complete Localization**: Finnish, German, Swedish, and Spanish translations for all 508 translatable strings.
+- **Crash Fixes**: Command execution on Android 12L and older, and feedback with device info on Android 8.x.
+
 ### v0.7.12
 - **Remote Persona Editor**: Read and edit the target's `~/.config/sushi/SUSHI.md` from Settings → Gemini → Edit persona, with save validation, overwrite confirmation, and a "Reset to default" option.
 - **SFTP Download**: A "Download file" action on the terminal tab pulls a remote file to the phone and offers Open/Share.

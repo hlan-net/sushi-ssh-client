@@ -25,8 +25,8 @@ android {
         applicationId = "net.hlan.sushi"
         minSdk = 26
         targetSdk = 36
-        versionCode = versionCodeOverride ?: 24
-        versionName = versionNameOverride ?: "0.7.12"
+        versionCode = versionCodeOverride ?: 25
+        versionName = versionNameOverride ?: "0.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val runnerArgPrefix = "android.testInstrumentationRunnerArguments."
