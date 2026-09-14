@@ -496,11 +496,13 @@
     <string name="connect_error_host_key_mismatch">Hostin avain ei täsmää — palvelimen avain on muuttunut. Älä yhdistä ennen kuin olet varmistanut asian.</string>
     <string name="connect_error_host_key_untrusted">Hostin avaimeen ei luoteta — yhteys peruttiin.</string>
     <string name="connect_error_jump_failed">Yhteys jump-palvelimeen epäonnistui — tarkista bastion-hostin asetukset.</string>
+    <string name="connect_error_jump_auth_failed">Jump-palvelin ei hyväksynyt tunnuksia — tarkista bastion-hostin käyttäjätunnus, salasana tai avain.</string>
     <string name="connect_error_channel_failed">Shell-kanavan avaaminen epäonnistui todennuksen jälkeen.</string>
     <string name="connect_error_unknown">Yhteys epäonnistui: %1$s</string>
     <string name="connect_error_action_try_password">Kokeile salasanaa</string>
     <string name="connect_error_action_edit_credentials">Muokkaa tunnuksia</string>
     <string name="connect_error_action_edit_jump_host">Muokkaa jump-hostia</string>
+    <string name="connect_error_action_edit_jump_credentials">Muokkaa jump-tunnuksia</string>
     <string name="connect_error_action_view_host_key">Näytä hostin avain</string>
 
     <!-- Plurals -->

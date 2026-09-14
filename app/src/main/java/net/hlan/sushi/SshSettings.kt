@@ -120,7 +120,10 @@ class SshSettings(private val context: Context) {
             jumpHost = jumpHostConfig.host,
             jumpPort = jumpHostConfig.port,
             jumpUsername = jumpHostConfig.username,
-            jumpPassword = jumpHostConfig.password
+            jumpPassword = jumpHostConfig.password,
+            // The bastion authenticates by its own rules: without this the target's preference
+            // drives both legs, and a key-only target drops the password just copied above.
+            jumpAuthPreference = jumpHostConfig.authPreference
         )
     }
 

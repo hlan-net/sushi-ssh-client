@@ -496,11 +496,13 @@
     <string name="connect_error_host_key_mismatch">Host-Schlüssel stimmt nicht überein — der Schlüssel der Gegenstelle hat sich geändert. Nicht verbinden, bevor das geklärt ist.</string>
     <string name="connect_error_host_key_untrusted">Host-Schlüssel nicht vertrauenswürdig — Verbindung abgebrochen.</string>
     <string name="connect_error_jump_failed">Verbindung zum Jump-Server fehlgeschlagen — prüfe die Bastion-Host-Einstellungen.</string>
+    <string name="connect_error_jump_auth_failed">Der Jump-Server hat die Anmeldedaten abgelehnt — prüfe Benutzernamen, Passwort oder Schlüssel des Bastion-Hosts.</string>
     <string name="connect_error_channel_failed">Der Shell-Kanal ließ sich nach der Authentifizierung nicht öffnen.</string>
     <string name="connect_error_unknown">Verbindung fehlgeschlagen: %1$s</string>
     <string name="connect_error_action_try_password">Passwort versuchen</string>
     <string name="connect_error_action_edit_credentials">Zugangsdaten bearbeiten</string>
     <string name="connect_error_action_edit_jump_host">Jump-Host bearbeiten</string>
+    <string name="connect_error_action_edit_jump_credentials">Jump-Anmeldedaten bearbeiten</string>
     <string name="connect_error_action_view_host_key">Host-Schlüssel anzeigen</string>
 
     <!-- Plurals -->

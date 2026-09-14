@@ -6,6 +6,10 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+### Fixed
+- **Jump server authentication**: A bastion reached through a jump host now authenticates by its *own* saved preference instead of the target host's. Previously the target's preference drove both legs, so a target set to key-only dropped the bastion's stored password before JSch ever saw it; with the key not accepted there either, JSch ran out of methods and the connect ended in `Auth cancel for methods 'publickey,password'`. The jump host's preference is carried over with its credentials (`SshSettings.resolveJumpServer`), the private key is offered whenever either leg needs it, and each session is limited to the methods its own preference allows.
+- **A bastion that refuses credentials says so**: A rejected login on the jump host is now its own failure (`JUMP_AUTH_FAILED`) rather than the generic "check bastion host settings", and its banner action opens the jump host's own entry — where the username, password and key actually live — instead of the target's.
+
 ## [0.8.0] - 2026-09-12
 
 ### Added

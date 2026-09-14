@@ -496,11 +496,13 @@
     <string name="connect_error_host_key_mismatch">Hostnyckeln stämmer inte — fjärrnyckeln har ändrats. Anslut inte förrän du verifierat den.</string>
     <string name="connect_error_host_key_untrusted">Hostnyckeln är inte betrodd — anslutningen avbröts.</string>
     <string name="connect_error_jump_failed">Anslutningen till jump-servern misslyckades — kontrollera inställningarna för bastion-hosten.</string>
+    <string name="connect_error_jump_auth_failed">Jump-servern avvisade inloggningsuppgifterna — kontrollera bastion-hostens användarnamn, lösenord eller nyckel.</string>
     <string name="connect_error_channel_failed">Skalkanalen kunde inte öppnas efter autentiseringen.</string>
     <string name="connect_error_unknown">Anslutningen misslyckades: %1$s</string>
     <string name="connect_error_action_try_password">Prova lösenord</string>
     <string name="connect_error_action_edit_credentials">Redigera uppgifter</string>
     <string name="connect_error_action_edit_jump_host">Redigera jump-host</string>
+    <string name="connect_error_action_edit_jump_credentials">Redigera jump-uppgifter</string>
     <string name="connect_error_action_view_host_key">Visa hostnyckel</string>
 
     <!-- Plurals -->

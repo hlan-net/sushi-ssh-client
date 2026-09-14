@@ -226,4 +226,119 @@ class ConnectionFailureClassificationTest {
         assertEquals(ConnectFailure.UNKNOWN,
             client.classifyException(RuntimeException("something unexpected")))
     }
+
+    // --- the bastion leg is classified and planned on its own terms ---
+
+    /**
+     * The reported symptom: a key-only target dropped the bastion's stored password, JSch ran
+     * out of methods and cancelled, and the banner blamed "bastion host settings" instead of the
+     * credentials.
+     */
+    @Test
+    fun jumpFailure_authCancel_isAJumpAuthFailure() {
+        assertEquals(
+            ConnectFailure.JUMP_AUTH_FAILED,
+            client.classifyJumpFailure(
+                JSchException("Auth cancel for methods 'publickey,password'"),
+                SshClient.AuthPlan(shouldUseKey = true, shouldUsePassword = false)
+            )
+        )
+    }
+
+    @Test
+    fun jumpFailure_authFail_onPasswordOnlyBastion_isAJumpAuthFailure() {
+        assertEquals(
+            ConnectFailure.JUMP_AUTH_FAILED,
+            client.classifyJumpFailure(
+                JSchException("Auth fail for methods 'publickey,password'"),
+                SshClient.AuthPlan(shouldUseKey = false, shouldUsePassword = true)
+            )
+        )
+    }
+
+    @Test
+    fun jumpFailure_unreachableBastion_staysAJumpFailure() {
+        assertEquals(
+            ConnectFailure.JUMP_FAILED,
+            client.classifyJumpFailure(
+                JSchException("java.net.ConnectException: Connection refused"),
+                SshClient.AuthPlan(shouldUseKey = true, shouldUsePassword = true)
+            )
+        )
+    }
+
+    @Test
+    fun jumpFailure_timeout_staysAJumpFailure() {
+        assertEquals(
+            ConnectFailure.JUMP_FAILED,
+            client.classifyJumpFailure(
+                JSchException("session is down: timeout"),
+                SshClient.AuthPlan(shouldUseKey = true, shouldUsePassword = true)
+            )
+        )
+    }
+
+    @Test fun notRetryable_jumpAuthFailed() = assertFalse(ConnectFailure.JUMP_AUTH_FAILED.isRetryable)
+
+    // --- the jump leg's auth plan comes from the jump host's preference, not the target's ---
+
+    private fun configWithJump(
+        targetPreference: SshAuthPreference,
+        jumpPreference: SshAuthPreference?,
+        privateKey: String? = "-----BEGIN KEY-----"
+    ) = SshConnectionConfig(
+        host = "ergo", port = 22, username = "larry", password = "pw",
+        authPreference = targetPreference.value,
+        privateKey = privateKey,
+        jumpEnabled = true,
+        jumpHost = "bastion", jumpUsername = "larry", jumpPassword = "jumppw",
+        jumpAuthPreference = jumpPreference?.value
+    )
+
+    /**
+     * The bug itself: with the target key-only, the bastion's own password preference has to
+     * survive, or its stored password is never handed to JSch.
+     */
+    @Test
+    fun jumpAuthPlan_passwordBastion_behindKeyOnlyTarget_keepsPassword() {
+        val plan = client.resolveJumpAuthPlan(
+            configWithJump(SshAuthPreference.KEY, SshAuthPreference.PASSWORD)
+        )
+        assertTrue(plan.shouldUsePassword)
+        assertFalse(plan.shouldUseKey)
+    }
+
+    @Test
+    fun jumpAuthPlan_keyBastion_behindPasswordOnlyTarget_keepsKey() {
+        val plan = client.resolveJumpAuthPlan(
+            configWithJump(SshAuthPreference.PASSWORD, SshAuthPreference.KEY)
+        )
+        assertTrue(plan.shouldUseKey)
+        assertFalse(plan.shouldUsePassword)
+    }
+
+    /** A hand-typed jump server has no saved entry to copy a preference from. */
+    @Test
+    fun jumpAuthPlan_withoutPreference_fallsBackToAuto() {
+        val plan = client.resolveJumpAuthPlan(configWithJump(SshAuthPreference.KEY, null))
+        assertTrue(plan.shouldUseKey)
+        assertTrue(plan.shouldUsePassword)
+    }
+
+    @Test
+    fun jumpAuthPlan_autoWithoutKey_usesPasswordOnly() {
+        val plan = client.resolveJumpAuthPlan(
+            configWithJump(SshAuthPreference.PASSWORD, SshAuthPreference.AUTO, privateKey = null)
+        )
+        assertFalse(plan.shouldUseKey)
+        assertTrue(plan.shouldUsePassword)
+    }
+
+    /** Key-only bastion with no key configured is a settings error, not a connection attempt. */
+    @Test(expected = IllegalStateException::class)
+    fun jumpAuthPlan_keyBastionWithoutKey_fails() {
+        client.resolveJumpAuthPlan(
+            configWithJump(SshAuthPreference.PASSWORD, SshAuthPreference.KEY, privateKey = null)
+        )
+    }
 }

@@ -221,6 +221,7 @@ class TerminalActivity : AppCompatActivity() {
             ConnectFailure.HOST_KEY_MISMATCH -> getString(R.string.connect_error_host_key_mismatch)
             ConnectFailure.HOST_KEY_UNTRUSTED -> getString(R.string.connect_error_host_key_untrusted)
             ConnectFailure.JUMP_FAILED -> getString(R.string.connect_error_jump_failed)
+            ConnectFailure.JUMP_AUTH_FAILED -> getString(R.string.connect_error_jump_auth_failed)
             ConnectFailure.CHANNEL_FAILED -> getString(R.string.connect_error_channel_failed)
             ConnectFailure.UNKNOWN -> getString(R.string.connect_error_unknown, rawMessage)
         }
@@ -257,6 +258,17 @@ class TerminalActivity : AppCompatActivity() {
                 actionButton.setOnClickListener {
                     hideErrorBanner()
                     startActivity(Intent(this, HostEditActivity::class.java).putExtra(HostEditActivity.EXTRA_HOST_ID, config.id))
+                }
+            }
+            ConnectFailure.JUMP_AUTH_FAILED -> {
+                actionButton.setText(R.string.connect_error_action_edit_jump_credentials)
+                actionButton.visibility = android.view.View.VISIBLE
+                actionButton.setOnClickListener {
+                    hideErrorBanner()
+                    // The credentials the bastion refused live in the jump host's own entry when
+                    // one was picked; only a hand-typed jump server is edited on this host.
+                    val hostToEdit = config.jumpHostId?.takeIf { it.isNotBlank() } ?: config.id
+                    startActivity(Intent(this, HostEditActivity::class.java).putExtra(HostEditActivity.EXTRA_HOST_ID, hostToEdit))
                 }
             }
             ConnectFailure.HOST_KEY_MISMATCH -> {

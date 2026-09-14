@@ -46,13 +46,28 @@ data class SshConnectionConfig(
     val jumpHost: String = "",
     val jumpPort: Int = 22,
     val jumpUsername: String = "",
-    val jumpPassword: String = ""
+    val jumpPassword: String = "",
+    /**
+     * The jump host's own authentication preference, copied from its saved host entry by
+     * [SshSettings.resolveJumpServer]. Null for a jump server typed in by hand, which has no
+     * entry to copy from — [resolvedJumpAuthPreference] then falls back to AUTO, so both a
+     * stored password and the key are available to it.
+     */
+    val jumpAuthPreference: String? = null
 ) {
     fun hasJumpServer(): Boolean = jumpEnabled && (
         !jumpHostId.isNullOrBlank() || (jumpHost.isNotBlank() && jumpUsername.isNotBlank())
     )
 
     fun resolvedAuthPreference(): SshAuthPreference = SshAuthPreference.from(authPreference)
+
+    /**
+     * The jump host authenticates as itself: its preference decides the bastion leg, never the
+     * target's. Driving the bastion from the target's preference silently drops a stored bastion
+     * password whenever the target is key-only, leaving JSch nothing to offer and ending the
+     * connect in "Auth cancel".
+     */
+    fun resolvedJumpAuthPreference(): SshAuthPreference = SshAuthPreference.from(jumpAuthPreference)
 
     fun displayTarget(): String {
         val core = when {
@@ -74,6 +89,7 @@ enum class ConnectFailure {
     HOST_KEY_MISMATCH,  // Remote host key has changed since it was trusted — do not connect
     HOST_KEY_UNTRUSTED, // User declined to trust an unknown host key (or the prompt timed out)
     JUMP_FAILED,        // Jump / bastion server connection failed
+    JUMP_AUTH_FAILED,   // Jump / bastion server rejected the credentials
     CHANNEL_FAILED,     // Session authenticated but shell channel failed to open
     UNKNOWN;            // Unclassified error
 
@@ -195,20 +211,35 @@ class SshClient(
         check(!(authPreference == SshAuthPreference.KEY && !hasPrivateKey)) {
             "SSH key preferred but no private key is configured."
         }
-
-        return AuthPlan(
-            shouldUseKey = when (authPreference) {
-                SshAuthPreference.AUTO -> hasPrivateKey
-                SshAuthPreference.PASSWORD -> false
-                SshAuthPreference.KEY -> true
-            },
-            shouldUsePassword = when (authPreference) {
-                SshAuthPreference.AUTO -> true
-                SshAuthPreference.PASSWORD -> true
-                SshAuthPreference.KEY -> false
-            }
-        )
+        return authPlanFor(authPreference, hasPrivateKey)
     }
+
+    /**
+     * The plan for the bastion leg, from the jump host's own preference rather than the
+     * target's. There is one private key in the app, so both legs draw on the same key; only
+     * the password and the permitted methods differ per leg.
+     */
+    internal fun resolveJumpAuthPlan(config: SshConnectionConfig): AuthPlan {
+        val jumpPreference = config.resolvedJumpAuthPreference()
+        val hasPrivateKey = !config.privateKey.isNullOrBlank()
+        check(!(jumpPreference == SshAuthPreference.KEY && !hasPrivateKey)) {
+            "SSH key preferred for the jump host but no private key is configured."
+        }
+        return authPlanFor(jumpPreference, hasPrivateKey)
+    }
+
+    private fun authPlanFor(preference: SshAuthPreference, hasPrivateKey: Boolean) = AuthPlan(
+        shouldUseKey = when (preference) {
+            SshAuthPreference.AUTO -> hasPrivateKey
+            SshAuthPreference.PASSWORD -> false
+            SshAuthPreference.KEY -> true
+        },
+        shouldUsePassword = when (preference) {
+            SshAuthPreference.AUTO -> true
+            SshAuthPreference.PASSWORD -> true
+            SshAuthPreference.KEY -> false
+        }
+    )
 
     /**
      * Unlocks an encrypted key here rather than letting JSch prompt during `connect()`.
@@ -220,8 +251,8 @@ class SshClient(
      * network round-trip. The verified passphrase is then handed to JSch, so it has no reason to
      * call back into [userInfo] mid-connect for this.
      */
-    private fun addPrivateKeyIdentity(jsch: JSch, authPlan: AuthPlan) {
-        if (!authPlan.shouldUseKey) {
+    private fun addPrivateKeyIdentity(jsch: JSch, anyLegUsesKey: Boolean) {
+        if (!anyLegUsesKey) {
             return
         }
         val privateKeyBytes = config.privateKey.orEmpty().toByteArray()
@@ -269,16 +300,16 @@ class SshClient(
         }
     }
 
-    private fun establishJumpSession(jsch: JSch, authPlan: AuthPlan): JumpSessionResult? {
+    private fun establishJumpSession(jsch: JSch, jumpAuthPlan: AuthPlan): JumpSessionResult? {
         if (!config.hasJumpServer()) {
             return null
         }
 
         val createdJumpSession = jsch.getSession(config.jumpUsername, config.jumpHost, config.jumpPort)
-        if (authPlan.shouldUsePassword && config.jumpPassword.isNotBlank()) {
+        if (jumpAuthPlan.shouldUsePassword && config.jumpPassword.isNotBlank()) {
             createdJumpSession.setPassword(config.jumpPassword)
         }
-        configureSession(createdJumpSession, "${config.jumpHost}:${config.jumpPort}")
+        configureSession(createdJumpSession, "${config.jumpHost}:${config.jumpPort}", jumpAuthPlan)
         createdJumpSession.connect(CONNECTION_TIMEOUT_MS)
         val forwardedPort = createdJumpSession.setPortForwardingL(0, config.host, config.port)
         return JumpSessionResult(createdJumpSession, forwardedPort)
@@ -297,7 +328,7 @@ class SshClient(
         // Always alias the host-key check to the real endpoint, never the tunneled
         // 127.0.0.1/forwarded-port pair used when connecting through a jump host — otherwise
         // TOFU prompts and the known-hosts store would key off the wrong, meaningless host.
-        configureSession(createdSession, "${config.host}:${config.port}")
+        configureSession(createdSession, "${config.host}:${config.port}", authPlan)
         createdSession.connect(CONNECTION_TIMEOUT_MS)
         return createdSession
     }
@@ -325,13 +356,23 @@ class SshClient(
             userInfo.trackingRepo = trackingRepo
         }
         val authPlan = resolveAuthPlan(config)
-        addPrivateKeyIdentity(jsch, authPlan)
-
-        val jumpResult = if (config.hasJumpServer()) {
+        val jumpAuthPlan = if (config.hasJumpServer()) {
             try {
-                establishJumpSession(jsch, authPlan)
+                resolveJumpAuthPlan(config)
             } catch (e: Exception) {
+                // A jump host set to key-only with no key configured: a settings problem on the
+                // bastion, reported as one rather than as a failed connection attempt.
                 throw ConnectionFailureException(ConnectFailure.JUMP_FAILED, e)
+            }
+        } else null
+
+        addPrivateKeyIdentity(jsch, authPlan.shouldUseKey || jumpAuthPlan?.shouldUseKey == true)
+
+        val jumpResult = if (jumpAuthPlan != null) {
+            try {
+                establishJumpSession(jsch, jumpAuthPlan)
+            } catch (e: Exception) {
+                throw ConnectionFailureException(classifyJumpFailure(e, jumpAuthPlan), e)
             }
         } else null
 
@@ -347,6 +388,25 @@ class SshClient(
 
         return ConnectedSessionPair(targetSession, jumpResult?.session, jumpResult?.forwardedPort)
     }
+
+    /**
+     * Classify a failure on the bastion leg.
+     *
+     * Credentials the bastion refused — or that we never had to offer it — are their own
+     * failure, because "check bastion host settings" sends the user to the wrong thing when the
+     * real answer is a password or key the jump host doesn't accept. A wrong key passphrase
+     * never reaches here: the key is unlocked in [addPrivateKeyIdentity], before either leg
+     * connects.
+     *
+     * Host-key failures on the bastion still collapse into [ConnectFailure.JUMP_FAILED]: their
+     * action opens the host-key screen filtered by the *target's* address, which would show an
+     * empty list for a bastion key.
+     */
+    internal fun classifyJumpFailure(e: Throwable, jumpAuthPlan: AuthPlan): ConnectFailure =
+        when (classifyException(e, jumpAuthPlan)) {
+            ConnectFailure.AUTH_KEY, ConnectFailure.AUTH_PASSWORD -> ConnectFailure.JUMP_AUTH_FAILED
+            else -> ConnectFailure.JUMP_FAILED
+        }
 
     internal fun classifyException(
         e: Throwable,
@@ -401,10 +461,22 @@ class SshClient(
         }
     }
 
-    private fun configureSession(session: Session, hostKeyAlias: String) {
+    private fun configureSession(session: Session, hostKeyAlias: String, authPlan: AuthPlan) {
         session.setConfig("StrictHostKeyChecking", "ask")
         session.setHostKeyAlias(hostKeyAlias)
         session.setUserInfo(userInfo)
+        // Identities live on the JSch instance, which both legs share, so the key is offered to
+        // every session once it has been added for either. Restricting the methods per session
+        // is what keeps each leg to what its own preference allows — and it lists only what this
+        // client can actually perform, so JSch never falls through to a method that would end in
+        // "Auth cancel" ([DialogUserInfo] answers no prompt).
+        val methods = buildList {
+            if (authPlan.shouldUseKey) add("publickey")
+            if (authPlan.shouldUsePassword) add("password")
+        }
+        if (methods.isNotEmpty()) {
+            session.setConfig("PreferredAuthentications", methods.joinToString(","))
+        }
         // Use Bouncy Castle for Ed25519 so ssh-ed25519 host keys work on all Android
         // versions. Android JCE only supports EdDSA from API 33; the BC implementation
         // works from the app's minSdk (26) onward.

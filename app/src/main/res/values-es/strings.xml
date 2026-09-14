@@ -497,11 +497,13 @@
     <string name="connect_error_host_key_mismatch">La clave del host no coincide: la clave remota ha cambiado. No te conectes hasta verificarlo.</string>
     <string name="connect_error_host_key_untrusted">La clave del host no es de confianza: conexión cancelada.</string>
     <string name="connect_error_jump_failed">Falló la conexión con el servidor de salto: revisa los ajustes del host bastión.</string>
+    <string name="connect_error_jump_auth_failed">El servidor de salto rechazó las credenciales: revisa el usuario, la contraseña o la clave del host bastión.</string>
     <string name="connect_error_channel_failed">No se pudo abrir el canal de shell tras la autenticación.</string>
     <string name="connect_error_unknown">Error de conexión: %1$s</string>
     <string name="connect_error_action_try_password">Probar contraseña</string>
     <string name="connect_error_action_edit_credentials">Editar credenciales</string>
     <string name="connect_error_action_edit_jump_host">Editar host de salto</string>
+    <string name="connect_error_action_edit_jump_credentials">Editar credenciales de salto</string>
     <string name="connect_error_action_view_host_key">Ver clave del host</string>
 
     <!-- Plurals -->
