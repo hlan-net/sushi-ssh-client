@@ -17,13 +17,30 @@ object ExecuteDirective {
     private val DIRECTIVE_LINE = Regex("^[ \\t]*EXECUTE:.*(?:\\r?\\n)?", RegexOption.MULTILINE)
 
     /**
+     * A directive whose command the model put on the next line instead of after the marker.
+     * Both [parse] and [strip] work line by line, so such a directive would otherwise parse as
+     * empty while [strip] still removed the marker — the command would vanish silently into the
+     * text shown to the user. Joining the two lines first keeps the two in agreement.
+     */
+    private val SPLIT_DIRECTIVE = Regex(
+        "^([ \\t]*EXECUTE:)[ \\t]*\\r?\\n[ \\t]*(?=\\S)",
+        RegexOption.MULTILINE
+    )
+
+    /** [response] with a command on the line below its `EXECUTE:` marker pulled up onto it. */
+    private fun joinSplitDirectives(response: String): String =
+        SPLIT_DIRECTIVE.replace(response, "$1 ")
+
+    /**
      * First command requested in [response], or null when it contains no directive.
      *
      * Surrounding backticks are stripped: models frequently wrap the command in inline code
      * even when asked not to, and the backticks would otherwise reach the shell.
      */
     fun parse(response: String): String? {
-        val raw = DIRECTIVE.find(response)?.groupValues?.get(1)?.trim() ?: return null
+        val raw = DIRECTIVE.find(joinSplitDirectives(response))
+            ?.groupValues?.get(1)?.trim()
+            ?: return null
         val unwrapped = raw.trim('`').trim()
         return unwrapped.ifBlank { null }
     }
@@ -33,7 +50,7 @@ object ExecuteDirective {
      * Runs of blank lines left behind by the removal are collapsed.
      */
     fun strip(response: String): String {
-        return DIRECTIVE_LINE.replace(response, "")
+        return DIRECTIVE_LINE.replace(joinSplitDirectives(response), "")
             .replace(Regex("\n{3,}"), "\n\n")
             .trim()
     }

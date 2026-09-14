@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.hlan.sushi.databinding.ActivityCommandHistoryBinding
@@ -71,7 +72,7 @@ class CommandHistoryActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) {
                 searchQuery = s?.toString().orEmpty()
-                reload()
+                reload(debounce = true)
             }
         })
 
@@ -93,11 +94,23 @@ class CommandHistoryActivity : AppCompatActivity() {
         }
     }
 
-    private fun reload() {
+    /**
+     * Query the history and render the result.
+     *
+     * @param debounce wait [SEARCH_DEBOUNCE_MS] before querying, so a burst of keystrokes runs
+     *   one query instead of one per character. Cancelling the previous job only helps for the
+     *   UI update — by then its [CommandHistoryDatabaseHelper.search] has already scanned up to
+     *   [CommandHistoryDatabaseHelper.DEFAULT_LIST_LIMIT] rows — but a job cancelled while
+     *   still in the delay never reaches the database at all.
+     */
+    private fun reload(debounce: Boolean = false) {
         val query = searchQuery
         val hostId = hostFilterId
         reloadJob?.cancel()
         reloadJob = lifecycleScope.launch(Dispatchers.IO) {
+            if (debounce) {
+                delay(SEARCH_DEBOUNCE_MS)
+            }
             val entries = runCatching { db.search(query, hostId) }.getOrDefault(emptyList())
             withContext(Dispatchers.Main) {
                 adapter.submitList(entries)
@@ -291,6 +304,9 @@ class CommandHistoryActivity : AppCompatActivity() {
     }
 
     companion object {
+        /** How long to let the search field settle before querying the database. */
+        private const val SEARCH_DEBOUNCE_MS = 250L
+
         /** Result extra carrying the command the user asked to re-run. */
         const val EXTRA_RERUN_COMMAND = "extra_rerun_command"
 

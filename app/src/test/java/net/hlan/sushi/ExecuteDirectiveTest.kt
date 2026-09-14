@@ -74,6 +74,25 @@ class ExecuteDirectiveTest {
     }
 
     @Test
+    fun parse_findsCommandOnLineBelowMarker() {
+        val response = "Let me look at the disk.\nEXECUTE:\ndf -h\nBack shortly."
+
+        assertEquals("df -h", ExecuteDirective.parse(response))
+    }
+
+    @Test
+    fun strip_removesBothLinesOfSplitDirective() {
+        val response = "Let me look at the disk.\nEXECUTE:\ndf -h\nBack shortly."
+
+        assertEquals("Let me look at the disk.\nBack shortly.", ExecuteDirective.strip(response))
+    }
+
+    @Test
+    fun parse_ignoresMarkerFollowedByBlankLine() {
+        assertNull(ExecuteDirective.parse("EXECUTE:\n\nNothing to run after all."))
+    }
+
+    @Test
     fun strip_removesEveryDirective() {
         val response = "First.\nEXECUTE: a\nSecond.\nEXECUTE: b\nThird."
 
