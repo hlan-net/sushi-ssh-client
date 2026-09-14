@@ -105,14 +105,18 @@ object PlayRunner {
 
     /**
      * Whether rendering [parameters] with [effectiveValues] substitutes a secret into the
-     * command — the test for [PlayRunResult.carriesSecretValues]. A secret parameter left blank
-     * puts nothing in the command, so it does not count.
+     * command — the test for [PlayRunResult.carriesSecretValues].
+     *
+     * Empty, not blank: [ShellUtils.shellQuote] renders a whitespace-only value as `' '`, so the
+     * secret does reach the command and must not reach the history. Only a secret with nothing
+     * at all to substitute leaves the command free of it. (A *required* whitespace-only secret is
+     * rejected before execution by the blank check above; an optional one is not.)
      */
     internal fun carriesSecretValues(
         parameters: List<PlayParameter>,
         effectiveValues: Map<String, String>
     ): Boolean = parameters.any { parameter ->
-        parameter.secret && !effectiveValues[parameter.key].isNullOrBlank()
+        parameter.secret && !effectiveValues[parameter.key].isNullOrEmpty()
     }
 
     private fun renderTemplate(template: String, values: Map<String, String>): String {

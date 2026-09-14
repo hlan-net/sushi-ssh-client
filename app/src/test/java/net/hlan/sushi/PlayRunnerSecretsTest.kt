@@ -48,6 +48,18 @@ class PlayRunnerSecretsTest {
     }
 
     @Test
+    fun whitespaceOnlySecret_carriesSecret() {
+        // shellQuote renders "   " as '   ', so the secret reaches the command — and an optional
+        // secret is not rejected by the required-value check the way a required one is.
+        assertTrue(
+            PlayRunner.carriesSecretValues(
+                listOf(PlayParameter("token", "Token", required = false, secret = true)),
+                mapOf("token" to "   ")
+            )
+        )
+    }
+
+    @Test
     fun secretFromDefaultValue_carriesSecret() {
         // PlayRunner resolves a missing value to the parameter default before this check.
         val token = PlayParameter("token", "Token", secret = true, default = "abc123")
