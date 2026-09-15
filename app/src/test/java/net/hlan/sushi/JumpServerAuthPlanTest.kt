@@ -3,6 +3,7 @@ package net.hlan.sushi
 import com.jcraft.jsch.UserInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -181,6 +182,77 @@ class JumpServerAuthPlanTest {
             "publickey,keyboard-interactive,password",
             client.preferredAuthentications(client.resolveJumpAuthPlan(config))
         )
+    }
+
+    // --- what each session is actually configured with ---
+
+    /**
+     * The wiring itself, not just the plans behind it. Swapping the jump session back to the
+     * target's plan — for `setPassword`, for `PreferredAuthentications`, or for the host-key
+     * alias — leaves every assertion above green, so the decision each session is built from is
+     * asserted here directly.
+     *
+     * This is the reported failure's configuration: key-auth target, password-auth bastion.
+     */
+    @Test
+    fun keyTargetPasswordBastion_configuresEachSessionFromItsOwnHost() {
+        val client = clientFor(config(SshAuthPreference.KEY, SshAuthPreference.PASSWORD.value))
+
+        val jump = client.jumpSessionSetup()!!
+        assertEquals("bastion-password", jump.password)
+        assertEquals("keyboard-interactive,password", jump.preferredAuthentications)
+        assertEquals("bastion:22", jump.hostKeyAlias)
+        assertEquals("larry", jump.username)
+
+        val target = client.targetSessionSetup()
+        assertNull("a key-only target must not be handed a password", target.password)
+        assertEquals("publickey", target.preferredAuthentications)
+        assertEquals("ergo:22", target.hostKeyAlias)
+    }
+
+    /** The mirror direction, which is also when the shared key gets loaded for a password-only hop. */
+    @Test
+    fun passwordTargetKeyBastion_configuresEachSessionFromItsOwnHost() {
+        val client = clientFor(config(SshAuthPreference.PASSWORD, SshAuthPreference.KEY.value))
+
+        val jump = client.jumpSessionSetup()!!
+        assertNull("a key-only bastion must not be handed a password", jump.password)
+        assertEquals("publickey", jump.preferredAuthentications)
+
+        val target = client.targetSessionSetup()
+        assertEquals("target-password", target.password)
+        assertEquals("keyboard-interactive,password", target.preferredAuthentications)
+    }
+
+    /**
+     * The host-key alias stays the real endpoint even though the target is dialled through
+     * 127.0.0.1 and a forwarded port, so TOFU and known_hosts key off the host the user named.
+     */
+    @Test
+    fun targetAlias_namesTheRealEndpointNotTheTunnel() {
+        val client = clientFor(config(SshAuthPreference.AUTO, SshAuthPreference.AUTO.value))
+
+        assertEquals("ergo:22", client.targetSessionSetup().hostKeyAlias)
+    }
+
+    /** A password the plan permits but the host never stored must not be offered as empty. */
+    @Test
+    fun blankPassword_isNotHandedToTheSession() {
+        val config = config(SshAuthPreference.AUTO, SshAuthPreference.AUTO.value)
+            .copy(password = "", jumpPassword = "")
+        val client = clientFor(config)
+
+        assertNull(client.targetSessionSetup().password)
+        assertNull(client.jumpSessionSetup()!!.password)
+    }
+
+    /** No jump host means no jump session — the null is what makes the connect path skip it. */
+    @Test
+    fun withoutAJumpHost_thereIsNoJumpSetup() {
+        val config = config(SshAuthPreference.AUTO, SshAuthPreference.AUTO.value)
+            .copy(jumpEnabled = false)
+
+        assertNull(clientFor(config).jumpSessionSetup())
     }
 
     /** An empty list would leave a session with no method at all; no preference may produce one. */

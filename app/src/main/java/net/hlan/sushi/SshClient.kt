@@ -291,39 +291,83 @@ class SshClient(
         }
     }
 
-    private fun establishJumpSession(jsch: JSch): JumpSessionResult? {
+    /**
+     * Everything a session is given before it connects, resolved from the host it stands for.
+     *
+     * Each hop is a saved host with its own identity, methods and password, and this is where
+     * that is decided. It exists as one value so the decision is testable on its own: the bug
+     * being fixed here was the jump session configured from the *target's* plan, and a test that
+     * checked only the plans would not notice it coming back — nothing between the plan and
+     * `connect()` was covered.
+     */
+    internal data class SessionSetup(
+        val username: String,
+        val host: String,
+        val port: Int,
+        val hostKeyAlias: String,
+        val preferredAuthentications: String,
+        /** Null when the plan permits no password, or the host has none stored. */
+        val password: String?
+    )
+
+    internal fun targetSessionSetup(): SessionSetup {
+        val authPlan = resolveAuthPlan(config)
+        return SessionSetup(
+            username = config.username,
+            host = config.host,
+            port = config.port,
+            // Always alias the host-key check to the real endpoint, never the tunneled
+            // 127.0.0.1/forwarded-port pair used when connecting through a jump host — otherwise
+            // TOFU prompts and the known-hosts store would key off the wrong, meaningless host.
+            hostKeyAlias = "${config.host}:${config.port}",
+            preferredAuthentications = preferredAuthentications(authPlan),
+            password = config.password.takeIf { authPlan.shouldUsePassword && it.isNotBlank() }
+        )
+    }
+
+    /** Null when this host has no jump server, which is what tells [establishJumpSession] to skip. */
+    internal fun jumpSessionSetup(): SessionSetup? {
         if (!config.hasJumpServer()) {
             return null
         }
-
         val jumpAuthPlan = resolveJumpAuthPlan(config)
-        val createdJumpSession = jsch.getSession(config.jumpUsername, config.jumpHost, config.jumpPort)
-        if (jumpAuthPlan.shouldUsePassword && config.jumpPassword.isNotBlank()) {
-            createdJumpSession.setPassword(config.jumpPassword)
-        }
-        configureSession(createdJumpSession, "${config.jumpHost}:${config.jumpPort}", jumpAuthPlan)
-        createdJumpSession.connect(CONNECTION_TIMEOUT_MS)
+        return SessionSetup(
+            username = config.jumpUsername,
+            host = config.jumpHost,
+            port = config.jumpPort,
+            hostKeyAlias = "${config.jumpHost}:${config.jumpPort}",
+            preferredAuthentications = preferredAuthentications(jumpAuthPlan),
+            password = config.jumpPassword.takeIf { jumpAuthPlan.shouldUsePassword && it.isNotBlank() }
+        )
+    }
+
+    /**
+     * [dialHost]/[dialPort] are separate from the setup's own address because the target is
+     * reached through 127.0.0.1 and the forwarded port when a jump host is in play, while
+     * everything it is verified and authenticated as still comes from the real host.
+     */
+    private fun openSession(
+        jsch: JSch,
+        setup: SessionSetup,
+        dialHost: String,
+        dialPort: Int
+    ): Session {
+        val createdSession = jsch.getSession(setup.username, dialHost, dialPort)
+        setup.password?.let { createdSession.setPassword(it) }
+        configureSession(createdSession, setup)
+        createdSession.connect(CONNECTION_TIMEOUT_MS)
+        return createdSession
+    }
+
+    private fun establishJumpSession(jsch: JSch): JumpSessionResult? {
+        val setup = jumpSessionSetup() ?: return null
+        val createdJumpSession = openSession(jsch, setup, setup.host, setup.port)
         val forwardedPort = createdJumpSession.setPortForwardingL(0, config.host, config.port)
         return JumpSessionResult(createdJumpSession, forwardedPort)
     }
 
-    private fun establishTargetSession(
-        jsch: JSch,
-        targetHost: String,
-        targetPort: Int,
-        authPlan: AuthPlan
-    ): Session {
-        val createdSession = jsch.getSession(config.username, targetHost, targetPort)
-        if (authPlan.shouldUsePassword && config.password.isNotBlank()) {
-            createdSession.setPassword(config.password)
-        }
-        // Always alias the host-key check to the real endpoint, never the tunneled
-        // 127.0.0.1/forwarded-port pair used when connecting through a jump host — otherwise
-        // TOFU prompts and the known-hosts store would key off the wrong, meaningless host.
-        configureSession(createdSession, "${config.host}:${config.port}", authPlan)
-        createdSession.connect(CONNECTION_TIMEOUT_MS)
-        return createdSession
-    }
+    private fun establishTargetSession(jsch: JSch, targetHost: String, targetPort: Int): Session =
+        openSession(jsch, targetSessionSetup(), targetHost, targetPort)
 
     private fun openShellChannel(createdSession: Session): ChannelShell {
         val channel = createdSession.openChannel("shell") as? ChannelShell
@@ -372,7 +416,7 @@ class SshClient(
         val targetPort = jumpResult?.forwardedPort ?: config.port
 
         val targetSession = try {
-            establishTargetSession(jsch, targetHost, targetPort, authPlan)
+            establishTargetSession(jsch, targetHost, targetPort)
         } catch (e: Exception) {
             jumpResult?.session?.disconnect()
             throw ConnectionFailureException(classifyException(e, authPlan), e)
@@ -462,10 +506,10 @@ class SshClient(
         }
     }.joinToString(",")
 
-    private fun configureSession(session: Session, hostKeyAlias: String, authPlan: AuthPlan) {
+    private fun configureSession(session: Session, setup: SessionSetup) {
         session.setConfig("StrictHostKeyChecking", "ask")
-        session.setConfig("PreferredAuthentications", preferredAuthentications(authPlan))
-        session.setHostKeyAlias(hostKeyAlias)
+        session.setConfig("PreferredAuthentications", setup.preferredAuthentications)
+        session.setHostKeyAlias(setup.hostKeyAlias)
         session.setUserInfo(userInfo)
         // Use Bouncy Castle for Ed25519 so ssh-ed25519 host keys work on all Android
         // versions. Android JCE only supports EdDSA from API 33; the BC implementation
