@@ -46,13 +46,16 @@ data class SshConnectionConfig(
     val jumpHost: String = "",
     val jumpPort: Int = 22,
     val jumpUsername: String = "",
-    val jumpPassword: String = ""
+    val jumpPassword: String = "",
+    val jumpAuthPreference: String? = SshAuthPreference.AUTO.value
 ) {
     fun hasJumpServer(): Boolean = jumpEnabled && (
         !jumpHostId.isNullOrBlank() || (jumpHost.isNotBlank() && jumpUsername.isNotBlank())
     )
 
     fun resolvedAuthPreference(): SshAuthPreference = SshAuthPreference.from(authPreference)
+
+    fun resolvedJumpAuthPreference(): SshAuthPreference = SshAuthPreference.from(jumpAuthPreference)
 
     fun displayTarget(): String {
         val core = when {
@@ -189,9 +192,28 @@ class SshClient(
         }
     }
 
-    private fun resolveAuthPlan(config: SshConnectionConfig): AuthPlan {
-        val authPreference = config.resolvedAuthPreference()
-        val hasPrivateKey = !config.privateKey.isNullOrBlank()
+    private fun resolveAuthPlan(config: SshConnectionConfig): AuthPlan =
+        resolveAuthPlan(config.resolvedAuthPreference(), !config.privateKey.isNullOrBlank())
+
+    /**
+     * The jump host is a saved host in its own right, so its methods come from *its* auth
+     * preference — not the target's.
+     *
+     * Deriving them from the target meant a key-auth target suppressed the bastion's password:
+     * [establishJumpSession] skipped `setPassword`, JSch fell through to its UserInfo, which
+     * declines to prompt, and the connection died as `Auth cancel for methods
+     * 'publickey,password'` behind a "check bastion host settings" banner.
+     *
+     * The private key stays app-wide (`SshSettings.getPrivateKey`), so both plans read the same
+     * key; only the preference differs.
+     */
+    internal fun resolveJumpAuthPlan(config: SshConnectionConfig): AuthPlan =
+        resolveAuthPlan(config.resolvedJumpAuthPreference(), !config.privateKey.isNullOrBlank())
+
+    internal fun resolveAuthPlan(
+        authPreference: SshAuthPreference,
+        hasPrivateKey: Boolean
+    ): AuthPlan {
         check(!(authPreference == SshAuthPreference.KEY && !hasPrivateKey)) {
             "SSH key preferred but no private key is configured."
         }
@@ -220,8 +242,8 @@ class SshClient(
      * network round-trip. The verified passphrase is then handed to JSch, so it has no reason to
      * call back into [userInfo] mid-connect for this.
      */
-    private fun addPrivateKeyIdentity(jsch: JSch, authPlan: AuthPlan) {
-        if (!authPlan.shouldUseKey) {
+    private fun addPrivateKeyIdentity(jsch: JSch, shouldUseKey: Boolean) {
+        if (!shouldUseKey) {
             return
         }
         val privateKeyBytes = config.privateKey.orEmpty().toByteArray()
@@ -269,38 +291,85 @@ class SshClient(
         }
     }
 
-    private fun establishJumpSession(jsch: JSch, authPlan: AuthPlan): JumpSessionResult? {
+    /**
+     * Everything a session is given before it connects, resolved from the host it stands for.
+     *
+     * Each hop is a saved host with its own identity, methods and password, and this is where
+     * that is decided. It exists as one value so the decision is testable on its own: the bug
+     * being fixed here was the jump session configured from the *target's* plan, and a test that
+     * checked only the plans would not notice it coming back — nothing between the plan and
+     * `connect()` was covered.
+     */
+    internal data class SessionSetup(
+        val username: String,
+        val host: String,
+        val port: Int,
+        val hostKeyAlias: String,
+        val preferredAuthentications: String,
+        /** Null when the plan permits no password, or the host has none stored. */
+        val password: String?
+    )
+
+    internal fun targetSessionSetup(): SessionSetup {
+        val authPlan = resolveAuthPlan(config)
+        return SessionSetup(
+            username = config.username,
+            host = config.host,
+            port = config.port,
+            // Always alias the host-key check to the real endpoint, never the tunneled
+            // 127.0.0.1/forwarded-port pair used when connecting through a jump host — otherwise
+            // TOFU prompts and the known-hosts store would key off the wrong, meaningless host.
+            hostKeyAlias = "${config.host}:${config.port}",
+            preferredAuthentications = preferredAuthentications(authPlan),
+            password = config.password.takeIf { authPlan.shouldUsePassword && it.isNotBlank() }
+        )
+    }
+
+    /** Null when this host has no jump server, which is what tells [establishJumpSession] to skip. */
+    internal fun jumpSessionSetup(): SessionSetup? {
         if (!config.hasJumpServer()) {
             return null
         }
+        val jumpAuthPlan = resolveJumpAuthPlan(config)
+        return SessionSetup(
+            username = config.jumpUsername,
+            host = config.jumpHost,
+            port = config.jumpPort,
+            hostKeyAlias = "${config.jumpHost}:${config.jumpPort}",
+            preferredAuthentications = preferredAuthentications(jumpAuthPlan),
+            password = config.jumpPassword.takeIf { jumpAuthPlan.shouldUsePassword && it.isNotBlank() }
+        )
+    }
 
-        val createdJumpSession = jsch.getSession(config.jumpUsername, config.jumpHost, config.jumpPort)
-        if (authPlan.shouldUsePassword && config.jumpPassword.isNotBlank()) {
-            createdJumpSession.setPassword(config.jumpPassword)
-        }
-        configureSession(createdJumpSession, "${config.jumpHost}:${config.jumpPort}")
-        createdJumpSession.connect(CONNECTION_TIMEOUT_MS)
+    /**
+     * [dialHost]/[dialPort] are separate from the setup's own address because the target is
+     * reached through 127.0.0.1 and the forwarded port when a jump host is in play, while
+     * everything it is verified and authenticated as still comes from the real host.
+     */
+    private fun openSession(
+        jsch: JSch,
+        setup: SessionSetup,
+        dialHost: String,
+        dialPort: Int
+    ): Session {
+        val createdSession = jsch.getSession(setup.username, dialHost, dialPort)
+        // The String overload is deprecated in JSch 2.28.7; it encodes with Util.str2byte, which
+        // is UTF-8, so toByteArray() hands over the same bytes.
+        setup.password?.let { createdSession.setPassword(it.toByteArray()) }
+        configureSession(createdSession, setup)
+        createdSession.connect(CONNECTION_TIMEOUT_MS)
+        return createdSession
+    }
+
+    private fun establishJumpSession(jsch: JSch): JumpSessionResult? {
+        val setup = jumpSessionSetup() ?: return null
+        val createdJumpSession = openSession(jsch, setup, setup.host, setup.port)
         val forwardedPort = createdJumpSession.setPortForwardingL(0, config.host, config.port)
         return JumpSessionResult(createdJumpSession, forwardedPort)
     }
 
-    private fun establishTargetSession(
-        jsch: JSch,
-        targetHost: String,
-        targetPort: Int,
-        authPlan: AuthPlan
-    ): Session {
-        val createdSession = jsch.getSession(config.username, targetHost, targetPort)
-        if (authPlan.shouldUsePassword && config.password.isNotBlank()) {
-            createdSession.setPassword(config.password)
-        }
-        // Always alias the host-key check to the real endpoint, never the tunneled
-        // 127.0.0.1/forwarded-port pair used when connecting through a jump host — otherwise
-        // TOFU prompts and the known-hosts store would key off the wrong, meaningless host.
-        configureSession(createdSession, "${config.host}:${config.port}")
-        createdSession.connect(CONNECTION_TIMEOUT_MS)
-        return createdSession
-    }
+    private fun establishTargetSession(jsch: JSch, targetHost: String, targetPort: Int): Session =
+        openSession(jsch, targetSessionSetup(), targetHost, targetPort)
 
     private fun openShellChannel(createdSession: Session): ChannelShell {
         val channel = createdSession.openChannel("shell") as? ChannelShell
@@ -325,11 +394,21 @@ class SshClient(
             userInfo.trackingRepo = trackingRepo
         }
         val authPlan = resolveAuthPlan(config)
-        addPrivateKeyIdentity(jsch, authPlan)
+        // Identities are held per JSch instance and offered on every hop, so the key has to be
+        // loaded when *either* hop wants it: a password-auth target in front of a key-auth
+        // bastion would otherwise reach the bastion with nothing to offer. A jump preference of
+        // KEY with no key configured throws here; swallowing it leaves the report to
+        // establishJumpSession, which resolves the same plan inside the JUMP_FAILED try below.
+        val jumpAuthPlan = if (config.hasJumpServer()) {
+            runCatching { resolveJumpAuthPlan(config) }.getOrNull()
+        } else {
+            null
+        }
+        addPrivateKeyIdentity(jsch, authPlan.shouldUseKey || jumpAuthPlan?.shouldUseKey == true)
 
         val jumpResult = if (config.hasJumpServer()) {
             try {
-                establishJumpSession(jsch, authPlan)
+                establishJumpSession(jsch)
             } catch (e: Exception) {
                 throw ConnectionFailureException(ConnectFailure.JUMP_FAILED, e)
             }
@@ -339,7 +418,7 @@ class SshClient(
         val targetPort = jumpResult?.forwardedPort ?: config.port
 
         val targetSession = try {
-            establishTargetSession(jsch, targetHost, targetPort, authPlan)
+            establishTargetSession(jsch, targetHost, targetPort)
         } catch (e: Exception) {
             jumpResult?.session?.disconnect()
             throw ConnectionFailureException(classifyException(e, authPlan), e)
@@ -401,9 +480,38 @@ class SshClient(
         }
     }
 
-    private fun configureSession(session: Session, hostKeyAlias: String) {
+    /**
+     * The methods a session may offer, from its own plan.
+     *
+     * Identities live on the shared [JSch] instance and JSch's default
+     * `PreferredAuthentications` includes `publickey`, so a plan's `shouldUseKey = false` only
+     * takes effect if the session is told not to offer the key. That used to be implicit — the
+     * key was simply never loaded — but it has to be loaded once either hop needs it, so the
+     * restriction is now explicit per session. Without it a host set to Password would
+     * authenticate with the key anyway, and a server with a low `MaxAuthTries` could run out of
+     * attempts before password was reached.
+     *
+     * `keyboard-interactive` rides along with password as it does in JSch's default list. It is
+     * inert until a `UserInfo` implements `UIKeyboardInteractive`, which [DialogUserInfo] does
+     * not; it is listed so enabling that later needs no change here.
+     *
+     * Every [AuthPlan] permits at least one method — [resolveAuthPlan] has no branch where both
+     * are false — so this never produces an empty list.
+     */
+    internal fun preferredAuthentications(authPlan: AuthPlan): String = buildList {
+        if (authPlan.shouldUseKey) {
+            add("publickey")
+        }
+        if (authPlan.shouldUsePassword) {
+            add("keyboard-interactive")
+            add("password")
+        }
+    }.joinToString(",")
+
+    private fun configureSession(session: Session, setup: SessionSetup) {
         session.setConfig("StrictHostKeyChecking", "ask")
-        session.setHostKeyAlias(hostKeyAlias)
+        session.setConfig("PreferredAuthentications", setup.preferredAuthentications)
+        session.setHostKeyAlias(setup.hostKeyAlias)
         session.setUserInfo(userInfo)
         // Use Bouncy Castle for Ed25519 so ssh-ed25519 host keys work on all Android
         // versions. Android JCE only supports EdDSA from API 33; the BC implementation
