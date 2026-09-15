@@ -353,7 +353,9 @@ class SshClient(
         dialPort: Int
     ): Session {
         val createdSession = jsch.getSession(setup.username, dialHost, dialPort)
-        setup.password?.let { createdSession.setPassword(it) }
+        // The String overload is deprecated in JSch 2.28.7; it encodes with Util.str2byte, which
+        // is UTF-8, so toByteArray() hands over the same bytes.
+        setup.password?.let { createdSession.setPassword(it.toByteArray()) }
         configureSession(createdSession, setup)
         createdSession.connect(CONNECTION_TIMEOUT_MS)
         return createdSession
