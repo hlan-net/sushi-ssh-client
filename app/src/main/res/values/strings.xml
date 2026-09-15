@@ -61,6 +61,11 @@
     <string name="action_send_enter">Send Enter</string>
     <string name="action_send_tab">Send Tab</string>
     <string name="action_send_backspace">Send Backspace</string>
+    <!-- Arrow glyphs carry no language. -->
+    <string name="action_send_arrow_up" translatable="false">\u2191</string>
+    <string name="action_send_arrow_down" translatable="false">\u2193</string>
+    <string name="action_send_arrow_up_desc">Previous command</string>
+    <string name="action_send_arrow_down_desc">Next command</string>
     <string name="action_run_command_running">Running...</string>
     <string name="action_send_ctrl_c">Ctrl+C</string>
     <string name="action_send_ctrl_d">Ctrl+D</string>

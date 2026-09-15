@@ -56,6 +56,8 @@
     <string name="action_send_enter">Lähetä Enter</string>
     <string name="action_send_tab">Lähetä Tab</string>
     <string name="action_send_backspace">Lähetä askelpalautin</string>
+    <string name="action_send_arrow_up_desc">Edellinen komento</string>
+    <string name="action_send_arrow_down_desc">Seuraava komento</string>
     <string name="action_run_command_running">Suoritetaan...</string>
     <string name="action_send_ctrl_c">Ctrl+C</string>
     <string name="action_send_ctrl_d">Ctrl+D</string>

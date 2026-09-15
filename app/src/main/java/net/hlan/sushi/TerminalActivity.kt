@@ -89,6 +89,12 @@ class TerminalActivity : AppCompatActivity() {
         binding.terminalBackspaceButton.setOnClickListener {
             sendRaw("\b")
         }
+        binding.terminalArrowUpButton.setOnClickListener {
+            sendRaw(TerminalView.CURSOR_UP)
+        }
+        binding.terminalArrowDownButton.setOnClickListener {
+            sendRaw(TerminalView.CURSOR_DOWN)
+        }
         binding.terminalCtrlCButton.setOnClickListener {
             sshClient?.sendCtrlC()
         }
@@ -410,6 +416,8 @@ class TerminalActivity : AppCompatActivity() {
         binding.terminalEnterButton.isEnabled = canInput
         binding.terminalTabButton.isEnabled = canInput
         binding.terminalBackspaceButton.isEnabled = canInput
+        binding.terminalArrowUpButton.isEnabled = canInput
+        binding.terminalArrowDownButton.isEnabled = canInput
         binding.terminalCtrlCButton.isEnabled = canInput
         binding.terminalCtrlDButton.isEnabled = canInput
         binding.terminalPasteButton.isEnabled = canInput

@@ -96,6 +96,32 @@
         android:orientation="horizontal">
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/terminalArrowUpButton"
+            style="@style/Widget.Sushi.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:contentDescription="@string/action_send_arrow_up_desc"
+            android:text="@string/action_send_arrow_up" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/terminalArrowDownButton"
+            style="@style/Widget.Sushi.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:contentDescription="@string/action_send_arrow_down_desc"
+            android:text="@string/action_send_arrow_down" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/terminalEnterButton"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
@@ -120,6 +146,7 @@
             android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:text="@string/action_send_backspace" />
+
     </LinearLayout>
 
     <LinearLayout

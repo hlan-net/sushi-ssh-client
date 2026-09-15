@@ -56,6 +56,8 @@
     <string name="action_send_enter">Enter senden</string>
     <string name="action_send_tab">Tab senden</string>
     <string name="action_send_backspace">Rücktaste senden</string>
+    <string name="action_send_arrow_up_desc">Vorheriger Befehl</string>
+    <string name="action_send_arrow_down_desc">Nächster Befehl</string>
     <string name="action_run_command_running">Läuft...</string>
     <string name="action_send_ctrl_c">Ctrl+C</string>
     <string name="action_send_ctrl_d">Ctrl+D</string>

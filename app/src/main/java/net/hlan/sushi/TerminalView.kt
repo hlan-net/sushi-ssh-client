@@ -38,6 +38,14 @@ class TerminalView @JvmOverloads constructor(
     var onSizeChangedListener: ((col: Int, row: Int, wp: Int, hp: Int) -> Unit)? = null
 
     companion object {
+        /**
+         * Cursor keys as xterm sends them with the cursor keypad in normal mode, which is what
+         * readline expects for history. The app never enables DECCKM (`ESC [ ? 1 h`), so the
+         * application-keypad forms (`ESC O A`) would not be the right thing to send.
+         */
+        const val CURSOR_UP = "\u001B[A"
+        const val CURSOR_DOWN = "\u001B[B"
+
         private const val MAX_LINES = 500
         private const val MAX_CHARS = 200_000
         // Unterminated OSC guard: a missing BEL/ST must not swallow output forever.
@@ -108,6 +116,10 @@ class TerminalView @JvmOverloads constructor(
                     KeyEvent.KEYCODE_ENTER -> onInputText?.invoke("\n")
                     KeyEvent.KEYCODE_TAB -> onInputText?.invoke("\t")
                     KeyEvent.KEYCODE_DEL -> onInputText?.invoke("\b")
+                    // A hardware keyboard or an IME that has arrows reaches the shell's history
+                    // the same way the on-screen buttons do.
+                    KeyEvent.KEYCODE_DPAD_UP -> onInputText?.invoke(CURSOR_UP)
+                    KeyEvent.KEYCODE_DPAD_DOWN -> onInputText?.invoke(CURSOR_DOWN)
                     else -> Unit
                 }
                 return true
