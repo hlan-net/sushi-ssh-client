@@ -46,6 +46,12 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          # The obsolete "tools" package is gone from the SDK repository, and the
+          # action still installs it by default ("Failed to find package 'tools'",
+          # exit 1). platform-tools is all these jobs need — adb for the emulator
+          # and device installs; the build itself uses cmdline-tools and Gradle.
+          packages: platform-tools
 
       - name: Enable KVM
         run: |
