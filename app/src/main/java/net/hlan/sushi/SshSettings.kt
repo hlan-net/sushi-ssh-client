@@ -77,7 +77,8 @@ class SshSettings(private val context: Context) {
                     jumpHost = "",
                     jumpPort = 22,
                     jumpUsername = "",
-                    jumpPassword = ""
+                    jumpPassword = "",
+                    jumpAuthPreference = SshAuthPreference.AUTO.value
                 )
             } else {
                 host
@@ -120,7 +121,8 @@ class SshSettings(private val context: Context) {
             jumpHost = jumpHostConfig.host,
             jumpPort = jumpHostConfig.port,
             jumpUsername = jumpHostConfig.username,
-            jumpPassword = jumpHostConfig.password
+            jumpPassword = jumpHostConfig.password,
+            jumpAuthPreference = jumpHostConfig.authPreference
         )
     }
 

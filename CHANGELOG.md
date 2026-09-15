@@ -6,6 +6,9 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+### Fixed
+- **Jump server connection failed when the two hosts use different login methods**: The bastion session took its authentication methods from the *target* host's preference, so a key-auth target meant the jump host's password was never offered — `SshClient` skipped `setPassword`, JSch fell through to a `UserInfo` that declines to prompt, and the connection died as `Auth cancel for methods 'publickey,password'` behind a "check bastion host settings" banner. The jump host is a saved host in its own right, so it now authenticates on its own preference, carried through by `SshSettings.resolveJumpServer`. The shared private key is loaded whenever either hop wants it, which also fixes the mirror case: a password-auth target in front of a key-auth bastion. Hosts saved before this change have no stored jump preference and fall back to `auto`, which offers both methods, so no working setup changes behaviour.
+
 ## [0.8.0] - 2026-09-12
 
 ### Added

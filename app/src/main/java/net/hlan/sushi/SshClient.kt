@@ -46,13 +46,16 @@ data class SshConnectionConfig(
     val jumpHost: String = "",
     val jumpPort: Int = 22,
     val jumpUsername: String = "",
-    val jumpPassword: String = ""
+    val jumpPassword: String = "",
+    val jumpAuthPreference: String? = SshAuthPreference.AUTO.value
 ) {
     fun hasJumpServer(): Boolean = jumpEnabled && (
         !jumpHostId.isNullOrBlank() || (jumpHost.isNotBlank() && jumpUsername.isNotBlank())
     )
 
     fun resolvedAuthPreference(): SshAuthPreference = SshAuthPreference.from(authPreference)
+
+    fun resolvedJumpAuthPreference(): SshAuthPreference = SshAuthPreference.from(jumpAuthPreference)
 
     fun displayTarget(): String {
         val core = when {
@@ -189,9 +192,28 @@ class SshClient(
         }
     }
 
-    private fun resolveAuthPlan(config: SshConnectionConfig): AuthPlan {
-        val authPreference = config.resolvedAuthPreference()
-        val hasPrivateKey = !config.privateKey.isNullOrBlank()
+    private fun resolveAuthPlan(config: SshConnectionConfig): AuthPlan =
+        resolveAuthPlan(config.resolvedAuthPreference(), !config.privateKey.isNullOrBlank())
+
+    /**
+     * The jump host is a saved host in its own right, so its methods come from *its* auth
+     * preference — not the target's.
+     *
+     * Deriving them from the target meant a key-auth target suppressed the bastion's password:
+     * [establishJumpSession] skipped `setPassword`, JSch fell through to its UserInfo, which
+     * declines to prompt, and the connection died as `Auth cancel for methods
+     * 'publickey,password'` behind a "check bastion host settings" banner.
+     *
+     * The private key stays app-wide (`SshSettings.getPrivateKey`), so both plans read the same
+     * key; only the preference differs.
+     */
+    internal fun resolveJumpAuthPlan(config: SshConnectionConfig): AuthPlan =
+        resolveAuthPlan(config.resolvedJumpAuthPreference(), !config.privateKey.isNullOrBlank())
+
+    internal fun resolveAuthPlan(
+        authPreference: SshAuthPreference,
+        hasPrivateKey: Boolean
+    ): AuthPlan {
         check(!(authPreference == SshAuthPreference.KEY && !hasPrivateKey)) {
             "SSH key preferred but no private key is configured."
         }
@@ -220,8 +242,8 @@ class SshClient(
      * network round-trip. The verified passphrase is then handed to JSch, so it has no reason to
      * call back into [userInfo] mid-connect for this.
      */
-    private fun addPrivateKeyIdentity(jsch: JSch, authPlan: AuthPlan) {
-        if (!authPlan.shouldUseKey) {
+    private fun addPrivateKeyIdentity(jsch: JSch, shouldUseKey: Boolean) {
+        if (!shouldUseKey) {
             return
         }
         val privateKeyBytes = config.privateKey.orEmpty().toByteArray()
@@ -269,13 +291,14 @@ class SshClient(
         }
     }
 
-    private fun establishJumpSession(jsch: JSch, authPlan: AuthPlan): JumpSessionResult? {
+    private fun establishJumpSession(jsch: JSch): JumpSessionResult? {
         if (!config.hasJumpServer()) {
             return null
         }
 
+        val jumpAuthPlan = resolveJumpAuthPlan(config)
         val createdJumpSession = jsch.getSession(config.jumpUsername, config.jumpHost, config.jumpPort)
-        if (authPlan.shouldUsePassword && config.jumpPassword.isNotBlank()) {
+        if (jumpAuthPlan.shouldUsePassword && config.jumpPassword.isNotBlank()) {
             createdJumpSession.setPassword(config.jumpPassword)
         }
         configureSession(createdJumpSession, "${config.jumpHost}:${config.jumpPort}")
@@ -325,11 +348,21 @@ class SshClient(
             userInfo.trackingRepo = trackingRepo
         }
         val authPlan = resolveAuthPlan(config)
-        addPrivateKeyIdentity(jsch, authPlan)
+        // Identities are held per JSch instance and offered on every hop, so the key has to be
+        // loaded when *either* hop wants it: a password-auth target in front of a key-auth
+        // bastion would otherwise reach the bastion with nothing to offer. A jump preference of
+        // KEY with no key configured throws here; swallowing it leaves the report to
+        // establishJumpSession, which resolves the same plan inside the JUMP_FAILED try below.
+        val jumpAuthPlan = if (config.hasJumpServer()) {
+            runCatching { resolveJumpAuthPlan(config) }.getOrNull()
+        } else {
+            null
+        }
+        addPrivateKeyIdentity(jsch, authPlan.shouldUseKey || jumpAuthPlan?.shouldUseKey == true)
 
         val jumpResult = if (config.hasJumpServer()) {
             try {
-                establishJumpSession(jsch, authPlan)
+                establishJumpSession(jsch)
             } catch (e: Exception) {
                 throw ConnectionFailureException(ConnectFailure.JUMP_FAILED, e)
             }
