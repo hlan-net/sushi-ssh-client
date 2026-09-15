@@ -37,6 +37,10 @@ An open source Android SSH client focused on fast connections, clean session man
 
 ## Recent Release Highlights
 
+### v0.8.1
+- **Jump Server Fix**: Connecting through a bastion now works when the two hosts use different login methods. The jump host authenticates on its own preference instead of inheriting the target's, which had left a key-auth target's bastion with no password to offer and failed the connection outright.
+- **Per-Host Authentication Methods**: Each connection now offers only the methods its own host is configured for, so a host set to Password no longer authenticates with the key instead.
+
 ### v0.8.0
 - **Command History**: Every command Sushi runs — AI-issued, Raw Terminal Mode, or a Play — is stored locally in SQLite and browsable from the Terminal tab, with search, per-host filter, and copy / delete / re-run. Capped at 500 entries per host; a Play that substituted a secret parameter *value* into its command is not recorded at all, since the rendered command would hold that value in plaintext.
 - **AI-Powered Troubleshooting**: The conversation chains diagnosis automatically (command → output → interpretation → next command) until it reaches a conclusion, with every step still classified by `CommandSafety` and a switch in the Gemini dialog to turn it off.

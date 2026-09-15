@@ -6,8 +6,14 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-09-15
+
 ### Fixed
 - **Jump server connection failed when the two hosts use different login methods**: The bastion session took its authentication methods from the *target* host's preference, so a key-auth target meant the jump host's password was never offered — `SshClient` skipped `setPassword`, JSch fell through to a `UserInfo` that declines to prompt, and the connection died as `Auth cancel for methods 'publickey,password'` behind a "check bastion host settings" banner. The jump host is a saved host in its own right, so it now authenticates on its own preference, carried through by `SshSettings.resolveJumpServer`. The shared private key is loaded whenever either hop wants it, which also fixes the mirror case: a password-auth target in front of a key-auth bastion. Hosts saved before this change have no stored jump preference and fall back to `auto`, which offers both methods, so no working setup changes behaviour. Each session now also sets `PreferredAuthentications` from its own plan: identities live on the shared JSch instance and its default list offers `publickey`, so a host set to Password would otherwise still authenticate with the key — and a server with a low `MaxAuthTries` could exhaust its attempts before password was reached.
+
+### Changed
+- **Bouncy Castle 1.85.2 → 1.86**: Routine dependency update. JSch uses the provider for the crypto Android's own JCE does not supply across the app's supported range (Ed25519 host keys from minSdk 26, ML-KEM); 1.86's fixes are in the OpenPGP and LMS APIs, which Sushi does not use.
+- **CI: stop installing the withdrawn Android SDK Tools package**: `android-actions/setup-android@v4` installs `tools platform-tools` by default, and the obsolete `tools` package has been removed from Google's SDK repository, so every build, emulator and release job died on its first step with `Failed to find package 'tools'`. The package list is now pinned to `platform-tools`. No effect on the app.
 
 ## [0.8.0] - 2026-09-12
 
