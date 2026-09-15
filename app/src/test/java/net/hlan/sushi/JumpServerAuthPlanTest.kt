@@ -131,6 +131,75 @@ class JumpServerAuthPlanTest {
         assertFalse(targetPlan.shouldUsePassword)
     }
 
+    // --- the plan has to reach the session, not just be computed ---
+
+    /**
+     * The regression this guards: loading the shared key once either hop needs it means a
+     * password-only hop would offer it too, since JSch's default PreferredAuthentications
+     * includes publickey. The key-auth bastion case below is exactly when the key gets loaded
+     * for a password-only target.
+     */
+    @Test
+    fun passwordOnlyTarget_doesNotOfferTheKeyEvenWhenTheBastionLoadedIt() {
+        val config = config(SshAuthPreference.PASSWORD, SshAuthPreference.KEY.value)
+        val client = clientFor(config)
+
+        val targetMethods = client.preferredAuthentications(
+            client.resolveAuthPlan(config.resolvedAuthPreference(), true)
+        )
+        assertFalse(targetMethods.contains("publickey"))
+        assertTrue(targetMethods.contains("password"))
+
+        // ...while the bastion, on the same JSch instance, still gets the key.
+        val jumpMethods = client.preferredAuthentications(client.resolveJumpAuthPlan(config))
+        assertEquals("publickey", jumpMethods)
+    }
+
+    @Test
+    fun keyOnlyHost_offersOnlyPublickey() {
+        val config = config(SshAuthPreference.KEY, SshAuthPreference.PASSWORD.value)
+        val client = clientFor(config)
+
+        assertEquals(
+            "publickey",
+            client.preferredAuthentications(
+                client.resolveAuthPlan(config.resolvedAuthPreference(), true)
+            )
+        )
+        assertEquals(
+            "keyboard-interactive,password",
+            client.preferredAuthentications(client.resolveJumpAuthPlan(config))
+        )
+    }
+
+    @Test
+    fun autoHost_offersBothInJschsDefaultOrder() {
+        val config = config(SshAuthPreference.AUTO, SshAuthPreference.AUTO.value)
+        val client = clientFor(config)
+
+        assertEquals(
+            "publickey,keyboard-interactive,password",
+            client.preferredAuthentications(client.resolveJumpAuthPlan(config))
+        )
+    }
+
+    /** An empty list would leave a session with no method at all; no preference may produce one. */
+    @Test
+    fun everyPreference_permitsAtLeastOneMethod() {
+        val client = clientFor(config(SshAuthPreference.AUTO, SshAuthPreference.AUTO.value))
+
+        for (preference in SshAuthPreference.entries) {
+            for (hasKey in listOf(true, false)) {
+                val plan = runCatching { client.resolveAuthPlan(preference, hasKey) }.getOrNull()
+                    ?: continue // KEY without a key is rejected, and tested above.
+                assertTrue(
+                    "$preference (hasKey=$hasKey) produced no method",
+                    client.preferredAuthentications(plan).isNotEmpty()
+                )
+            }
+        }
+    }
+
     private companion object {
         /** Never parsed — only its blank/non-blank state is read when resolving a plan. */
         const val PRIVATE_KEY = "-----BEGIN OPENSSH PRIVATE KEY-----"

@@ -301,7 +301,7 @@ class SshClient(
         if (jumpAuthPlan.shouldUsePassword && config.jumpPassword.isNotBlank()) {
             createdJumpSession.setPassword(config.jumpPassword)
         }
-        configureSession(createdJumpSession, "${config.jumpHost}:${config.jumpPort}")
+        configureSession(createdJumpSession, "${config.jumpHost}:${config.jumpPort}", jumpAuthPlan)
         createdJumpSession.connect(CONNECTION_TIMEOUT_MS)
         val forwardedPort = createdJumpSession.setPortForwardingL(0, config.host, config.port)
         return JumpSessionResult(createdJumpSession, forwardedPort)
@@ -320,7 +320,7 @@ class SshClient(
         // Always alias the host-key check to the real endpoint, never the tunneled
         // 127.0.0.1/forwarded-port pair used when connecting through a jump host — otherwise
         // TOFU prompts and the known-hosts store would key off the wrong, meaningless host.
-        configureSession(createdSession, "${config.host}:${config.port}")
+        configureSession(createdSession, "${config.host}:${config.port}", authPlan)
         createdSession.connect(CONNECTION_TIMEOUT_MS)
         return createdSession
     }
@@ -434,8 +434,37 @@ class SshClient(
         }
     }
 
-    private fun configureSession(session: Session, hostKeyAlias: String) {
+    /**
+     * The methods a session may offer, from its own plan.
+     *
+     * Identities live on the shared [JSch] instance and JSch's default
+     * `PreferredAuthentications` includes `publickey`, so a plan's `shouldUseKey = false` only
+     * takes effect if the session is told not to offer the key. That used to be implicit — the
+     * key was simply never loaded — but it has to be loaded once either hop needs it, so the
+     * restriction is now explicit per session. Without it a host set to Password would
+     * authenticate with the key anyway, and a server with a low `MaxAuthTries` could run out of
+     * attempts before password was reached.
+     *
+     * `keyboard-interactive` rides along with password as it does in JSch's default list. It is
+     * inert until a `UserInfo` implements `UIKeyboardInteractive`, which [DialogUserInfo] does
+     * not; it is listed so enabling that later needs no change here.
+     *
+     * Every [AuthPlan] permits at least one method — [resolveAuthPlan] has no branch where both
+     * are false — so this never produces an empty list.
+     */
+    internal fun preferredAuthentications(authPlan: AuthPlan): String = buildList {
+        if (authPlan.shouldUseKey) {
+            add("publickey")
+        }
+        if (authPlan.shouldUsePassword) {
+            add("keyboard-interactive")
+            add("password")
+        }
+    }.joinToString(",")
+
+    private fun configureSession(session: Session, hostKeyAlias: String, authPlan: AuthPlan) {
         session.setConfig("StrictHostKeyChecking", "ask")
+        session.setConfig("PreferredAuthentications", preferredAuthentications(authPlan))
         session.setHostKeyAlias(hostKeyAlias)
         session.setUserInfo(userInfo)
         // Use Bouncy Castle for Ed25519 so ssh-ed25519 host keys work on all Android
