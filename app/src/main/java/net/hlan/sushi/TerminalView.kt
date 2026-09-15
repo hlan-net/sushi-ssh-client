@@ -152,6 +152,27 @@ class TerminalView @JvmOverloads constructor(
         updateText(dropped)
     }
 
+    /**
+     * Appends one of the app's own status lines, as opposed to [appendLog]'s stream of remote
+     * output.
+     *
+     * Status strings carry no newline and [appendLog] only breaks a line when it sees a real
+     * `\n`, so each status used to continue whatever was on screen — and the shell prompt that
+     * arrived next continued it in turn, producing
+     * `[Terminal] Connecting...Connected to ekho (larry@…) · ssh.larry@ekho:~ $` on one line.
+     *
+     * The text is put on a line of its own and terminated, adding neither a leading blank line
+     * when the buffer already sits at the start of one nor a trailing one when the text ends in a
+     * newline itself. Remote output keeps going through [appendLog], whose line discipline is the
+     * remote's own.
+     */
+    fun appendLogLine(text: String) {
+        if (rawTextBuffer.isNotEmpty() && !rawTextBuffer.endsWith("\n")) {
+            appendLog("\n")
+        }
+        appendLog(if (text.endsWith("\n")) text else text + "\n")
+    }
+
     fun getRawText(): String = rawTextBuffer.toString()
 
     fun clearLog() {

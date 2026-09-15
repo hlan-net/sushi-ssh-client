@@ -975,7 +975,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         consoleLogRepository.appendLine(message)
-        playsPageBinding?.sessionLogText?.appendLog(message)
+        playsPageBinding?.sessionLogText?.appendLogLine(message)
     }
 
     private fun refreshSessionLog() {

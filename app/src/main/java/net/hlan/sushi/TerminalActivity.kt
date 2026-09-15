@@ -155,7 +155,7 @@ class TerminalActivity : AppCompatActivity() {
         isRetrying = false
         didLoseConnection = false
         updateUi()
-        binding.terminalOutputText.appendLog(getString(R.string.terminal_connect_attempt_log))
+        binding.terminalOutputText.appendLogLine(getString(R.string.terminal_connect_attempt_log))
 
         lifecycleScope.launch(Dispatchers.IO) {
             val backend: TerminalBackend = when (config.kind) {
@@ -171,7 +171,7 @@ class TerminalActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     isRetrying = true
                     updateUi()
-                    binding.terminalOutputText.appendLog(
+                    binding.terminalOutputText.appendLogLine(
                         getString(R.string.terminal_connect_retry_log, CONNECT_RETRY_DELAY_MS)
                     )
                 }
@@ -192,7 +192,7 @@ class TerminalActivity : AppCompatActivity() {
                     didLoseConnection = false
                     lastConnectFailure = null
                     hideErrorBanner()
-                    binding.terminalOutputText.appendLog(getString(R.string.session_connected_to, config.displayTarget()))
+                    binding.terminalOutputText.appendLogLine(getString(R.string.session_connected_to, config.displayTarget()))
                     binding.terminalOutputText.requestFocus()
 
                     // Notify MainActivity that a terminal session is active
@@ -200,7 +200,7 @@ class TerminalActivity : AppCompatActivity() {
                 } else {
                     client.disconnect()
                     lastConnectFailure = result.reason
-                    binding.terminalOutputText.appendLog(getString(R.string.terminal_connect_failed_log, result.message))
+                    binding.terminalOutputText.appendLogLine(getString(R.string.terminal_connect_failed_log, result.message))
                     showErrorBanner(result.reason, result.message, config)
                 }
                 updateUi()
@@ -299,7 +299,7 @@ class TerminalActivity : AppCompatActivity() {
         sshClient = null
         TerminalSessionHolder.clearActiveConnection()
         didLoseConnection = true
-        binding.terminalOutputText.appendLog(getString(R.string.terminal_connection_lost_log))
+        binding.terminalOutputText.appendLogLine(getString(R.string.terminal_connection_lost_log))
         Toast.makeText(this, getString(R.string.terminal_connection_lost_toast), Toast.LENGTH_SHORT).show()
         updateUi()
     }
@@ -437,7 +437,7 @@ class TerminalActivity : AppCompatActivity() {
 
     private fun showPhrasePicker() {
         PhrasePickerHelper.showPicker(this, phraseDb) { phrase ->
-            binding.terminalOutputText.appendLog(getString(R.string.phrase_sent_log, phrase.name))
+            binding.terminalOutputText.appendLogLine(getString(R.string.phrase_sent_log, phrase.name))
             sendRaw(phrase.command + "\n")
         }
     }
