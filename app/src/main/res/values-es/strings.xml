@@ -56,6 +56,8 @@
     <string name="action_send_enter">Enviar Enter</string>
     <string name="action_send_tab">Enviar Tab</string>
     <string name="action_send_backspace">Enviar Retroceso</string>
+    <string name="action_send_arrow_up_desc">Comando anterior</string>
+    <string name="action_send_arrow_down_desc">Comando siguiente</string>
     <string name="action_run_command_running">Ejecutando...</string>
     <string name="action_send_ctrl_c">Ctrl+C</string>
     <string name="action_send_ctrl_d">Ctrl+D</string>

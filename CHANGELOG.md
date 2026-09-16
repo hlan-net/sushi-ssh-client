@@ -6,6 +6,9 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+### Added
+- **Command history from the terminal**: Up and Down arrow buttons send the ANSI cursor sequences to the shell, so `history` is reachable from the phone. Nothing in the app emitted them before and `TerminalView`'s input connection handled only Enter, Tab and Backspace, so the shell's history was unreachable however it was pressed — a hardware keyboard's arrows were dropped too, and those now work as well. Left and Right are deliberately not sent yet: the shell would handle them correctly, but `TerminalView` is a line buffer with no cursor of its own, so a mid-line edit would send the right command while drawing the wrong line. They come with cursor emulation.
+
 ## [0.8.1] - 2026-09-15
 
 ### Fixed

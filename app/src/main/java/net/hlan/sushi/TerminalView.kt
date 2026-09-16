@@ -38,6 +38,14 @@ class TerminalView @JvmOverloads constructor(
     var onSizeChangedListener: ((col: Int, row: Int, wp: Int, hp: Int) -> Unit)? = null
 
     companion object {
+        /**
+         * Cursor keys as xterm sends them with the cursor keypad in normal mode, which is what
+         * readline expects for history. The app never enables DECCKM (`ESC [ ? 1 h`), so the
+         * application-keypad forms (`ESC O A`) would not be the right thing to send.
+         */
+        const val CURSOR_UP = "\u001B[A"
+        const val CURSOR_DOWN = "\u001B[B"
+
         private const val MAX_LINES = 500
         private const val MAX_CHARS = 200_000
         // Unterminated OSC guard: a missing BEL/ST must not swallow output forever.
@@ -78,6 +86,39 @@ class TerminalView @JvmOverloads constructor(
         return super.onTextContextMenuItem(id)
     }
 
+    /**
+     * The keys a terminal owns rather than the text view, mapped once for both paths that can
+     * deliver them: an IME's [InputConnection.sendKeyEvent] and [onKeyDown] for anything
+     * dispatched to the view itself.
+     */
+    private fun shellInputFor(keyCode: Int): String? = when (keyCode) {
+        KeyEvent.KEYCODE_ENTER -> "\n"
+        KeyEvent.KEYCODE_TAB -> "\t"
+        KeyEvent.KEYCODE_DEL -> "\b"
+        KeyEvent.KEYCODE_DPAD_UP -> CURSOR_UP
+        KeyEvent.KEYCODE_DPAD_DOWN -> CURSOR_DOWN
+        else -> null
+    }
+
+    /**
+     * A physical keyboard does not go through the input connection: its events are dispatched to
+     * the focused view, and this one is a selectable [AppCompatTextView] with a movement method,
+     * which answers the arrows by scrolling the log or walking the selection. Both swallow the
+     * key before the shell ever sees it, so the terminal's own keys are claimed here first.
+     *
+     * Only while a shell is attached — with no [onInputText] the view is a log, and scrolling it
+     * with the arrows is the right behaviour.
+     */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        val send = onInputText
+        val input = shellInputFor(keyCode)
+        if (send != null && input != null) {
+            send(input)
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
         outAttrs.inputType = InputType.TYPE_CLASS_TEXT or
             InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or
@@ -104,12 +145,7 @@ class TerminalView @JvmOverloads constructor(
                 if (event.action != KeyEvent.ACTION_DOWN) {
                     return true
                 }
-                when (event.keyCode) {
-                    KeyEvent.KEYCODE_ENTER -> onInputText?.invoke("\n")
-                    KeyEvent.KEYCODE_TAB -> onInputText?.invoke("\t")
-                    KeyEvent.KEYCODE_DEL -> onInputText?.invoke("\b")
-                    else -> Unit
-                }
+                shellInputFor(event.keyCode)?.let { onInputText?.invoke(it) }
                 return true
             }
 
@@ -150,6 +186,27 @@ class TerminalView @JvmOverloads constructor(
         }
         val dropped = trimBuffer()
         updateText(dropped)
+    }
+
+    /**
+     * Appends one of the app's own status lines, as opposed to [appendLog]'s stream of remote
+     * output.
+     *
+     * Status strings carry no newline and [appendLog] only breaks a line when it sees a real
+     * `\n`, so each status used to continue whatever was on screen — and the shell prompt that
+     * arrived next continued it in turn, producing
+     * `[Terminal] Connecting...Connected to ekho (larry@…) · ssh.larry@ekho:~ $` on one line.
+     *
+     * The text is put on a line of its own and terminated, adding neither a leading blank line
+     * when the buffer already sits at the start of one nor a trailing one when the text ends in a
+     * newline itself. Remote output keeps going through [appendLog], whose line discipline is the
+     * remote's own.
+     */
+    fun appendLogLine(text: String) {
+        if (rawTextBuffer.isNotEmpty() && !rawTextBuffer.endsWith("\n")) {
+            appendLog("\n")
+        }
+        appendLog(if (text.endsWith("\n")) text else text + "\n")
     }
 
     fun getRawText(): String = rawTextBuffer.toString()
