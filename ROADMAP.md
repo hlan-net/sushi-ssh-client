@@ -7,7 +7,7 @@ Sushi is an SSH client where the primary interface is talking *to* the connected
 
 ---
 
-## Current state — v0.8.1
+## Current state — v0.8.2
 
 The conversational foundation is complete:
 

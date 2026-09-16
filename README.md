@@ -37,6 +37,10 @@ An open source Android SSH client focused on fast connections, clean session man
 
 ## Recent Release Highlights
 
+### v0.8.2
+- **Command History from the Terminal**: Up and Down buttons send the cursor sequences to the shell, so `history` is reachable from the phone. A hardware keyboard's arrows work too — neither reached the shell before.
+- **Readable Status Lines**: The terminal's own messages no longer run into each other or into the shell prompt; the same fix applies to the Plays session log.
+
 ### v0.8.1
 - **Jump Server Fix**: Connecting through a bastion now works when the two hosts use different login methods. The jump host authenticates on its own preference instead of inheriting the target's, which had left a key-auth target's bastion with no password to offer and failed the connection outright.
 - **Per-Host Authentication Methods**: Each connection now offers only the methods its own host is configured for, so a host set to Password no longer authenticates with the key instead.
