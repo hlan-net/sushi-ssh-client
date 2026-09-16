@@ -11,9 +11,10 @@
     <color name="sushi_terminal_bg">#0F1514</color>
     <color name="sushi_terminal_panel">#0D1311</color>
     <color name="sushi_terminal_text">#E6F1ED</color>
-    <!-- ANSI palette for the dark terminal. All clear 4.5:1 against
-         sushi_terminal_bg except ANSI black, the dim colour, at 3.25:1 —
-         a terminal's black is meant to recede, not to read as body text. -->
+    <!-- ANSI palette for the dark terminal, measured against sushi_terminal_panel,
+         the surface TerminalView is painted on. All clear 4.5:1 except ANSI black,
+         the dim colour, at 3.31:1 — a terminal's black is meant to recede, not to
+         read as body text. -->
     <color name="sushi_ansi_black">#5C6A64</color>
     <color name="sushi_ansi_red">#F2756F</color>
     <color name="sushi_ansi_green">#8FD46A</color>
