@@ -9,6 +9,9 @@ The format is based on Keep a Changelog and follows semantic versioning.
 ### Added
 - **Command history from the terminal**: Up and Down arrow buttons send the ANSI cursor sequences to the shell, so `history` is reachable from the phone. Nothing in the app emitted them before and `TerminalView`'s input connection handled only Enter, Tab and Backspace, so the shell's history was unreachable however it was pressed — a hardware keyboard's arrows were dropped too, and those now work as well. Left and Right are deliberately not sent yet: the shell would handle them correctly, but `TerminalView` is a line buffer with no cursor of its own, so a mid-line edit would send the right command while drawing the wrong line. They come with cursor emulation.
 
+### Fixed
+- **Terminal status lines ran into each other and into the shell**: Connecting showed `[Terminal] Connecting...Connected to ekho (larry@192.168.1.11:22) · ssh.larry@ekho:~ $` on a single line, which reads as a host named `ssh.larry@ekho` that does not exist. It is three unrelated strings: the connect log, then "Connected to %1$s." whose argument ends in the host kind `ssh`, then the shell's own prompt. None of the status strings carried a newline and the terminal only breaks a line on a real one, so each continued whatever was on screen. Status lines now get a line each; remote output is untouched, since its line discipline is the remote's. The Plays session log had the same split — it read correctly only after a refresh — and is fixed with it.
+
 ## [0.8.1] - 2026-09-15
 
 ### Fixed
