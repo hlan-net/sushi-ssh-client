@@ -77,6 +77,44 @@ class TerminalViewCursorKeyTest {
         assertEquals(listOf("\n", "\t", "\b"), sent)
     }
 
+    // --- the path a physical keyboard actually takes ---
+
+    /**
+     * A hardware key is dispatched to the focused view, not through the input connection, and
+     * this view is a selectable text view with a movement method — both of which answer the
+     * arrows themselves. Dispatching for real is the only way to see that the terminal claims
+     * the key first.
+     */
+    @Test
+    fun dispatchedArrowKeys_reachTheShell() {
+        view.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_UP))
+        view.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN))
+
+        assertEquals(listOf("\u001B[A", "\u001B[B"), sent)
+    }
+
+    @Test
+    fun dispatchedEnterTabAndBackspace_reachTheShell() {
+        view.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+        view.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_TAB))
+        view.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+
+        assertEquals(listOf("\n", "\t", "\b"), sent)
+    }
+
+    /**
+     * With no shell attached the view is just a log, so the arrows must fall through to the
+     * movement method and scroll it rather than being swallowed.
+     */
+    @Test
+    fun withoutAShell_arrowKeysAreLeftToTheTextView() {
+        view.onInputText = null
+
+        view.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_UP))
+
+        assertTrue(sent.isEmpty())
+    }
+
     /**
      * Left and right are deliberately still dropped. The shell would handle them, but
      * [TerminalView] is a line buffer with no cursor of its own, so a mid-line edit would send
@@ -86,6 +124,8 @@ class TerminalViewCursorKeyTest {
     fun horizontalArrows_areNotSentYet() {
         pressKey(KeyEvent.KEYCODE_DPAD_LEFT)
         pressKey(KeyEvent.KEYCODE_DPAD_RIGHT)
+        view.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_LEFT))
+        view.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT))
 
         assertTrue(sent.isEmpty())
     }

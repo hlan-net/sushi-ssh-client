@@ -86,6 +86,39 @@ class TerminalView @JvmOverloads constructor(
         return super.onTextContextMenuItem(id)
     }
 
+    /**
+     * The keys a terminal owns rather than the text view, mapped once for both paths that can
+     * deliver them: an IME's [InputConnection.sendKeyEvent] and [onKeyDown] for anything
+     * dispatched to the view itself.
+     */
+    private fun shellInputFor(keyCode: Int): String? = when (keyCode) {
+        KeyEvent.KEYCODE_ENTER -> "\n"
+        KeyEvent.KEYCODE_TAB -> "\t"
+        KeyEvent.KEYCODE_DEL -> "\b"
+        KeyEvent.KEYCODE_DPAD_UP -> CURSOR_UP
+        KeyEvent.KEYCODE_DPAD_DOWN -> CURSOR_DOWN
+        else -> null
+    }
+
+    /**
+     * A physical keyboard does not go through the input connection: its events are dispatched to
+     * the focused view, and this one is a selectable [AppCompatTextView] with a movement method,
+     * which answers the arrows by scrolling the log or walking the selection. Both swallow the
+     * key before the shell ever sees it, so the terminal's own keys are claimed here first.
+     *
+     * Only while a shell is attached — with no [onInputText] the view is a log, and scrolling it
+     * with the arrows is the right behaviour.
+     */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        val send = onInputText
+        val input = shellInputFor(keyCode)
+        if (send != null && input != null) {
+            send(input)
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
         outAttrs.inputType = InputType.TYPE_CLASS_TEXT or
             InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or
@@ -112,16 +145,7 @@ class TerminalView @JvmOverloads constructor(
                 if (event.action != KeyEvent.ACTION_DOWN) {
                     return true
                 }
-                when (event.keyCode) {
-                    KeyEvent.KEYCODE_ENTER -> onInputText?.invoke("\n")
-                    KeyEvent.KEYCODE_TAB -> onInputText?.invoke("\t")
-                    KeyEvent.KEYCODE_DEL -> onInputText?.invoke("\b")
-                    // A hardware keyboard or an IME that has arrows reaches the shell's history
-                    // the same way the on-screen buttons do.
-                    KeyEvent.KEYCODE_DPAD_UP -> onInputText?.invoke(CURSOR_UP)
-                    KeyEvent.KEYCODE_DPAD_DOWN -> onInputText?.invoke(CURSOR_DOWN)
-                    else -> Unit
-                }
+                shellInputFor(event.keyCode)?.let { onInputText?.invoke(it) }
                 return true
             }
 

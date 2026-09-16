@@ -64,10 +64,15 @@ class TerminalKeyRowLayoutTest {
     }
 
     private fun assertIsATouchTarget(name: String, id: Int) {
-        val width = button(id).measuredWidth
+        val key = button(id)
+        val minimum = dp(MIN_TOUCH_TARGET_DP)
         assertTrue(
-            "$name measured ${width}px at ${PHONE_WIDTH_DP}dp, below the ${MIN_TOUCH_TARGET_DP}dp target",
-            width >= dp(MIN_TOUCH_TARGET_DP)
+            "$name is ${key.measuredWidth}px wide at ${PHONE_WIDTH_DP}dp, under the ${MIN_TOUCH_TARGET_DP}dp target",
+            key.measuredWidth >= minimum
+        )
+        assertTrue(
+            "$name is ${key.measuredHeight}px tall, under the ${MIN_TOUCH_TARGET_DP}dp target",
+            key.measuredHeight >= minimum
         )
     }
 
