@@ -82,7 +82,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:background="@color/sushi_terminal_panel_dark"
+            android:background="@color/sushi_terminal_panel"
             android:fontFamily="monospace"
             android:padding="8dp"
             android:textColor="@color/sushi_terminal_text" />
@@ -103,7 +103,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:background="@color/sushi_terminal_panel_dark"
+            android:background="@color/sushi_terminal_panel"
             android:fontFamily="monospace"
             android:maxLines="8"
             android:padding="8dp"

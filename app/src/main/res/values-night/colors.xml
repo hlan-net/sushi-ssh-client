@@ -9,7 +9,25 @@
     <color name="sushi_white">#1A2320</color>
     <color name="sushi_card_stroke">#1AA8B5AE</color>
     <color name="sushi_terminal_bg">#0F1514</color>
-    <color name="sushi_terminal_bg_dark">#0A0F0E</color>
-    <color name="sushi_terminal_panel_dark">#0D1311</color>
+    <color name="sushi_terminal_panel">#0D1311</color>
     <color name="sushi_terminal_text">#E6F1ED</color>
+    <!-- ANSI palette for the dark terminal. All clear 4.5:1 against
+         sushi_terminal_bg except ANSI black, the dim colour, at 3.25:1 —
+         a terminal's black is meant to recede, not to read as body text. -->
+    <color name="sushi_ansi_black">#5C6A64</color>
+    <color name="sushi_ansi_red">#F2756F</color>
+    <color name="sushi_ansi_green">#8FD46A</color>
+    <color name="sushi_ansi_yellow">#E4C168</color>
+    <color name="sushi_ansi_blue">#7AA7F0</color>
+    <color name="sushi_ansi_magenta">#D98FD0</color>
+    <color name="sushi_ansi_cyan">#6FD2D8</color>
+    <color name="sushi_ansi_white">#E6F1ED</color>
+    <color name="sushi_ansi_bright_black">#7C8A84</color>
+    <color name="sushi_ansi_bright_red">#FF9A93</color>
+    <color name="sushi_ansi_bright_green">#AEE58C</color>
+    <color name="sushi_ansi_bright_yellow">#F2D68A</color>
+    <color name="sushi_ansi_bright_blue">#9CC0FF</color>
+    <color name="sushi_ansi_bright_magenta">#EBA9E2</color>
+    <color name="sushi_ansi_bright_cyan">#93E3E8</color>
+    <color name="sushi_ansi_bright_white">#FFFFFF</color>
 </resources>

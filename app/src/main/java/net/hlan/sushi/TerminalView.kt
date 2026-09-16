@@ -2,7 +2,6 @@ package net.hlan.sushi
 
 import android.content.ClipboardManager
 import android.content.Context
-import android.graphics.Color
 import android.text.InputType
 import android.text.Selection
 import android.text.Spannable
@@ -35,6 +34,8 @@ class TerminalView @JvmOverloads constructor(
     // so the filter state must persist between appendLog calls.
     private enum class OscState { NONE, ESC_SEEN, IN_OSC, IN_OSC_ESC_SEEN }
 
+    private var ansiPalette: IntArray? = null
+
     var onSizeChangedListener: ((col: Int, row: Int, wp: Int, hp: Int) -> Unit)? = null
 
     companion object {
@@ -45,6 +46,21 @@ class TerminalView @JvmOverloads constructor(
          */
         const val CURSOR_UP = "\u001B[A"
         const val CURSOR_DOWN = "\u001B[B"
+
+        /** Where the bright half of the palette starts, so 90-97 map past 30-37. */
+        private const val BRIGHT_OFFSET = 8
+
+        /** Normal 0-7 then bright 8-15, in ANSI order: black, red, green, yellow, blue, magenta, cyan, white. */
+        internal val ANSI_COLOR_RES = intArrayOf(
+            R.color.sushi_ansi_black, R.color.sushi_ansi_red,
+            R.color.sushi_ansi_green, R.color.sushi_ansi_yellow,
+            R.color.sushi_ansi_blue, R.color.sushi_ansi_magenta,
+            R.color.sushi_ansi_cyan, R.color.sushi_ansi_white,
+            R.color.sushi_ansi_bright_black, R.color.sushi_ansi_bright_red,
+            R.color.sushi_ansi_bright_green, R.color.sushi_ansi_bright_yellow,
+            R.color.sushi_ansi_bright_blue, R.color.sushi_ansi_bright_magenta,
+            R.color.sushi_ansi_bright_cyan, R.color.sushi_ansi_bright_white
+        )
 
         private const val MAX_LINES = 500
         private const val MAX_CHARS = 200_000
@@ -207,6 +223,23 @@ class TerminalView @JvmOverloads constructor(
             appendLog("\n")
         }
         appendLog(if (text.endsWith("\n")) text else text + "\n")
+    }
+
+    /**
+     * ANSI colour [index] (0-7 normal, 8-15 bright) in the palette for the current theme.
+     *
+     * These were the raw `Color` constants, which suit a terminal that is always dark. The
+     * terminal now follows the system theme, and on a light background pure yellow reads at
+     * 1.1:1 and white at 1.1:1 — invisible. Both palettes live in colors.xml, where the light one
+     * clears 4.5:1 throughout and the dark one does too apart from ANSI black, the dim colour.
+     *
+     * Resolved lazily and cached: a theme change recreates the activity, and with it this view.
+     */
+    private fun ansiColor(index: Int): Int {
+        ansiPalette?.let { return it[index] }
+        val resolved = IntArray(ANSI_COLOR_RES.size) { context.getColor(ANSI_COLOR_RES[it]) }
+        ansiPalette = resolved
+        return resolved[index]
     }
 
     fun getRawText(): String = rawTextBuffer.toString()
@@ -412,32 +445,11 @@ class TerminalView @JvmOverloads constructor(
             for (code in codes) {
                 when (code) {
                     0 -> { currentFgColor = null; currentBgColor = null }
-                    30 -> currentFgColor = Color.BLACK
-                    31 -> currentFgColor = Color.RED
-                    32 -> currentFgColor = Color.GREEN
-                    33 -> currentFgColor = Color.YELLOW
-                    34 -> currentFgColor = Color.BLUE
-                    35 -> currentFgColor = Color.MAGENTA
-                    36 -> currentFgColor = Color.CYAN
-                    37 -> currentFgColor = Color.WHITE
+                    in 30..37 -> currentFgColor = ansiColor(code - 30)
                     39 -> currentFgColor = null
-                    40 -> currentBgColor = Color.BLACK
-                    41 -> currentBgColor = Color.RED
-                    42 -> currentBgColor = Color.GREEN
-                    43 -> currentBgColor = Color.YELLOW
-                    44 -> currentBgColor = Color.BLUE
-                    45 -> currentBgColor = Color.MAGENTA
-                    46 -> currentBgColor = Color.CYAN
-                    47 -> currentBgColor = Color.WHITE
+                    in 40..47 -> currentBgColor = ansiColor(code - 40)
                     49 -> currentBgColor = null
-                    90 -> currentFgColor = Color.DKGRAY
-                    91 -> currentFgColor = Color.RED
-                    92 -> currentFgColor = Color.GREEN
-                    93 -> currentFgColor = Color.YELLOW
-                    94 -> currentFgColor = Color.BLUE
-                    95 -> currentFgColor = Color.MAGENTA
-                    96 -> currentFgColor = Color.CYAN
-                    97 -> currentFgColor = Color.WHITE
+                    in 90..97 -> currentFgColor = ansiColor(code - 90 + BRIGHT_OFFSET)
                 }
             }
             lastEnd = matcher.end()

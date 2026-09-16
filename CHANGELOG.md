@@ -6,6 +6,9 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+### Fixed
+- **Terminal was unreadable in light mode**: The terminal screen painted a fixed dark background while its buttons took their colour from the day/night palette, so in light mode every key label was `#0E1B16` on `#0F1514` — a contrast ratio of 1.04:1, against the 4.5:1 that normal text needs. The labels were drawn, just invisible; only Ctrl+C escaped, by overriding with `?attr/colorError`. The terminal now follows the system theme, light or dark, and the Gemini transcript bubbles with it. The ANSI colours came along: they were the raw `Color` constants, which suit a dark terminal but put pure yellow at 1.1:1 and white at 1.1:1 on a light background, so there are now two palettes. Every colour clears 4.5:1 against its background, apart from ANSI black in dark mode at 3.25:1 — a terminal's black is the dim colour and is meant to recede.
+
 ## [0.8.2] - 2026-09-16
 
 ### Added

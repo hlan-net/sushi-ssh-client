@@ -9,7 +9,25 @@
     <color name="sushi_white">#FFFFFF</color>
     <color name="sushi_card_stroke">#1A3B4A44</color>
     <color name="sushi_terminal_bg">#E7ECE9</color>
-    <color name="sushi_terminal_bg_dark">#0F1514</color>
-    <color name="sushi_terminal_panel_dark">#131C1A</color>
-    <color name="sushi_terminal_text">#E6F1ED</color>
+    <color name="sushi_terminal_panel">#F7F9F8</color>
+    <color name="sushi_terminal_text">#0E1B16</color>
+    <!-- ANSI palette for the light terminal. Every entry clears 4.5:1 against
+         sushi_terminal_bg; the raw Color constants it replaces did not — pure
+         yellow and white were invisible on a light background. -->
+    <color name="sushi_ansi_black">#0E1B16</color>
+    <color name="sushi_ansi_red">#A01B24</color>
+    <color name="sushi_ansi_green">#24621A</color>
+    <color name="sushi_ansi_yellow">#6E5200</color>
+    <color name="sushi_ansi_blue">#1E3FA0</color>
+    <color name="sushi_ansi_magenta">#8A1C79</color>
+    <color name="sushi_ansi_cyan">#105E63</color>
+    <color name="sushi_ansi_white">#3B4A44</color>
+    <color name="sushi_ansi_bright_black">#55625C</color>
+    <color name="sushi_ansi_bright_red">#B3242E</color>
+    <color name="sushi_ansi_bright_green">#2C7520</color>
+    <color name="sushi_ansi_bright_yellow">#7E5E00</color>
+    <color name="sushi_ansi_bright_blue">#2A4CB8</color>
+    <color name="sushi_ansi_bright_magenta">#9E2189</color>
+    <color name="sushi_ansi_bright_cyan">#146E74</color>
+    <color name="sushi_ansi_bright_white">#2A3833</color>
 </resources>
