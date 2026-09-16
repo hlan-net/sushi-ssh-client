@@ -30,4 +30,14 @@
     <color name="sushi_ansi_bright_magenta">#EBA9E2</color>
     <color name="sushi_ansi_bright_cyan">#93E3E8</color>
     <color name="sushi_ansi_bright_white">#FFFFFF</color>
+    <!-- Backgrounds for SGR 40-47; see the light palette for why these are their own set.
+         ESC[47m used to paint sushi_ansi_white, the same #E6F1ED as sushi_terminal_text. -->
+    <color name="sushi_ansi_bg_black">#272727</color>
+    <color name="sushi_ansi_bg_red">#612C2C</color>
+    <color name="sushi_ansi_bg_green">#204727</color>
+    <color name="sushi_ansi_bg_yellow">#474120</color>
+    <color name="sushi_ansi_bg_blue">#2B3860</color>
+    <color name="sushi_ansi_bg_magenta">#5C2954</color>
+    <color name="sushi_ansi_bg_cyan">#22444B</color>
+    <color name="sushi_ansi_bg_white">#616161</color>
 </resources>

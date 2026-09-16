@@ -3,8 +3,12 @@ package net.hlan.sushi
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
+import android.text.Spanned
+import android.text.style.BackgroundColorSpan
+import android.text.style.ForegroundColorSpan
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -89,6 +93,120 @@ class TerminalContrastTest {
         assertTrue("dark mode background is not dark: ${hex(nightBg)}", luminance(nightBg) < 0.1)
     }
 
+    // --- SGR 40-47: text painted on an ANSI background ---
+
+    /**
+     * The second half of the same bug. The foreground palette was also being used for
+     * backgrounds, and those entries are chosen to be read *on* `sushi_terminal_bg` — so in
+     * dark mode `ESC[47m` painted `#E6F1ED` behind `#E6F1ED` text, and in light mode `ESC[40m`
+     * painted `#0E1B16` behind `#0E1B16`. Both measured exactly 1.00:1: a blank rectangle where
+     * the output should be.
+     */
+    @Test
+    fun defaultTerminalTextIsReadableOnEveryAnsiBackground() {
+        for (index in ANSI_BACKGROUNDS.indices) {
+            assertOnBackground("light mode ANSI bg $index", light, R.color.sushi_terminal_text, index)
+            assertOnBackground("dark mode ANSI bg $index", night, R.color.sushi_terminal_text, index)
+        }
+    }
+
+    /** A background nobody can tell from the terminal background highlights nothing. */
+    @Test
+    fun everyAnsiBackgroundIsDistinctFromTheTerminalBackground() {
+        assertBackgroundsAreDistinct("light", light)
+        assertBackgroundsAreDistinct("dark", night)
+    }
+
+    private fun assertBackgroundsAreDistinct(mode: String, context: Context) {
+        val terminal = context.getColor(R.color.sushi_terminal_bg)
+        for (index in ANSI_BACKGROUNDS.indices) {
+            val background = context.getColor(ANSI_BACKGROUNDS[index])
+            val measured = contrast(background, terminal)
+            assertTrue(
+                "$mode mode ANSI bg $index: ${hex(background)} is %.2f:1 from the terminal background, under %.1f:1"
+                    .format(measured, HIGHLIGHT_MINIMUM),
+                measured >= HIGHLIGHT_MINIMUM
+            )
+        }
+    }
+
+    /**
+     * SGR pairs the two palettes freely — `ESC[30;47m` is a legal thing to emit — and neither
+     * palette is tuned against the other, so [TerminalView] shifts the foreground until the pair
+     * clears the floor. Every one of the 16 x 8 combinations is checked here in both themes,
+     * because the unreadable ones are exactly the pairs nobody would think to try.
+     */
+    @Test
+    fun everyForegroundBackgroundPairIsReadableAfterTheNudge() {
+        assertEveryPairIsReadable("light", light)
+        assertEveryPairIsReadable("dark", night)
+    }
+
+    private fun assertEveryPairIsReadable(mode: String, context: Context) {
+        val view = TerminalView(context)
+        for (bgCode in 40..47) {
+            for (fgCode in 30..37) {
+                assertRenderedPairIsReadable(mode, view, fgCode, bgCode)
+            }
+            for (fgCode in 90..97) {
+                assertRenderedPairIsReadable(mode, view, fgCode, bgCode)
+            }
+        }
+    }
+
+    private fun assertRenderedPairIsReadable(mode: String, view: TerminalView, fgCode: Int, bgCode: Int) {
+        val rendered = render(view, fgCode, bgCode)
+        val measured = contrast(rendered[0], rendered[1])
+        assertTrue(
+            "$mode mode ESC[$fgCode;${bgCode}m rendered ${hex(rendered[0])} on ${hex(rendered[1])} at %.2f:1"
+                .format(measured),
+            measured >= BODY_TEXT_MINIMUM
+        )
+    }
+
+    /** A pair that already reads must be left exactly as the remote asked for it. */
+    @Test
+    fun aReadablePairIsNotNudged() {
+        // 97 is bright white, 44 a dark blue background: legible as sent, so nothing to shift.
+        val rendered = render(TerminalView(night), 97, 44)
+
+        assertEquals(night.getColor(R.color.sushi_ansi_bright_white), rendered[0])
+        assertEquals(night.getColor(R.color.sushi_ansi_bg_blue), rendered[1])
+    }
+
+    /**
+     * Renders one SGR pair and reads the colours back off the spans.
+     *
+     * Goes through [TerminalView.appendLog] rather than calling the contrast helper directly:
+     * that helper is private, and these tests run against the minified APK where R8 is free to
+     * rename or inline it. The rendered spans are also what actually reaches the screen, which
+     * is the thing worth asserting.
+     *
+     * Returns the foreground and the background, in that order.
+     */
+    private fun render(view: TerminalView, fgCode: Int, bgCode: Int): IntArray {
+        view.clearLog()
+        view.appendLog("\u001B[$fgCode;${bgCode}mX")
+
+        val spanned = view.text as Spanned
+        val foreground = spanned.getSpans(0, spanned.length, ForegroundColorSpan::class.java)
+        val background = spanned.getSpans(0, spanned.length, BackgroundColorSpan::class.java)
+        assertEquals("ESC[$fgCode;${bgCode}m set no foreground", 1, foreground.size)
+        assertEquals("ESC[$fgCode;${bgCode}m set no background", 1, background.size)
+        return intArrayOf(foreground[0].foregroundColor, background[0].backgroundColor)
+    }
+
+    private fun assertOnBackground(what: String, context: Context, colorRes: Int, bgIndex: Int) {
+        val foreground = context.getColor(colorRes)
+        val background = context.getColor(ANSI_BACKGROUNDS[bgIndex])
+        val measured = contrast(foreground, background)
+        assertTrue(
+            "$what: ${hex(foreground)} on ${hex(background)} is %.2f:1, under %.1f:1"
+                .format(measured, BODY_TEXT_MINIMUM),
+            measured >= BODY_TEXT_MINIMUM
+        )
+    }
+
     private fun assertContrast(what: String, context: Context, colorRes: Int, minimum: Double) {
         val foreground = context.getColor(colorRes)
         val background = context.getColor(R.color.sushi_terminal_bg)
@@ -141,5 +259,20 @@ class TerminalContrastTest {
             R.color.sushi_ansi_bright_blue, R.color.sushi_ansi_bright_magenta,
             R.color.sushi_ansi_bright_cyan, R.color.sushi_ansi_bright_white
         )
+
+        /** SGR 40-47, in the same ANSI order. No bright half: 100-107 are not handled. */
+        val ANSI_BACKGROUNDS = intArrayOf(
+            R.color.sushi_ansi_bg_black, R.color.sushi_ansi_bg_red,
+            R.color.sushi_ansi_bg_green, R.color.sushi_ansi_bg_yellow,
+            R.color.sushi_ansi_bg_blue, R.color.sushi_ansi_bg_magenta,
+            R.color.sushi_ansi_bg_cyan, R.color.sushi_ansi_bg_white
+        )
+
+        /**
+         * A highlight has to be visible as a highlight. Modest on purpose — a background tint
+         * that had to clear 3:1 against the terminal background could not also keep the text
+         * on it readable.
+         */
+        const val HIGHLIGHT_MINIMUM = 1.1
     }
 }

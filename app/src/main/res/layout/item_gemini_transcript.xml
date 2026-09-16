@@ -58,7 +58,7 @@
         android:paddingTop="10dp"
         android:paddingEnd="12dp"
         android:paddingBottom="10dp"
-        android:textColor="@color/sushi_terminal_text" />
+        android:textColor="@color/sushi_mist" />
 
     <LinearLayout
         android:id="@+id/transcriptCommandSection"

@@ -30,4 +30,17 @@
     <color name="sushi_ansi_bright_magenta">#9E2189</color>
     <color name="sushi_ansi_bright_cyan">#146E74</color>
     <color name="sushi_ansi_bright_white">#2A3833</color>
+    <!-- Backgrounds for SGR 40-47. Separate from the foreground palette above: those
+         entries are tuned to be read *on* sushi_terminal_bg, so reusing them behind text
+         painted ESC[40m black-on-black. These are surface tints instead — each keeps
+         sushi_terminal_text at 4.5:1 while staying visibly apart from the terminal
+         background, and TerminalView nudges any foreground that still falls short. -->
+    <color name="sushi_ansi_bg_black">#CECECE</color>
+    <color name="sushi_ansi_bg_red">#FEC7C7</color>
+    <color name="sushi_ansi_bg_green">#B4E6BC</color>
+    <color name="sushi_ansi_bg_yellow">#E6DDB3</color>
+    <color name="sushi_ansi_bg_blue">#C3D1FA</color>
+    <color name="sushi_ansi_bg_magenta">#FBC3F1</color>
+    <color name="sushi_ansi_bg_cyan">#B6E1EA</color>
+    <color name="sushi_ansi_bg_white">#FFFFFF</color>
 </resources>
