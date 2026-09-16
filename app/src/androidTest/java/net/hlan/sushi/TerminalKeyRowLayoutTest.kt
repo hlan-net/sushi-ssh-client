@@ -48,24 +48,27 @@ class TerminalKeyRowLayoutTest {
 
     private fun button(id: Int): View = root.findViewById(id)
 
+    /**
+     * Written without mapOf/listOf on purpose: these run against the R8'd app APK, which is
+     * where the test APK resolves the Kotlin stdlib from, and R8 drops the parts the app itself
+     * never calls. An earlier version of this test died on
+     * `NoClassDefFoundError: kotlin.collections.MapsKt` rather than on anything it meant to check.
+     */
     @Test
     fun everyKeyIsAtLeastATouchTarget() {
-        val keys = mapOf(
-            "arrow up" to R.id.terminalArrowUpButton,
-            "arrow down" to R.id.terminalArrowDownButton,
-            "enter" to R.id.terminalEnterButton,
-            "tab" to R.id.terminalTabButton,
-            "backspace" to R.id.terminalBackspaceButton
-        )
-        val minimum = dp(MIN_TOUCH_TARGET_DP)
+        assertIsATouchTarget("arrow up", R.id.terminalArrowUpButton)
+        assertIsATouchTarget("arrow down", R.id.terminalArrowDownButton)
+        assertIsATouchTarget("enter", R.id.terminalEnterButton)
+        assertIsATouchTarget("tab", R.id.terminalTabButton)
+        assertIsATouchTarget("backspace", R.id.terminalBackspaceButton)
+    }
 
-        for ((name, id) in keys) {
-            val width = button(id).measuredWidth
-            assertTrue(
-                "$name measured ${width}px at ${PHONE_WIDTH_DP}dp, below the ${MIN_TOUCH_TARGET_DP}dp target",
-                width >= minimum
-            )
-        }
+    private fun assertIsATouchTarget(name: String, id: Int) {
+        val width = button(id).measuredWidth
+        assertTrue(
+            "$name measured ${width}px at ${PHONE_WIDTH_DP}dp, below the ${MIN_TOUCH_TARGET_DP}dp target",
+            width >= dp(MIN_TOUCH_TARGET_DP)
+        )
     }
 
     /** The arrows share a row with nothing else, so each gets about half the width. */
@@ -81,24 +84,19 @@ class TerminalKeyRowLayoutTest {
     /** No key row may run off the side of the screen. */
     @Test
     fun noKeyRowOverflowsTheScreen() {
-        val screen = dp(PHONE_WIDTH_DP)
-        for (row in keyRows()) {
-            assertTrue(
-                "a key row measured ${row.measuredWidth}px against a ${screen}px screen",
-                row.measuredWidth <= screen
-            )
-        }
+        assertRowFits(R.id.terminalArrowUpButton)
+        assertRowFits(R.id.terminalEnterButton)
+        assertRowFits(R.id.terminalCtrlCButton)
     }
 
-    private fun keyRows(): List<ViewGroup> {
-        val rows = mutableListOf<ViewGroup>()
-        for (id in listOf(R.id.terminalArrowUpButton, R.id.terminalEnterButton, R.id.terminalCtrlCButton)) {
-            val parent = button(id).parent
-            if (parent is ViewGroup) {
-                rows += parent
-            }
-        }
-        return rows
+    /** Named by a key inside it, since the rows themselves have no ids. */
+    private fun assertRowFits(keyId: Int) {
+        val row = button(keyId).parent as ViewGroup
+        val screen = dp(PHONE_WIDTH_DP)
+        assertTrue(
+            "a key row measured ${row.measuredWidth}px against a ${screen}px screen",
+            row.measuredWidth <= screen
+        )
     }
 
     private companion object {
