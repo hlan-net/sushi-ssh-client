@@ -16,6 +16,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.widget.AppCompatTextView
+import androidx.core.graphics.ColorUtils
 import java.util.regex.Pattern
 
 class TerminalView @JvmOverloads constructor(
@@ -35,6 +36,9 @@ class TerminalView @JvmOverloads constructor(
     // so the filter state must persist between appendLog calls.
     private enum class OscState { NONE, ESC_SEEN, IN_OSC, IN_OSC_ESC_SEEN }
 
+    private var ansiPalette: IntArray? = null
+    private var ansiBackgroundPalette: IntArray? = null
+
     var onSizeChangedListener: ((col: Int, row: Int, wp: Int, hp: Int) -> Unit)? = null
 
     companion object {
@@ -45,6 +49,35 @@ class TerminalView @JvmOverloads constructor(
          */
         const val CURSOR_UP = "\u001B[A"
         const val CURSOR_DOWN = "\u001B[B"
+
+        /** Where the bright half of the palette starts, so 90-97 map past 30-37. */
+        private const val BRIGHT_OFFSET = 8
+
+        /** Normal 0-7 then bright 8-15, in ANSI order: black, red, green, yellow, blue, magenta, cyan, white. */
+        internal val ANSI_COLOR_RES = intArrayOf(
+            R.color.sushi_ansi_black, R.color.sushi_ansi_red,
+            R.color.sushi_ansi_green, R.color.sushi_ansi_yellow,
+            R.color.sushi_ansi_blue, R.color.sushi_ansi_magenta,
+            R.color.sushi_ansi_cyan, R.color.sushi_ansi_white,
+            R.color.sushi_ansi_bright_black, R.color.sushi_ansi_bright_red,
+            R.color.sushi_ansi_bright_green, R.color.sushi_ansi_bright_yellow,
+            R.color.sushi_ansi_bright_blue, R.color.sushi_ansi_bright_magenta,
+            R.color.sushi_ansi_bright_cyan, R.color.sushi_ansi_bright_white
+        )
+
+        /** Backgrounds for SGR 40-47, in ANSI order. No bright half: 100-107 are not handled. */
+        private val ANSI_BG_COLOR_RES = intArrayOf(
+            R.color.sushi_ansi_bg_black, R.color.sushi_ansi_bg_red,
+            R.color.sushi_ansi_bg_green, R.color.sushi_ansi_bg_yellow,
+            R.color.sushi_ansi_bg_blue, R.color.sushi_ansi_bg_magenta,
+            R.color.sushi_ansi_bg_cyan, R.color.sushi_ansi_bg_white
+        )
+
+        /** WCAG 2.1 AA for normal text; the floor a foreground is nudged to when a background is set. */
+        private const val MIN_CONTRAST = 4.5
+
+        /** Halvings of the blend range — 8 lands within 1/256, finer than a colour channel. */
+        private const val BLEND_STEPS = 8
 
         private const val MAX_LINES = 500
         private const val MAX_CHARS = 200_000
@@ -207,6 +240,68 @@ class TerminalView @JvmOverloads constructor(
             appendLog("\n")
         }
         appendLog(if (text.endsWith("\n")) text else text + "\n")
+    }
+
+    /**
+     * ANSI colour [index] (0-7 normal, 8-15 bright) in the palette for the current theme.
+     *
+     * These were the raw `Color` constants, which suit a terminal that is always dark. The
+     * terminal now follows the system theme, and on a light background pure yellow reads at
+     * 1.1:1 and white at 1.1:1 — invisible. Both palettes live in colors.xml, where the light one
+     * clears 4.5:1 throughout and the dark one does too apart from ANSI black, the dim colour.
+     *
+     * Resolved lazily and cached: a theme change recreates the activity, and with it this view.
+     */
+    private fun ansiColor(index: Int): Int {
+        ansiPalette?.let { return it[index] }
+        val resolved = IntArray(ANSI_COLOR_RES.size) { context.getColor(ANSI_COLOR_RES[it]) }
+        ansiPalette = resolved
+        return resolved[index]
+    }
+
+    /**
+     * The colour SGR 40-47 paints behind text.
+     *
+     * Deliberately not [ansiColor]: those entries are chosen to be read *on* the terminal
+     * background, so using them as backgrounds put text on its own colour — `ESC[47m` in dark
+     * mode painted #E6F1ED behind #E6F1ED text, and `ESC[40m` in light mode did the same in
+     * reverse. Both rendered as blank space.
+     */
+    private fun ansiBackground(index: Int): Int {
+        ansiBackgroundPalette?.let { return it[index] }
+        val resolved = IntArray(ANSI_BG_COLOR_RES.size) { context.getColor(ANSI_BG_COLOR_RES[it]) }
+        ansiBackgroundPalette = resolved
+        return resolved[index]
+    }
+
+    /**
+     * Shifts [foreground] toward white or black until it clears [MIN_CONTRAST] against
+     * [background] — iTerm2's "minimum contrast" in miniature.
+     *
+     * The two palettes are each tuned against the terminal background, not against each other,
+     * and SGR lets the remote pair any foreground with any background. `ESC[30;47m` is a legal
+     * thing for a program to emit and would otherwise render at 1.09:1. Blending keeps the
+     * colour's hue for as long as it can rather than replacing it outright, so output still
+     * looks like what the remote asked for.
+     */
+    private fun readableOn(foreground: Int, background: Int): Int {
+        if (ColorUtils.calculateContrast(foreground, background) >= MIN_CONTRAST) return foreground
+        val target = if (ColorUtils.calculateLuminance(background) > 0.5) Color.BLACK else Color.WHITE
+        var tooLittle = 0f
+        var enough = 1f
+        repeat(BLEND_STEPS) {
+            val midpoint = (tooLittle + enough) / 2f
+            if (ColorUtils.calculateContrast(ColorUtils.blendARGB(foreground, target, midpoint), background) >= MIN_CONTRAST) {
+                enough = midpoint
+            } else {
+                tooLittle = midpoint
+            }
+        }
+        // blendARGB truncates each channel rather than rounding, so the blend the search settled
+        // on can land a hair under the floor. [target] itself always clears it against any of
+        // these backgrounds, so it is the safe thing to fall back to.
+        val nudged = ColorUtils.blendARGB(foreground, target, enough)
+        return if (ColorUtils.calculateContrast(nudged, background) >= MIN_CONTRAST) nudged else target
     }
 
     fun getRawText(): String = rawTextBuffer.toString()
@@ -412,32 +507,11 @@ class TerminalView @JvmOverloads constructor(
             for (code in codes) {
                 when (code) {
                     0 -> { currentFgColor = null; currentBgColor = null }
-                    30 -> currentFgColor = Color.BLACK
-                    31 -> currentFgColor = Color.RED
-                    32 -> currentFgColor = Color.GREEN
-                    33 -> currentFgColor = Color.YELLOW
-                    34 -> currentFgColor = Color.BLUE
-                    35 -> currentFgColor = Color.MAGENTA
-                    36 -> currentFgColor = Color.CYAN
-                    37 -> currentFgColor = Color.WHITE
+                    in 30..37 -> currentFgColor = ansiColor(code - 30)
                     39 -> currentFgColor = null
-                    40 -> currentBgColor = Color.BLACK
-                    41 -> currentBgColor = Color.RED
-                    42 -> currentBgColor = Color.GREEN
-                    43 -> currentBgColor = Color.YELLOW
-                    44 -> currentBgColor = Color.BLUE
-                    45 -> currentBgColor = Color.MAGENTA
-                    46 -> currentBgColor = Color.CYAN
-                    47 -> currentBgColor = Color.WHITE
+                    in 40..47 -> currentBgColor = ansiBackground(code - 40)
                     49 -> currentBgColor = null
-                    90 -> currentFgColor = Color.DKGRAY
-                    91 -> currentFgColor = Color.RED
-                    92 -> currentFgColor = Color.GREEN
-                    93 -> currentFgColor = Color.YELLOW
-                    94 -> currentFgColor = Color.BLUE
-                    95 -> currentFgColor = Color.MAGENTA
-                    96 -> currentFgColor = Color.CYAN
-                    97 -> currentFgColor = Color.WHITE
+                    in 90..97 -> currentFgColor = ansiColor(code - 90 + BRIGHT_OFFSET)
                 }
             }
             lastEnd = matcher.end()
@@ -454,7 +528,11 @@ class TerminalView @JvmOverloads constructor(
 
     private fun applyColors(builder: SpannableStringBuilder, start: Int, end: Int, fg: Int?, bg: Int?) {
         if (start == end) return
-        fg?.let { builder.setSpan(ForegroundColorSpan(it), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE) }
+        // With no background set the foreground sits on sushi_terminal_bg, which the palette is
+        // already tuned against — including ANSI black, left dim on purpose. Only a background
+        // introduces a pair that was never measured.
+        val foreground = if (bg == null) fg else readableOn(fg ?: currentTextColor, bg)
+        foreground?.let { builder.setSpan(ForegroundColorSpan(it), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE) }
         bg?.let { builder.setSpan(BackgroundColorSpan(it), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE) }
     }
 }
