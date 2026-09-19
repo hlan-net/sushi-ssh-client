@@ -7,7 +7,7 @@
     android:padding="20dp">
 
     <TextView
-        android:id="@+id/geminiDialogTitle"
+        android:id="@+id/gemini_dialog_title"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -15,7 +15,7 @@
         android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/geminiDialogHostText"
+        android:id="@+id/gemini_dialog_host_text"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -25,7 +25,7 @@
         app:drawableStartCompat="@drawable/ic_dns" />
 
     <TextView
-        android:id="@+id/geminiDialogStatusText"
+        android:id="@+id/gemini_dialog_status_text"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -33,28 +33,28 @@
         android:text="@string/gemini_status_disabled" />
 
     <com.google.android.material.switchmaterial.SwitchMaterial
-        android:id="@+id/geminiDialogRawModeSwitch"
+        android:id="@+id/gemini_dialog_raw_mode_switch"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:text="@string/raw_terminal_mode_label" />
 
     <com.google.android.material.switchmaterial.SwitchMaterial
-        android:id="@+id/geminiDialogTroubleshootSwitch"
+        android:id="@+id/gemini_dialog_troubleshoot_switch"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:text="@string/troubleshoot_mode_label" />
 
     <TextView
-        android:id="@+id/geminiDialogTroubleshootCaption"
+        android:id="@+id/gemini_dialog_troubleshoot_caption"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/troubleshoot_mode_caption" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/geminiDialogVoiceButton"
+        android:id="@+id/gemini_dialog_voice_button"
         style="@style/Widget.Sushi.PrimaryButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -64,7 +64,7 @@
         app:iconGravity="textStart" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/geminiDialogSettingsButton"
+        android:id="@+id/gemini_dialog_settings_button"
         style="@style/Widget.Sushi.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -74,7 +74,7 @@
         app:iconGravity="textStart" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/geminiDialogHistoryButton"
+        android:id="@+id/gemini_dialog_history_button"
         style="@style/Widget.Sushi.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -92,7 +92,7 @@
         android:orientation="horizontal">
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/geminiDialogTextInputLayout"
+            android:id="@+id/gemini_dialog_text_input_layout"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -101,7 +101,7 @@
             android:hint="@string/conversation_input_hint">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/geminiDialogTextInput"
+                android:id="@+id/gemini_dialog_text_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:imeOptions="actionSend"
@@ -110,7 +110,7 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/geminiDialogSendButton"
+            android:id="@+id/gemini_dialog_send_button"
             style="@style/Widget.Material3.Button.IconButton.Filled"
             android:layout_width="56dp"
             android:layout_height="56dp"
@@ -119,7 +119,7 @@
     </LinearLayout>
 
     <TextView
-        android:id="@+id/geminiTranscriptLabel"
+        android:id="@+id/gemini_transcript_label"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -129,7 +129,7 @@
         android:visibility="gone" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/geminiTranscriptRecycler"
+        android:id="@+id/gemini_transcript_recycler"
         android:layout_width="match_parent"
         android:layout_height="220dp"
         android:layout_marginTop="8dp"
@@ -138,7 +138,7 @@
         android:visibility="gone" />
 
     <ProgressBar
-        android:id="@+id/geminiDialogProgressBar"
+        android:id="@+id/gemini_dialog_progress_bar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
@@ -146,7 +146,7 @@
         android:visibility="gone" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/geminiDialogCopyButton"
+        android:id="@+id/gemini_dialog_copy_button"
         style="@style/Widget.Sushi.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

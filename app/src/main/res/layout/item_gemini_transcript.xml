@@ -8,7 +8,7 @@
     android:descendantFocusability="blocksDescendants">
 
     <TextView
-        android:id="@+id/transcriptPromptLabel"
+        android:id="@+id/transcript_prompt_label"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -17,7 +17,7 @@
         android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/transcriptPromptContent"
+        android:id="@+id/transcript_prompt_content"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -35,7 +35,7 @@
         android:textColor="@color/sushi_mist" />
 
     <TextView
-        android:id="@+id/transcriptResponseLabel"
+        android:id="@+id/transcript_response_label"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -44,7 +44,7 @@
         android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/transcriptResponseContent"
+        android:id="@+id/transcript_response_content"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -61,7 +61,7 @@
         android:textColor="@color/sushi_mist" />
 
     <LinearLayout
-        android:id="@+id/transcriptCommandSection"
+        android:id="@+id/transcript_command_section"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
@@ -69,7 +69,7 @@
         android:visibility="gone">
 
         <TextView
-            android:id="@+id/transcriptCommandLabel"
+            android:id="@+id/transcript_command_label"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -77,7 +77,7 @@
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/transcriptCommandContent"
+            android:id="@+id/transcript_command_content"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -88,7 +88,7 @@
             android:textColor="@color/sushi_terminal_text" />
 
         <TextView
-            android:id="@+id/transcriptOutputLabel"
+            android:id="@+id/transcript_output_label"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -98,7 +98,7 @@
             android:visibility="gone" />
 
         <TextView
-            android:id="@+id/transcriptOutputContent"
+            android:id="@+id/transcript_output_content"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

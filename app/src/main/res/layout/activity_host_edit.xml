@@ -13,7 +13,7 @@
         android:padding="24dp">
 
         <TextView
-            android:id="@+id/editHostTitle"
+            android:id="@+id/edit_host_title"
             style="@style/TextAppearance.Sushi.Headline"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -23,92 +23,92 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/hostAliasLayout"
+            android:id="@+id/host_alias_layout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:hint="@string/host_alias_hint"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/editHostTitle">
+            app:layout_constraintTop_toBottomOf="@id/edit_host_title">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/hostAliasInput"
+                android:id="@+id/host_alias_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="text" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/sshHostLayout"
+            android:id="@+id/ssh_host_layout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="@string/ssh_host_hint"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/hostAliasLayout">
+            app:layout_constraintTop_toBottomOf="@id/host_alias_layout">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/sshHostInput"
+                android:id="@+id/ssh_host_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="textUri" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/sshPortLayout"
+            android:id="@+id/ssh_port_layout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="@string/ssh_port_hint"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/sshHostLayout">
+            app:layout_constraintTop_toBottomOf="@id/ssh_host_layout">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/sshPortInput"
+                android:id="@+id/ssh_port_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="number" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/sshUsernameLayout"
+            android:id="@+id/ssh_username_layout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="@string/ssh_username_hint"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/sshPortLayout">
+            app:layout_constraintTop_toBottomOf="@id/ssh_port_layout">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/sshUsernameInput"
+                android:id="@+id/ssh_username_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="text" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/sshPasswordLayout"
+            android:id="@+id/ssh_password_layout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="@string/ssh_password_hint"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/sshUsernameLayout">
+            app:layout_constraintTop_toBottomOf="@id/ssh_username_layout">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/sshPasswordInput"
+                android:id="@+id/ssh_password_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="textPassword" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/authPreferenceLayout"
+            android:id="@+id/auth_preference_layout"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -116,27 +116,27 @@
             android:hint="@string/auth_method_hint"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/sshPasswordLayout">
+            app:layout_constraintTop_toBottomOf="@id/ssh_password_layout">
 
             <AutoCompleteTextView
-                android:id="@+id/authPreferenceInput"
+                android:id="@+id/auth_preference_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="none" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/jumpEnabledSwitch"
+            android:id="@+id/jump_enabled_switch"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:text="@string/jump_enabled_label"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/authPreferenceLayout" />
+            app:layout_constraintTop_toBottomOf="@id/auth_preference_layout" />
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/jumpServerLayout"
+            android:id="@+id/jump_server_layout"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -144,17 +144,17 @@
             android:hint="@string/jump_server_hint"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/jumpEnabledSwitch">
+            app:layout_constraintTop_toBottomOf="@id/jump_enabled_switch">
 
             <AutoCompleteTextView
-                android:id="@+id/jumpServerInput"
+                android:id="@+id/jump_server_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="none" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <TextView
-            android:id="@+id/jumpHelperText"
+            android:id="@+id/jump_helper_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -162,10 +162,10 @@
             android:text="@string/jump_helper"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/jumpServerLayout" />
+            app:layout_constraintTop_toBottomOf="@id/jump_server_layout" />
 
         <TextView
-            android:id="@+id/sshHelperText"
+            android:id="@+id/ssh_helper_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -173,10 +173,10 @@
             android:text="@string/ssh_helper"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/jumpHelperText" />
+            app:layout_constraintTop_toBottomOf="@id/jump_helper_text" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/saveButton"
+            android:id="@+id/save_button"
             style="@style/Widget.Sushi.PrimaryButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -186,10 +186,10 @@
             app:iconGravity="textStart"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/sshHelperText" />
+            app:layout_constraintTop_toBottomOf="@id/ssh_helper_text" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/deleteButton"
+            android:id="@+id/delete_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -203,7 +203,7 @@
             app:strokeColor="?attr/colorError"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/saveButton" />
+            app:layout_constraintTop_toBottomOf="@id/save_button" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

@@ -7,7 +7,7 @@
     android:background="@color/sushi_mist">
 
     <TextView
-        android:id="@+id/hostsTitle"
+        android:id="@+id/hosts_title"
         style="@style/TextAppearance.Sushi.Headline"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -20,7 +20,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/hostsRecyclerView"
+        android:id="@+id/hosts_recycler_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
@@ -29,10 +29,10 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/hostsTitle" />
+        app:layout_constraintTop_toBottomOf="@id/hosts_title" />
 
     <TextView
-        android:id="@+id/emptyHostsText"
+        android:id="@+id/empty_hosts_text"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -47,7 +47,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-        android:id="@+id/addHostFab"
+        android:id="@+id/add_host_fab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="24dp"

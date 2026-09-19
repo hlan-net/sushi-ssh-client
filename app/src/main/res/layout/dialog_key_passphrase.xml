@@ -8,7 +8,7 @@
     android:padding="16dp">
 
     <TextView
-        android:id="@+id/keyPassphraseSubtitle"
+        android:id="@+id/key_passphrase_subtitle"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -16,20 +16,20 @@
         tools:text="db-prod.example.com:22" />
 
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/keyPassphraseLayout"
+        android:id="@+id/key_passphrase_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/key_passphrase_hint">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/keyPassphraseInput"
+            android:id="@+id/key_passphrase_input"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="textPassword" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.switchmaterial.SwitchMaterial
-        android:id="@+id/keyPassphraseRememberSwitch"
+        android:id="@+id/key_passphrase_remember_switch"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"

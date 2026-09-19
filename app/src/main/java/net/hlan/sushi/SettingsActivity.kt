@@ -472,11 +472,11 @@ class SettingsActivity : AppCompatActivity() {
         // Cloud model toggle
         val currentModel = settings.getCloudModel()
         pageBinding.geminiModelToggle.check(
-            if (currentModel == GeminiClient.MODEL_PRO) R.id.geminiModelPro else R.id.geminiModelFlash
+            if (currentModel == GeminiClient.MODEL_PRO) R.id.gemini_model_pro else R.id.gemini_model_flash
         )
         pageBinding.geminiModelToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
-            val modelId = if (checkedId == R.id.geminiModelPro) {
+            val modelId = if (checkedId == R.id.gemini_model_pro) {
                 GeminiClient.MODEL_PRO
             } else {
                 GeminiClient.MODEL_FLASH

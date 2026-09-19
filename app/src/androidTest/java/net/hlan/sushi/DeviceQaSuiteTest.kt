@@ -77,44 +77,44 @@ class DeviceQaSuiteTest {
 
         // MainActivity — verify status text and settings button
         launchActivity(MainActivity::class.java).use {
-            onView(withId(R.id.sessionStatusText))
+            onView(withId(R.id.session_status_text))
                 .check(matches(withText(not(isEmptyOrNullString()))))
-            onView(withId(R.id.mainSettingsButton)).perform(scrollTo()).check(matches(isDisplayed()))
+            onView(withId(R.id.main_settings_button)).perform(scrollTo()).check(matches(isDisplayed()))
         }
 
         // SettingsActivity — verify title and SSH page generate-key button
         launchActivity(SettingsActivity::class.java).use { scenario ->
-            onView(withId(R.id.settingsTitle))
+            onView(withId(R.id.settings_title))
                 .check(matches(withText(not(isEmptyOrNullString()))))
             onView(withText("SSH")).perform(click())
-            scrollIntoView(scenario, R.id.quickGenerateKeyButton)
-            onView(withId(R.id.quickGenerateKeyButton)).check(matches(isDisplayed()))
+            scrollIntoView(scenario, R.id.quick_generate_key_button)
+            onView(withId(R.id.quick_generate_key_button)).check(matches(isDisplayed()))
         }
 
         // HostsActivity — verify title and FAB
         launchActivity(HostsActivity::class.java).use {
-            onView(withId(R.id.hostsTitle))
+            onView(withId(R.id.hosts_title))
                 .check(matches(withText(not(isEmptyOrNullString()))))
-            onView(withId(R.id.addHostFab)).check(matches(isDisplayed()))
+            onView(withId(R.id.add_host_fab)).check(matches(isDisplayed()))
         }
 
         // HostEditActivity — fill in and save a host
         launchActivity(HostEditActivity::class.java).use {
-            onView(withId(R.id.hostAliasInput)).perform(replaceText(hostAlias))
-            onView(withId(R.id.sshHostInput)).perform(replaceText(hostValue))
-            onView(withId(R.id.sshPortInput)).perform(replaceText("22"))
-            onView(withId(R.id.sshUsernameInput)).perform(replaceText("qa-user"))
-            onView(withId(R.id.sshPasswordInput)).perform(replaceText("qa-password"))
-            onView(withId(R.id.saveButton)).perform(scrollTo(), click())
+            onView(withId(R.id.host_alias_input)).perform(replaceText(hostAlias))
+            onView(withId(R.id.ssh_host_input)).perform(replaceText(hostValue))
+            onView(withId(R.id.ssh_port_input)).perform(replaceText("22"))
+            onView(withId(R.id.ssh_username_input)).perform(replaceText("qa-user"))
+            onView(withId(R.id.ssh_password_input)).perform(replaceText("qa-password"))
+            onView(withId(R.id.save_button)).perform(scrollTo(), click())
         }
 
         // HostsActivity — verify host appears and can be tapped
         launchActivity(HostsActivity::class.java).use { hostsScenario ->
             waitForCondition(hostsScenario) { activity ->
-                val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.hostsRecyclerView)
+                val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.hosts_recycler_view)
                 recycler.adapter?.itemCount ?: 0 > 0
             }
-            onView(withId(R.id.hostsRecyclerView)).perform(
+            onView(withId(R.id.hosts_recycler_view)).perform(
                 RecyclerViewActions.actionOnItemAtPosition<androidx.recyclerview.widget.RecyclerView.ViewHolder>(0, click())
             )
         }
@@ -122,29 +122,29 @@ class DeviceQaSuiteTest {
         // SettingsActivity — verify quick-generate-key button on SSH tab
         launchActivity(SettingsActivity::class.java).use { scenario ->
             onView(withText("SSH")).perform(click())
-            scrollIntoView(scenario, R.id.quickGenerateKeyButton)
-            onView(withId(R.id.quickGenerateKeyButton)).check(matches(isDisplayed()))
+            scrollIntoView(scenario, R.id.quick_generate_key_button)
+            onView(withId(R.id.quick_generate_key_button)).check(matches(isDisplayed()))
         }
 
         // KeysActivity — verify title, status, and generate button
         launchActivity(KeysActivity::class.java).use {
-            onView(withId(R.id.keysTitle))
+            onView(withId(R.id.keys_title))
                 .check(matches(withText(not(isEmptyOrNullString()))))
-            onView(withId(R.id.keyStatusText))
+            onView(withId(R.id.key_status_text))
                 .check(matches(withText(not(isEmptyOrNullString()))))
-            onView(withId(R.id.generateKeyButton)).check(matches(isDisplayed()))
+            onView(withId(R.id.generate_key_button)).check(matches(isDisplayed()))
         }
 
         // SettingsActivity — verify about button
         launchActivity(SettingsActivity::class.java).use {
-            onView(withId(R.id.aboutButton)).check(matches(isDisplayed()))
+            onView(withId(R.id.about_button)).check(matches(isDisplayed()))
         }
 
         // AboutActivity — verify title and github button
         launchActivity(AboutActivity::class.java).use {
-            onView(withId(R.id.aboutTitle))
+            onView(withId(R.id.about_title))
                 .check(matches(withText(not(isEmptyOrNullString()))))
-            onView(withId(R.id.githubButton)).check(matches(isDisplayed()))
+            onView(withId(R.id.github_button)).check(matches(isDisplayed()))
         }
 
         // Verify host was saved via SshSettings
@@ -159,9 +159,9 @@ class DeviceQaSuiteTest {
 
         // PhrasesActivity — verify title and add button
         launchActivity(PhrasesActivity::class.java).use {
-            onView(withId(R.id.phrasesTitle))
+            onView(withId(R.id.phrases_title))
                 .check(matches(withText(not(isEmptyOrNullString()))))
-            onView(withId(R.id.addPhraseButton)).check(matches(isDisplayed()))
+            onView(withId(R.id.add_phrase_button)).check(matches(isDisplayed()))
         }
     }
 
@@ -173,7 +173,7 @@ class DeviceQaSuiteTest {
         val playDb = PlayDatabaseHelper.getInstance(context)
 
         launchActivity(KeysActivity::class.java).use {
-            onView(withId(R.id.generateKeyButton)).perform(click())
+            onView(withId(R.id.generate_key_button)).perform(click())
             // Key generation now prompts for an optional passphrase first; confirm with it
             // left blank (an explicit, supported "no passphrase" choice) to proceed.
             onView(withText(R.string.key_passphrase_confirm)).perform(click())
@@ -209,11 +209,11 @@ class DeviceQaSuiteTest {
 
         launchActivity(PhrasesActivity::class.java).use { phrasesScenario ->
             waitForCondition(phrasesScenario) { activity ->
-                val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.phrasesRecyclerView)
+                val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.phrases_recycler_view)
                 recycler.adapter?.itemCount ?: 0 >= 2
             }
 
-            onView(withId(R.id.phrasesRecyclerView)).perform(
+            onView(withId(R.id.phrases_recycler_view)).perform(
                 RecyclerViewActions.actionOnItem<androidx.recyclerview.widget.RecyclerView.ViewHolder>(
                     hasDescendant(withText(PHRASE_REMOVE_SUSHI_KEYS)), click()
                 )
@@ -239,11 +239,11 @@ class DeviceQaSuiteTest {
         launchActivity(HostsActivity::class.java).use { scenario ->
             waitForCondition(scenario) { activity ->
                 val recycler = activity.findViewById<androidx.recyclerview.widget.RecyclerView>(
-                    R.id.hostsRecyclerView
+                    R.id.hosts_recycler_view
                 )
                 recycler.adapter?.itemCount ?: 0 > 0
             }
-            onView(withId(R.id.hostsRecyclerView))
+            onView(withId(R.id.hosts_recycler_view))
                 .check(matches(isDisplayed()))
         }
     }
@@ -259,18 +259,18 @@ class DeviceQaSuiteTest {
 
         launchActivity<HostEditActivity>(intent).use { scenario ->
             // Alias field must be visible and editable
-            onView(withId(R.id.hostAliasInput)).check(matches(isDisplayed()))
+            onView(withId(R.id.host_alias_input)).check(matches(isDisplayed()))
 
             // SSH-specific fields must be hidden for LOCAL hosts
-            onView(withId(R.id.sshHostLayout)).check(matches(not(isDisplayed())))
-            onView(withId(R.id.sshPortLayout)).check(matches(not(isDisplayed())))
-            onView(withId(R.id.sshUsernameLayout)).check(matches(not(isDisplayed())))
-            onView(withId(R.id.sshPasswordLayout)).check(matches(not(isDisplayed())))
-            onView(withId(R.id.authPreferenceLayout)).check(matches(not(isDisplayed())))
-            onView(withId(R.id.jumpEnabledSwitch)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.ssh_host_layout)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.ssh_port_layout)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.ssh_username_layout)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.ssh_password_layout)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.auth_preference_layout)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.jump_enabled_switch)).check(matches(not(isDisplayed())))
 
             // Delete button must be hidden so the synthetic host cannot be removed
-            onView(withId(R.id.deleteButton)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.delete_button)).check(matches(not(isDisplayed())))
         }
     }
 
@@ -304,11 +304,11 @@ class DeviceQaSuiteTest {
         launchActivity<HostKeysActivity>(intent).use { scenario ->
             waitForCondition(scenario) { activity ->
                 activity.findViewById<androidx.recyclerview.widget.RecyclerView>(
-                    R.id.hostKeysRecyclerView
+                    R.id.host_keys_recycler_view
                 ).adapter?.itemCount ?: 0 > 0
             }
-            onView(withId(R.id.hostKeysRecyclerView)).check(matches(isDisplayed()))
-            onView(withId(R.id.emptyHostKeysText)).check(matches(not(isDisplayed())))
+            onView(withId(R.id.host_keys_recycler_view)).check(matches(isDisplayed()))
+            onView(withId(R.id.empty_host_keys_text)).check(matches(not(isDisplayed())))
         }
     }
 

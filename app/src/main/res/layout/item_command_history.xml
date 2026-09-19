@@ -15,7 +15,7 @@
         android:orientation="horizontal">
 
         <TextView
-            android:id="@+id/historyHostLabel"
+            android:id="@+id/history_host_label"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -25,7 +25,7 @@
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/historyTimestamp"
+            android:id="@+id/history_timestamp"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -34,7 +34,7 @@
     </LinearLayout>
 
     <TextView
-        android:id="@+id/historyCommand"
+        android:id="@+id/history_command"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -44,7 +44,7 @@
         android:maxLines="2" />
 
     <TextView
-        android:id="@+id/historyOutput"
+        android:id="@+id/history_output"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -55,7 +55,7 @@
         android:visibility="gone" />
 
     <TextView
-        android:id="@+id/historyMeta"
+        android:id="@+id/history_meta"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

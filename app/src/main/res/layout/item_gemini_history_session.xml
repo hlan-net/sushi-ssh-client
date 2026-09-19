@@ -12,7 +12,7 @@
         android:orientation="horizontal">
 
         <TextView
-            android:id="@+id/sessionHostLabel"
+            android:id="@+id/session_host_label"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -20,7 +20,7 @@
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/sessionTimestamp"
+            android:id="@+id/session_timestamp"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -29,7 +29,7 @@
     </LinearLayout>
 
     <TextView
-        android:id="@+id/sessionFirstMessage"
+        android:id="@+id/session_first_message"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -38,7 +38,7 @@
         android:maxLines="2" />
 
     <TextView
-        android:id="@+id/sessionTurnCount"
+        android:id="@+id/session_turn_count"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

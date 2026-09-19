@@ -13,7 +13,7 @@
         android:padding="24dp">
 
         <TextView
-            android:id="@+id/keysTitle"
+            android:id="@+id/keys_title"
             style="@style/TextAppearance.Sushi.Headline"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -23,7 +23,7 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
-            android:id="@+id/keysSubtitle"
+            android:id="@+id/keys_subtitle"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -31,10 +31,10 @@
             android:text="@string/keys_subtitle"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/keysTitle" />
+            app:layout_constraintTop_toBottomOf="@id/keys_title" />
 
         <TextView
-            android:id="@+id/keyStatusText"
+            android:id="@+id/key_status_text"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -43,10 +43,10 @@
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/keysSubtitle" />
+            app:layout_constraintTop_toBottomOf="@id/keys_subtitle" />
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/publicKeyLayout"
+            android:id="@+id/public_key_layout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -54,10 +54,10 @@
             android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/keyStatusText">
+            app:layout_constraintTop_toBottomOf="@id/key_status_text">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/publicKeyInput"
+                android:id="@+id/public_key_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="none"
@@ -69,7 +69,7 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/generateKeyButton"
+            android:id="@+id/generate_key_button"
             style="@style/Widget.Sushi.PrimaryButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -79,10 +79,10 @@
             app:iconGravity="textStart"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/publicKeyLayout" />
+            app:layout_constraintTop_toBottomOf="@id/public_key_layout" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/deleteKeyButton"
+            android:id="@+id/delete_key_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -96,7 +96,7 @@
             app:strokeColor="?attr/colorError"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/generateKeyButton" />
+            app:layout_constraintTop_toBottomOf="@id/generate_key_button" />
 
         <View
             android:layout_width="0dp"
@@ -104,7 +104,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/deleteKeyButton" />
+            app:layout_constraintTop_toBottomOf="@id/delete_key_button" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

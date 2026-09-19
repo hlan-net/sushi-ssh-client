@@ -30,9 +30,9 @@ class HostAdapter(
         private val onHostClick: (SshConnectionConfig) -> Unit,
         private val onEditClick: (SshConnectionConfig) -> Unit
     ) : RecyclerView.ViewHolder(itemView) {
-        private val aliasText: TextView = itemView.findViewById(R.id.hostAliasText)
-        private val targetText: TextView = itemView.findViewById(R.id.hostTargetText)
-        private val editButton: ImageButton = itemView.findViewById(R.id.editButton)
+        private val aliasText: TextView = itemView.findViewById(R.id.host_alias_text)
+        private val targetText: TextView = itemView.findViewById(R.id.host_target_text)
+        private val editButton: ImageButton = itemView.findViewById(R.id.edit_button)
 
         fun bind(host: SshConnectionConfig, activeHostId: String?) {
             aliasText.text = host.alias.ifBlank { host.host }

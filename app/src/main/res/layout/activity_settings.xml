@@ -9,7 +9,7 @@
     android:paddingBottom="12dp">
 
     <TextView
-        android:id="@+id/settingsTitle"
+        android:id="@+id/settings_title"
         style="@style/TextAppearance.Sushi.Headline"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -19,7 +19,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-        android:id="@+id/settingsSubtitle"
+        android:id="@+id/settings_subtitle"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -27,16 +27,16 @@
         android:text="@string/settings_subtitle"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/settingsTitle" />
+        app:layout_constraintTop_toBottomOf="@id/settings_title" />
 
     <com.google.android.material.tabs.TabLayout
-        android:id="@+id/settingsTabLayout"
+        android:id="@+id/settings_tab_layout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/settingsSubtitle"
+        app:layout_constraintTop_toBottomOf="@id/settings_subtitle"
         app:tabIndicatorColor="?attr/colorPrimary"
         app:tabIndicatorFullWidth="false"
         app:tabMode="fixed"
@@ -44,17 +44,17 @@
         app:tabSelectedTextColor="@color/sushi_ink" />
 
     <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/settingsViewPager"
+        android:id="@+id/settings_view_pager"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="10dp"
-        app:layout_constraintBottom_toTopOf="@id/settingsBottomBar"
+        app:layout_constraintBottom_toTopOf="@id/settings_bottom_bar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/settingsTabLayout" />
+        app:layout_constraintTop_toBottomOf="@id/settings_tab_layout" />
 
     <LinearLayout
-        android:id="@+id/settingsBottomBar"
+        android:id="@+id/settings_bottom_bar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
@@ -64,7 +64,7 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <TextView
-            android:id="@+id/pendingChangesText"
+            android:id="@+id/pending_changes_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -73,7 +73,7 @@
             android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/saveButton"
+            android:id="@+id/save_button"
             style="@style/Widget.Sushi.PrimaryButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -83,7 +83,7 @@
             app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/aboutButton"
+            android:id="@+id/about_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

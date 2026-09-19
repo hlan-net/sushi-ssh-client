@@ -8,14 +8,14 @@
     android:padding="16dp">
 
     <TextView
-        android:id="@+id/hostKeyTrustMessage"
+        android:id="@+id/host_key_trust_message"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         tools:text="Sushi can now verify server identities. Confirm this is the key you expect for db-prod.example.com:22 — you won't be asked again unless it changes." />
 
     <TextView
-        android:id="@+id/hostKeyTrustFingerprint"
+        android:id="@+id/host_key_trust_fingerprint"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

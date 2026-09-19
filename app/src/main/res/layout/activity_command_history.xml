@@ -6,7 +6,7 @@
     android:orientation="vertical">
 
     <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/commandHistoryToolbar"
+        android:id="@+id/command_history_toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorSurface" />
@@ -21,7 +21,7 @@
         android:paddingEnd="16dp">
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/commandHistorySearchLayout"
+            android:id="@+id/command_history_search_layout"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -29,7 +29,7 @@
             android:hint="@string/command_history_search_hint">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/commandHistorySearchInput"
+                android:id="@+id/command_history_search_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:imeOptions="actionSearch"
@@ -40,7 +40,7 @@
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/commandHistoryHostFilterButton"
+        android:id="@+id/command_history_host_filter_button"
         style="@style/Widget.Sushi.OutlinedButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -52,7 +52,7 @@
         app:iconGravity="textStart" />
 
     <TextView
-        android:id="@+id/commandHistoryEmptyText"
+        android:id="@+id/command_history_empty_text"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -62,7 +62,7 @@
         android:visibility="gone" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/commandHistoryRecycler"
+        android:id="@+id/command_history_recycler"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="8dp"

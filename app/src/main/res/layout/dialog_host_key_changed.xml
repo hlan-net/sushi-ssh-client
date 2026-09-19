@@ -8,7 +8,7 @@
     android:padding="16dp">
 
     <TextView
-        android:id="@+id/hostKeyChangedWarning"
+        android:id="@+id/host_key_changed_warning"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -17,7 +17,7 @@
         tools:text="WARNING: the host key for db-prod.example.com:22 has changed. This could mean someone is intercepting your connection, or the server was legitimately reinstalled." />
 
     <TextView
-        android:id="@+id/hostKeyChangedOldLabel"
+        android:id="@+id/host_key_changed_old_label"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -25,7 +25,7 @@
         android:text="@string/host_key_changed_old_label" />
 
     <TextView
-        android:id="@+id/hostKeyChangedOldFingerprint"
+        android:id="@+id/host_key_changed_old_fingerprint"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -34,7 +34,7 @@
         tools:text="SHA256:oldoldoldoldold..." />
 
     <TextView
-        android:id="@+id/hostKeyChangedNewLabel"
+        android:id="@+id/host_key_changed_new_label"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -42,7 +42,7 @@
         android:text="@string/host_key_changed_new_label" />
 
     <TextView
-        android:id="@+id/hostKeyChangedNewFingerprint"
+        android:id="@+id/host_key_changed_new_fingerprint"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -51,7 +51,7 @@
         tools:text="SHA256:newnewnewnewnew..." />
 
     <com.google.android.material.checkbox.MaterialCheckBox
-        android:id="@+id/hostKeyChangedConfirmCheckbox"
+        android:id="@+id/host_key_changed_confirm_checkbox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"

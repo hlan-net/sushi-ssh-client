@@ -66,7 +66,7 @@ class TerminalContrastTest {
      */
     private fun outputSurface(context: Context): Int {
         val root = LayoutInflater.from(context).inflate(R.layout.activity_terminal, null)
-        val output: View = root.findViewById(R.id.terminalOutputText)
+        val output: View = root.findViewById(R.id.terminal_output_text)
         val background = output.background
         // A themed or drawable background would make "the colour behind the text" ambiguous, and
         // every assertion here rests on that colour. Say so, rather than dying on a cast.

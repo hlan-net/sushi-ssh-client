@@ -17,39 +17,39 @@
         android:padding="16dp">
 
         <TextView
-            android:id="@+id/hostKeyHostText"
+            android:id="@+id/host_key_host_text"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@id/deleteHostKeyButton"
+            app:layout_constraintEnd_toStartOf="@id/delete_host_key_button"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
-            android:id="@+id/hostKeyTypeText"
+            android:id="@+id/host_key_type_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            app:layout_constraintEnd_toStartOf="@id/deleteHostKeyButton"
+            app:layout_constraintEnd_toStartOf="@id/delete_host_key_button"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/hostKeyHostText" />
+            app:layout_constraintTop_toBottomOf="@id/host_key_host_text" />
 
         <TextView
-            android:id="@+id/hostKeyFingerprintText"
+            android:id="@+id/host_key_fingerprint_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:fontFamily="monospace"
             android:textIsSelectable="true"
-            app:layout_constraintEnd_toStartOf="@id/deleteHostKeyButton"
+            app:layout_constraintEnd_toStartOf="@id/delete_host_key_button"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/hostKeyTypeText" />
+            app:layout_constraintTop_toBottomOf="@id/host_key_type_text" />
 
         <ImageButton
-            android:id="@+id/deleteHostKeyButton"
+            android:id="@+id/delete_host_key_button"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
