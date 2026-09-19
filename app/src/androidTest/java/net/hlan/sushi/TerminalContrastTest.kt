@@ -67,7 +67,15 @@ class TerminalContrastTest {
     private fun outputSurface(context: Context): Int {
         val root = LayoutInflater.from(context).inflate(R.layout.activity_terminal, null)
         val output: View = root.findViewById(R.id.terminalOutputText)
-        return (output.background as ColorDrawable).color
+        val background = output.background
+        // A themed or drawable background would make "the colour behind the text" ambiguous, and
+        // every assertion here rests on that colour. Say so, rather than dying on a cast.
+        assertTrue(
+            "terminalOutputText's background is ${background?.javaClass?.simpleName ?: "null"}, " +
+                "not a solid colour — these contrast assertions need one surface to measure against",
+            background is ColorDrawable
+        )
+        return (background as ColorDrawable).color
     }
 
     private fun screen(context: Context): Int = context.getColor(R.color.sushi_terminal_bg)
@@ -218,7 +226,7 @@ class TerminalContrastTest {
      */
     private fun render(view: TerminalView, fgCode: Int, bgCode: Int): IntArray {
         view.clearLog()
-        view.appendLog("[$fgCode;${bgCode}mX")
+        view.appendLog("\u001B[$fgCode;${bgCode}mX")
 
         val spanned = view.text as Spanned
         val foreground = spanned.getSpans(0, spanned.length, ForegroundColorSpan::class.java)

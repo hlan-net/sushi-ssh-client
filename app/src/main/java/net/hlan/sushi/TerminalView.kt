@@ -528,9 +528,10 @@ class TerminalView @JvmOverloads constructor(
 
     private fun applyColors(builder: SpannableStringBuilder, start: Int, end: Int, fg: Int?, bg: Int?) {
         if (start == end) return
-        // With no background set the foreground sits on sushi_terminal_bg, which the palette is
-        // already tuned against — including ANSI black, left dim on purpose. Only a background
-        // introduces a pair that was never measured.
+        // With no background set the foreground sits on whatever this view is painted on — in
+        // activity_terminal.xml that is sushi_terminal_panel, which the palette is tuned against,
+        // including ANSI black, left dim on purpose. Only a background introduces a pair that was
+        // never measured.
         val foreground = if (bg == null) fg else readableOn(fg ?: currentTextColor, bg)
         foreground?.let { builder.setSpan(ForegroundColorSpan(it), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE) }
         bg?.let { builder.setSpan(BackgroundColorSpan(it), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE) }
