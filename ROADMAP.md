@@ -78,7 +78,7 @@ Solid SSH client features that are not core to the conversational goal but round
 | Port forwarding — local to remote (B-7) | P1 | |
 | Port forwarding — local through remote to third host (B-10) | P1 | |
 | Reusable SSH identity across hosts (A-6) | P1 | |
-| Share sheet → SFTP upload (B-15) | P1 | Done in v0.4.0 |
+| ~~Share sheet → SFTP upload (B-15)~~ | — | ✅ Shipped in v0.4.0 |
 | SCP phone → host (B-16) | P1 | |
 | Phrase quick-access slots in terminal (B-3) | P2 | |
 | Phrase search / filter (B-1) | P2 | |
@@ -98,7 +98,9 @@ Solid SSH client features that are not core to the conversational goal but round
 
 ## Technical Debt
 
-- **Migrate from GoogleSignIn to Credential Manager & Identity Authorization** — Upgraded `play-services-auth` to 22.0.0 and added `androidx.credentials` + `com.google.android.libraries.identity.googleid`; rewritten `DriveAuthManager` to use modern Android Identity AuthorizationClient and CredentialManager.
+Nothing outstanding — the one item tracked here has shipped.
+
+- ~~**Migrate from GoogleSignIn to Credential Manager & Identity Authorization**~~ ✅ Shipped in v0.7.11 (#167) — `play-services-auth` 22.0.0 plus `androidx.credentials` and `com.google.android.libraries.identity.googleid`; `DriveAuthManager` uses `CredentialManager` and Identity `AuthorizationClient`. `GoogleSignIn` no longer appears anywhere in the source.
 
 ---
 
@@ -118,4 +120,4 @@ Interesting directions that depend on the conversational core being solid first.
 
 ---
 
-*Last updated: 2026-09-12*
+*Last updated: 2026-09-19*
