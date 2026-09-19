@@ -98,7 +98,9 @@ Solid SSH client features that are not core to the conversational goal but round
 
 ## Technical Debt
 
-- **View IDs contradict the documented convention** — `CLAUDE.md` requires resource IDs in `lower_snake_case`, but all 291 view IDs across the 39 layouts are camelCase and not one is snake_case: the rule is followed by nothing it names, so it misleads anyone who reads it and gives reviewers a rule to cite that the codebase has never kept. The drift is confined to `android:id` — every other resource type does follow the convention, with 0 of 516 strings and 0 colours carrying an uppercase letter. Renaming is cheaper than the count suggests: view binding derives the same camelCase property from a snake_case ID, so `binding.terminalOutputText` keeps working untouched and the 21 files using `binding.*` need no edit; only the 54 distinct `R.id.*` references across 10 files would move. The alternative is to amend the rule to match the code. Either resolves it — a convention that nothing obeys should not stay written down.
+Nothing outstanding — both items tracked here have been paid off.
+
+- ~~**View IDs contradicted the documented convention**~~ ✅ Resolved (unreleased) — all 293 declared IDs are now `lower_snake_case`, so the rule `CLAUDE.md` has always stated finally describes the code. 357 XML references and 84 `R.id.*` references moved across 46 files; the 21 files calling `binding.*` needed no edit at all, because view binding derives the same camelCase property from a snake_case ID.
 - ~~**Migrate from GoogleSignIn to Credential Manager & Identity Authorization**~~ ✅ Shipped in v0.7.11 (#167) — `play-services-auth` 22.0.0 plus `androidx.credentials` and `com.google.android.libraries.identity.googleid`; `DriveAuthManager` uses `CredentialManager` and Identity `AuthorizationClient`. `GoogleSignIn` no longer appears anywhere in the source.
 
 ---
