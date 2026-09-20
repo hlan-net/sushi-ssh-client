@@ -5,13 +5,13 @@
     android:orientation="vertical">
 
     <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/geminiHistoryToolbar"
+        android:id="@+id/gemini_history_toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorSurface" />
 
     <TextView
-        android:id="@+id/geminiHistoryEmptyText"
+        android:id="@+id/gemini_history_empty_text"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -21,7 +21,7 @@
         android:visibility="gone" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/geminiHistorySessionsRecycler"
+        android:id="@+id/gemini_history_sessions_recycler"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -29,7 +29,7 @@
         android:visibility="gone" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/geminiHistoryTurnsRecycler"
+        android:id="@+id/gemini_history_turns_recycler"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"

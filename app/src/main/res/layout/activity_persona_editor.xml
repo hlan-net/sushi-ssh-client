@@ -11,7 +11,7 @@
         android:padding="16dp">
 
         <TextView
-            android:id="@+id/personaEditorTitle"
+            android:id="@+id/persona_editor_title"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -19,7 +19,7 @@
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/personaEditorStatus"
+            android:id="@+id/persona_editor_status"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -35,7 +35,7 @@
             app:boxBackgroundMode="outline">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/personaEditorInput"
+                android:id="@+id/persona_editor_input"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:fontFamily="monospace"
@@ -52,7 +52,7 @@
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/personaResetButton"
+                android:id="@+id/persona_reset_button"
                 style="@style/Widget.Sushi.OutlinedButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -61,7 +61,7 @@
                 android:text="@string/persona_editor_reset" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/personaSaveButton"
+                android:id="@+id/persona_save_button"
                 style="@style/Widget.Sushi.PrimaryButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -76,7 +76,7 @@
     </LinearLayout>
 
     <ProgressBar
-        android:id="@+id/personaEditorProgress"
+        android:id="@+id/persona_editor_progress"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"

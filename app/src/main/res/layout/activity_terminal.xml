@@ -8,7 +8,7 @@
     android:padding="12dp">
 
     <TextView
-        android:id="@+id/terminalStatusText"
+        android:id="@+id/terminal_status_text"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -16,7 +16,7 @@
         android:textColor="@color/sushi_terminal_text" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/terminalConnectButton"
+        android:id="@+id/terminal_connect_button"
         style="@style/Widget.Sushi.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -26,7 +26,7 @@
         app:iconGravity="textStart" />
 
     <LinearLayout
-        android:id="@+id/terminalErrorBanner"
+        android:id="@+id/terminal_error_banner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
@@ -36,7 +36,7 @@
         android:visibility="gone">
 
         <TextView
-            android:id="@+id/terminalErrorBannerText"
+            android:id="@+id/terminal_error_banner_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="?attr/colorOnErrorContainer"
@@ -49,7 +49,7 @@
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/terminalErrorBannerAction"
+                android:id="@+id/terminal_error_banner_action"
                 style="@style/Widget.Sushi.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -62,7 +62,7 @@
                 android:layout_weight="1" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/terminalErrorBannerDismiss"
+                android:id="@+id/terminal_error_banner_dismiss"
                 style="@style/Widget.Sushi.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -74,7 +74,7 @@
     </LinearLayout>
 
     <net.hlan.sushi.TerminalView
-        android:id="@+id/terminalOutputText"
+        android:id="@+id/terminal_output_text"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -96,7 +96,7 @@
         android:orientation="horizontal">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/terminalArrowUpButton"
+            android:id="@+id/terminal_arrow_up_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -105,7 +105,7 @@
             android:text="@string/action_send_arrow_up" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/terminalArrowDownButton"
+            android:id="@+id/terminal_arrow_down_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -122,7 +122,7 @@
         android:orientation="horizontal">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/terminalEnterButton"
+            android:id="@+id/terminal_enter_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -130,7 +130,7 @@
             android:text="@string/action_send_enter" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/terminalTabButton"
+            android:id="@+id/terminal_tab_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -139,7 +139,7 @@
             android:text="@string/action_send_tab" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/terminalBackspaceButton"
+            android:id="@+id/terminal_backspace_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -156,7 +156,7 @@
         android:orientation="horizontal">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/terminalCtrlCButton"
+            android:id="@+id/terminal_ctrl_c_button"
             style="@style/Widget.Sushi.TextButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -165,7 +165,7 @@
             android:textColor="?attr/colorError" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/terminalCtrlDButton"
+            android:id="@+id/terminal_ctrl_d_button"
             style="@style/Widget.Sushi.TextButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -174,7 +174,7 @@
             android:text="@string/action_send_ctrl_d" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/terminalPasteButton"
+            android:id="@+id/terminal_paste_button"
             style="@style/Widget.Sushi.TextButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -185,7 +185,7 @@
             app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/terminalPhrasesButton"
+            android:id="@+id/terminal_phrases_button"
             style="@style/Widget.Sushi.TextButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"

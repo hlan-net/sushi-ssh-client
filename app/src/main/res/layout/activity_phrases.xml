@@ -8,7 +8,7 @@
     android:padding="24dp">
 
     <TextView
-        android:id="@+id/phrasesTitle"
+        android:id="@+id/phrases_title"
         style="@style/TextAppearance.Sushi.Headline"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -18,7 +18,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-        android:id="@+id/phrasesSubtitle"
+        android:id="@+id/phrases_subtitle"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -26,20 +26,20 @@
         android:text="@string/phrases_subtitle"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/phrasesTitle" />
+        app:layout_constraintTop_toBottomOf="@id/phrases_title" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/phrasesRecyclerView"
+        android:id="@+id/phrases_recycler_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
-        app:layout_constraintBottom_toTopOf="@id/addPhraseButton"
+        app:layout_constraintBottom_toTopOf="@id/add_phrase_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/phrasesSubtitle" />
+        app:layout_constraintTop_toBottomOf="@id/phrases_subtitle" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/addPhraseButton"
+        android:id="@+id/add_phrase_button"
         style="@style/Widget.Sushi.PrimaryButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -47,12 +47,12 @@
         android:text="@string/action_add_phrase"
         app:icon="@drawable/ic_add"
         app:iconGravity="textStart"
-        app:layout_constraintBottom_toTopOf="@id/exportButton"
+        app:layout_constraintBottom_toTopOf="@id/export_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/exportButton"
+        android:id="@+id/export_button"
         style="@style/Widget.Sushi.OutlinedButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -60,12 +60,12 @@
         android:text="@string/action_export_phrases"
         app:icon="@drawable/ic_upload"
         app:iconGravity="textStart"
-        app:layout_constraintBottom_toTopOf="@id/importButton"
+        app:layout_constraintBottom_toTopOf="@id/import_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/importButton"
+        android:id="@+id/import_button"
         style="@style/Widget.Sushi.OutlinedButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"

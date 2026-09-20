@@ -16,39 +16,39 @@
         android:padding="16dp">
 
         <TextView
-            android:id="@+id/playNameText"
+            android:id="@+id/play_name_text"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@id/deletePlayButton"
+            app:layout_constraintEnd_toStartOf="@id/delete_play_button"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
-            android:id="@+id/playDescriptionText"
+            android:id="@+id/play_description_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            app:layout_constraintEnd_toStartOf="@id/deletePlayButton"
+            app:layout_constraintEnd_toStartOf="@id/delete_play_button"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/playNameText" />
+            app:layout_constraintTop_toBottomOf="@id/play_name_text" />
 
         <TextView
-            android:id="@+id/playScriptText"
+            android:id="@+id/play_script_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:fontFamily="monospace"
             android:maxLines="2"
-            app:layout_constraintEnd_toStartOf="@id/deletePlayButton"
+            app:layout_constraintEnd_toStartOf="@id/delete_play_button"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/playDescriptionText" />
+            app:layout_constraintTop_toBottomOf="@id/play_description_text" />
 
         <ImageButton
-            android:id="@+id/deletePlayButton"
+            android:id="@+id/delete_play_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackgroundBorderless"

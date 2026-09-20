@@ -12,14 +12,14 @@
         android:paddingBottom="16dp">
 
         <TextView
-            android:id="@+id/sshSectionTitle"
+            android:id="@+id/ssh_section_title"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/ssh_section_title" />
 
         <TextView
-            android:id="@+id/sshSectionSubtitle"
+            android:id="@+id/ssh_section_subtitle"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -27,7 +27,7 @@
             android:text="@string/ssh_section_subtitle" />
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/settingsSummaryCard"
+            android:id="@+id/settings_summary_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -43,7 +43,7 @@
                 android:padding="12dp">
 
                 <TextView
-                    android:id="@+id/settingsSummaryTitle"
+                    android:id="@+id/settings_summary_title"
                     style="@style/TextAppearance.Sushi.Body"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -57,7 +57,7 @@
                     android:orientation="horizontal">
 
                     <TextView
-                        android:id="@+id/summaryHostLabel"
+                        android:id="@+id/summary_host_label"
                         style="@style/TextAppearance.Sushi.Caption"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -65,7 +65,7 @@
                         android:text="@string/settings_summary_host_label" />
 
                     <TextView
-                        android:id="@+id/summaryHostValue"
+                        android:id="@+id/summary_host_value"
                         style="@style/TextAppearance.Sushi.Caption"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -81,7 +81,7 @@
                     android:orientation="horizontal">
 
                     <TextView
-                        android:id="@+id/summaryAuthLabel"
+                        android:id="@+id/summary_auth_label"
                         style="@style/TextAppearance.Sushi.Caption"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -89,7 +89,7 @@
                         android:text="@string/settings_summary_auth_label" />
 
                     <TextView
-                        android:id="@+id/summaryAuthValue"
+                        android:id="@+id/summary_auth_value"
                         style="@style/TextAppearance.Sushi.Caption"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -105,7 +105,7 @@
                     android:orientation="horizontal">
 
                     <TextView
-                        android:id="@+id/summaryGeminiLabel"
+                        android:id="@+id/summary_gemini_label"
                         style="@style/TextAppearance.Sushi.Caption"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -113,7 +113,7 @@
                         android:text="@string/settings_summary_gemini_label" />
 
                     <TextView
-                        android:id="@+id/summaryGeminiValue"
+                        android:id="@+id/summary_gemini_value"
                         style="@style/TextAppearance.Sushi.Caption"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -129,7 +129,7 @@
                     android:orientation="horizontal">
 
                     <TextView
-                        android:id="@+id/summaryDriveLabel"
+                        android:id="@+id/summary_drive_label"
                         style="@style/TextAppearance.Sushi.Caption"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -137,7 +137,7 @@
                         android:text="@string/settings_summary_drive_label" />
 
                     <TextView
-                        android:id="@+id/summaryDriveValue"
+                        android:id="@+id/summary_drive_value"
                         style="@style/TextAppearance.Sushi.Caption"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -149,7 +149,7 @@
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/testConnectionButton"
+            android:id="@+id/test_connection_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -159,7 +159,7 @@
             app:iconGravity="textStart" />
 
         <TextView
-            android:id="@+id/testConnectionResultText"
+            android:id="@+id/test_connection_result_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -167,7 +167,7 @@
             android:text="@string/test_connection_idle" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/copyConnectionDiagnosticsButton"
+            android:id="@+id/copy_connection_diagnostics_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -178,7 +178,7 @@
             app:iconGravity="textStart" />
 
         <TextView
-            android:id="@+id/hostsKeysSectionTitle"
+            android:id="@+id/hosts_keys_section_title"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -186,7 +186,7 @@
             android:text="@string/settings_hosts_keys_title" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/manageHostsButton"
+            android:id="@+id/manage_hosts_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -196,7 +196,7 @@
             app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/quickGenerateKeyButton"
+            android:id="@+id/quick_generate_key_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -206,7 +206,7 @@
             app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/manageHostKeysButton"
+            android:id="@+id/manage_host_keys_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

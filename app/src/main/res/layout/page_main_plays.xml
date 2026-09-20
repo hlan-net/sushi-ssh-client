@@ -8,7 +8,7 @@
     android:paddingBottom="4dp">
 
     <TextView
-        android:id="@+id/playsPageTitleText"
+        android:id="@+id/plays_page_title_text"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -16,7 +16,7 @@
         android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/playsPageSubtitleText"
+        android:id="@+id/plays_page_subtitle_text"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -24,7 +24,7 @@
         android:text="@string/main_plays_subtitle" />
 
     <TextView
-        android:id="@+id/playsEmptyStateText"
+        android:id="@+id/plays_empty_state_text"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -33,7 +33,7 @@
         android:visibility="gone" />
 
     <LinearLayout
-        android:id="@+id/playsEmptyActions"
+        android:id="@+id/plays_empty_actions"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
@@ -41,7 +41,7 @@
         android:visibility="gone">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/addHostButton"
+            android:id="@+id/add_host_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -51,7 +51,7 @@
             app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/addPlayButton"
+            android:id="@+id/add_play_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -64,7 +64,7 @@
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/playsButton"
+        android:id="@+id/plays_button"
         style="@style/Widget.Sushi.PrimaryButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -74,7 +74,7 @@
         app:iconGravity="textStart" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/managePlaysButton"
+        android:id="@+id/manage_plays_button"
         style="@style/Widget.Sushi.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -84,7 +84,7 @@
         app:iconGravity="textStart" />
 
     <TextView
-        android:id="@+id/sessionLogLabel"
+        android:id="@+id/session_log_label"
         style="@style/TextAppearance.Sushi.Caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -99,7 +99,7 @@
         android:orientation="horizontal">
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/copyLogButton"
+            android:id="@+id/copy_log_button"
             style="@style/Widget.Sushi.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -109,7 +109,7 @@
             app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/clearLogButton"
+            android:id="@+id/clear_log_button"
             style="@style/Widget.Sushi.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -120,7 +120,7 @@
     </LinearLayout>
 
     <net.hlan.sushi.TerminalView
-        android:id="@+id/sessionLogText"
+        android:id="@+id/session_log_text"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="match_parent"
         android:layout_height="0dp"

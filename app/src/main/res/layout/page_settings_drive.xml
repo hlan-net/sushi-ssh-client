@@ -12,14 +12,14 @@
         android:paddingBottom="16dp">
 
         <TextView
-            android:id="@+id/driveSectionTitle"
+            android:id="@+id/drive_section_title"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/drive_section_title" />
 
         <TextView
-            android:id="@+id/driveSectionSubtitle"
+            android:id="@+id/drive_section_subtitle"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -27,7 +27,7 @@
             android:text="@string/drive_section_subtitle" />
 
         <TextView
-            android:id="@+id/driveStatusText"
+            android:id="@+id/drive_status_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -35,7 +35,7 @@
             android:text="@string/drive_status_signed_out" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/driveSignInButton"
+            android:id="@+id/drive_sign_in_button"
             style="@style/Widget.Sushi.PrimaryButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -45,7 +45,7 @@
             app:iconGravity="textStart" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/driveSignOutButton"
+            android:id="@+id/drive_sign_out_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -56,14 +56,14 @@
             app:iconGravity="textStart" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/driveAlwaysSaveSwitch"
+            android:id="@+id/drive_always_save_switch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/drive_always_save_toggle" />
 
         <TextView
-            android:id="@+id/driveAlwaysSaveHelper"
+            android:id="@+id/drive_always_save_helper"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

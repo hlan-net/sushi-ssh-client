@@ -31,7 +31,7 @@
 
         <!-- SSH host row (required) -->
         <LinearLayout
-            android:id="@+id/checklistSshHostRow"
+            android:id="@+id/checklist_ssh_host_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -42,7 +42,7 @@
             android:paddingBottom="6dp">
 
             <TextView
-                android:id="@+id/checklistSshHostStatus"
+                android:id="@+id/checklist_ssh_host_status"
                 style="@style/TextAppearance.Sushi.Body"
                 android:layout_width="24dp"
                 android:layout_height="wrap_content"
@@ -50,7 +50,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/checklistSshHostLabel"
+                android:id="@+id/checklist_ssh_host_label"
                 style="@style/TextAppearance.Sushi.Body"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -62,7 +62,7 @@
 
         <!-- SSH key row (required) -->
         <LinearLayout
-            android:id="@+id/checklistSshKeyRow"
+            android:id="@+id/checklist_ssh_key_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackground"
@@ -72,7 +72,7 @@
             android:paddingBottom="6dp">
 
             <TextView
-                android:id="@+id/checklistSshKeyStatus"
+                android:id="@+id/checklist_ssh_key_status"
                 style="@style/TextAppearance.Sushi.Body"
                 android:layout_width="24dp"
                 android:layout_height="wrap_content"
@@ -80,7 +80,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/checklistSshKeyLabel"
+                android:id="@+id/checklist_ssh_key_label"
                 style="@style/TextAppearance.Sushi.Body"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -92,7 +92,7 @@
 
         <!-- Gemini API key row (optional) -->
         <LinearLayout
-            android:id="@+id/checklistGeminiRow"
+            android:id="@+id/checklist_gemini_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackground"
@@ -102,7 +102,7 @@
             android:paddingBottom="6dp">
 
             <TextView
-                android:id="@+id/checklistGeminiStatus"
+                android:id="@+id/checklist_gemini_status"
                 style="@style/TextAppearance.Sushi.Body"
                 android:layout_width="24dp"
                 android:layout_height="wrap_content"
@@ -110,7 +110,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/checklistGeminiLabel"
+                android:id="@+id/checklist_gemini_label"
                 style="@style/TextAppearance.Sushi.Body"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -122,7 +122,7 @@
 
         <!-- Drive auth row (optional) -->
         <LinearLayout
-            android:id="@+id/checklistDriveRow"
+            android:id="@+id/checklist_drive_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackground"
@@ -132,7 +132,7 @@
             android:paddingBottom="6dp">
 
             <TextView
-                android:id="@+id/checklistDriveStatus"
+                android:id="@+id/checklist_drive_status"
                 style="@style/TextAppearance.Sushi.Body"
                 android:layout_width="24dp"
                 android:layout_height="wrap_content"
@@ -140,7 +140,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/checklistDriveLabel"
+                android:id="@+id/checklist_drive_label"
                 style="@style/TextAppearance.Sushi.Body"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"

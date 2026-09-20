@@ -7,41 +7,41 @@
     android:padding="16dp">
 
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/playNameLayout"
+        android:id="@+id/play_name_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/play_name_hint">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/playNameInput"
+            android:id="@+id/play_name_input"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="text" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/playDescriptionLayout"
+        android:id="@+id/play_description_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:hint="@string/play_description_hint">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/playDescriptionInput"
+            android:id="@+id/play_description_input"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="textMultiLine" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/playScriptLayout"
+        android:id="@+id/play_script_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:hint="@string/play_script_hint">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/playScriptInput"
+            android:id="@+id/play_script_input"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="monospace"
@@ -51,7 +51,7 @@
     </com.google.android.material.textfield.TextInputLayout>
 
     <TextView
-        android:id="@+id/playScriptParamHint"
+        android:id="@+id/play_script_param_hint"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"

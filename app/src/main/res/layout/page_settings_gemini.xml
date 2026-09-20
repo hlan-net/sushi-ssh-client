@@ -12,14 +12,14 @@
         android:paddingBottom="16dp">
 
         <TextView
-            android:id="@+id/geminiSectionTitle"
+            android:id="@+id/gemini_section_title"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/gemini_settings_section_title" />
 
         <TextView
-            android:id="@+id/settingsGeminiSubtitle"
+            android:id="@+id/settings_gemini_subtitle"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -27,14 +27,14 @@
             android:text="@string/gemini_settings_subtitle" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/geminiEnabledSwitch"
+            android:id="@+id/gemini_enabled_switch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/gemini_settings_toggle" />
 
         <TextView
-            android:id="@+id/geminiAuthStatusText"
+            android:id="@+id/gemini_auth_status_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -42,21 +42,21 @@
             android:visibility="gone" />
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/apiKeyLayout"
+            android:id="@+id/api_key_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="@string/gemini_api_key_hint">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/apiKeyInput"
+                android:id="@+id/api_key_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="textPassword" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <TextView
-            android:id="@+id/apiKeyHelper"
+            android:id="@+id/api_key_helper"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -71,7 +71,7 @@
             android:background="?attr/colorOutline" />
 
         <TextView
-            android:id="@+id/geminiModelSectionTitle"
+            android:id="@+id/gemini_model_section_title"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -79,7 +79,7 @@
             android:text="@string/gemini_model_section_title" />
 
         <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/geminiModelToggle"
+            android:id="@+id/gemini_model_toggle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -88,14 +88,14 @@
             xmlns:app="http://schemas.android.com/apk/res-auto">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/geminiModelFlash"
+                android:id="@+id/gemini_model_flash"
                 style="@style/Widget.Sushi.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/gemini_model_flash" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/geminiModelPro"
+                android:id="@+id/gemini_model_pro"
                 style="@style/Widget.Sushi.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -104,7 +104,7 @@
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
         <TextView
-            android:id="@+id/geminiModelHelper"
+            android:id="@+id/gemini_model_helper"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -119,7 +119,7 @@
             android:background="?attr/colorOutline" />
 
         <TextView
-            android:id="@+id/geminiNanoSectionTitle"
+            android:id="@+id/gemini_nano_section_title"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -127,7 +127,7 @@
             android:text="@string/gemini_nano_section_title" />
 
         <TextView
-            android:id="@+id/nanoStatusText"
+            android:id="@+id/nano_status_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -135,7 +135,7 @@
             android:text="@string/gemini_nano_status_unavailable" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/nanoDownloadButton"
+            android:id="@+id/nano_download_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -146,7 +146,7 @@
             app:iconGravity="textStart" />
 
         <ProgressBar
-            android:id="@+id/nanoDownloadProgress"
+            android:id="@+id/nano_download_progress"
             style="@style/Widget.AppCompat.ProgressBar.Horizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -156,14 +156,14 @@
             android:visibility="gone" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/nanoPreferredSwitch"
+            android:id="@+id/nano_preferred_switch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/gemini_nano_preferred_toggle" />
 
         <TextView
-            android:id="@+id/nanoPreferredHelper"
+            android:id="@+id/nano_preferred_helper"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -178,7 +178,7 @@
             android:background="?attr/colorOutline" />
 
         <TextView
-            android:id="@+id/personaSectionTitle"
+            android:id="@+id/persona_section_title"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -186,7 +186,7 @@
             android:text="@string/persona_section_title" />
 
         <TextView
-            android:id="@+id/personaSectionHelper"
+            android:id="@+id/persona_section_helper"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -194,7 +194,7 @@
             android:text="@string/persona_section_helper" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/editPersonaButton"
+            android:id="@+id/edit_persona_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

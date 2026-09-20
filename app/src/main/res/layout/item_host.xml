@@ -17,27 +17,27 @@
         android:padding="16dp">
 
         <TextView
-            android:id="@+id/hostAliasText"
+            android:id="@+id/host_alias_text"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@id/editButton"
+            app:layout_constraintEnd_toStartOf="@id/edit_button"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
-            android:id="@+id/hostTargetText"
+            android:id="@+id/host_target_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            app:layout_constraintEnd_toStartOf="@id/editButton"
+            app:layout_constraintEnd_toStartOf="@id/edit_button"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/hostAliasText" />
+            app:layout_constraintTop_toBottomOf="@id/host_alias_text" />
 
         <ImageButton
-            android:id="@+id/editButton"
+            android:id="@+id/edit_button"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
@@ -49,14 +49,14 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <ImageView
-            android:id="@+id/activeIndicator"
+            android:id="@+id/active_indicator"
             android:layout_width="12dp"
             android:layout_height="12dp"
             android:src="@android:drawable/presence_online"
             android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/hostAliasText"
+            app:layout_constraintBottom_toBottomOf="@id/host_alias_text"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/hostAliasText" />
+            app:layout_constraintTop_toTopOf="@id/host_alias_text" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

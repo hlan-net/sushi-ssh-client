@@ -13,7 +13,7 @@
         android:padding="24dp">
 
         <TextView
-            android:id="@+id/aboutTitle"
+            android:id="@+id/about_title"
             style="@style/TextAppearance.Sushi.Headline"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -23,17 +23,17 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <ImageView
-            android:id="@+id/appIcon"
+            android:id="@+id/app_icon"
             android:layout_width="96dp"
             android:layout_height="96dp"
             android:layout_marginTop="32dp"
             android:src="@mipmap/ic_launcher"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/aboutTitle" />
+            app:layout_constraintTop_toBottomOf="@id/about_title" />
 
         <TextView
-            android:id="@+id/appNameText"
+            android:id="@+id/app_name_text"
             style="@style/TextAppearance.Sushi.Headline"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -41,20 +41,20 @@
             android:text="@string/app_name_long"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/appIcon" />
+            app:layout_constraintTop_toBottomOf="@id/app_icon" />
 
         <TextView
-            android:id="@+id/appVersionText"
+            android:id="@+id/app_version_text"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/appNameText" />
+            app:layout_constraintTop_toBottomOf="@id/app_name_text" />
 
         <TextView
-            android:id="@+id/appDescriptionText"
+            android:id="@+id/app_description_text"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -63,10 +63,10 @@
             android:textAlignment="center"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/appVersionText" />
+            app:layout_constraintTop_toBottomOf="@id/app_version_text" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/githubButton"
+            android:id="@+id/github_button"
             style="@style/Widget.Sushi.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -76,7 +76,7 @@
             app:iconGravity="textStart"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/appDescriptionText" />
+            app:layout_constraintTop_toBottomOf="@id/app_description_text" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

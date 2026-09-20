@@ -8,7 +8,7 @@
     android:padding="24dp">
 
     <TextView
-        android:id="@+id/playsTitle"
+        android:id="@+id/plays_title"
         style="@style/TextAppearance.Sushi.Headline"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -18,7 +18,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-        android:id="@+id/playsSubtitle"
+        android:id="@+id/plays_subtitle"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -26,20 +26,20 @@
         android:text="@string/plays_subtitle"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/playsTitle" />
+        app:layout_constraintTop_toBottomOf="@id/plays_title" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/playsRecyclerView"
+        android:id="@+id/plays_recycler_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
-        app:layout_constraintBottom_toTopOf="@id/addPlayButton"
+        app:layout_constraintBottom_toTopOf="@id/add_play_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/playsSubtitle" />
+        app:layout_constraintTop_toBottomOf="@id/plays_subtitle" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/addPlayButton"
+        android:id="@+id/add_play_button"
         style="@style/Widget.Sushi.PrimaryButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"

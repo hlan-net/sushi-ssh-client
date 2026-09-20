@@ -8,14 +8,14 @@
     android:paddingTop="8dp">
 
     <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/feedbackTextLayout"
+        android:id="@+id/feedback_text_layout"
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/feedback_text_hint">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/feedbackTextInput"
+            android:id="@+id/feedback_text_input"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="top"
@@ -25,7 +25,7 @@
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.checkbox.MaterialCheckBox
-        android:id="@+id/includeDeviceInfoCheckbox"
+        android:id="@+id/include_device_info_checkbox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"

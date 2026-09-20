@@ -32,10 +32,10 @@ class HostKeyAdapter(
         itemView: View,
         private val onDeleteClick: (HostKeyEntry) -> Unit
     ) : RecyclerView.ViewHolder(itemView) {
-        private val hostText: TextView = itemView.findViewById(R.id.hostKeyHostText)
-        private val typeText: TextView = itemView.findViewById(R.id.hostKeyTypeText)
-        private val fingerprintText: TextView = itemView.findViewById(R.id.hostKeyFingerprintText)
-        private val deleteButton: ImageButton = itemView.findViewById(R.id.deleteHostKeyButton)
+        private val hostText: TextView = itemView.findViewById(R.id.host_key_host_text)
+        private val typeText: TextView = itemView.findViewById(R.id.host_key_type_text)
+        private val fingerprintText: TextView = itemView.findViewById(R.id.host_key_fingerprint_text)
+        private val deleteButton: ImageButton = itemView.findViewById(R.id.delete_host_key_button)
 
         fun bind(entry: HostKeyEntry) {
             hostText.text = entry.host

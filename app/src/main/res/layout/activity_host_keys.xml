@@ -7,7 +7,7 @@
     android:background="@color/sushi_mist">
 
     <TextView
-        android:id="@+id/hostKeysTitle"
+        android:id="@+id/host_keys_title"
         style="@style/TextAppearance.Sushi.Headline"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -20,7 +20,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-        android:id="@+id/hostKeysSubtitle"
+        android:id="@+id/host_keys_subtitle"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -30,10 +30,10 @@
         android:text="@string/host_keys_subtitle"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/hostKeysTitle" />
+        app:layout_constraintTop_toBottomOf="@id/host_keys_title" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/hostKeysRecyclerView"
+        android:id="@+id/host_keys_recycler_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
@@ -42,10 +42,10 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/hostKeysSubtitle" />
+        app:layout_constraintTop_toBottomOf="@id/host_keys_subtitle" />
 
     <TextView
-        android:id="@+id/emptyHostKeysText"
+        android:id="@+id/empty_host_keys_text"
         style="@style/TextAppearance.Sushi.Body"
         android:layout_width="0dp"
         android:layout_height="wrap_content"

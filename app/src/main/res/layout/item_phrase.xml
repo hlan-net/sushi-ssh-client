@@ -16,28 +16,28 @@
         android:padding="16dp">
 
         <TextView
-            android:id="@+id/phraseNameText"
+            android:id="@+id/phrase_name_text"
             style="@style/TextAppearance.Sushi.Body"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@id/deletePhraseButton"
+            app:layout_constraintEnd_toStartOf="@id/delete_phrase_button"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
-            android:id="@+id/phraseCommandText"
+            android:id="@+id/phrase_command_text"
             style="@style/TextAppearance.Sushi.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:fontFamily="monospace"
-            app:layout_constraintEnd_toStartOf="@id/deletePhraseButton"
+            app:layout_constraintEnd_toStartOf="@id/delete_phrase_button"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/phraseNameText" />
+            app:layout_constraintTop_toBottomOf="@id/phrase_name_text" />
 
         <ImageButton
-            android:id="@+id/deletePhraseButton"
+            android:id="@+id/delete_phrase_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackgroundBorderless"

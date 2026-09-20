@@ -318,7 +318,7 @@ class LocalSshIntegrationTest {
 
         ActivityScenario.launch(TerminalActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
-                activity.findViewById<android.view.View>(R.id.terminalConnectButton).performClick()
+                activity.findViewById<android.view.View>(R.id.terminal_connect_button).performClick()
             }
 
             waitForCondition(
@@ -326,7 +326,7 @@ class LocalSshIntegrationTest {
                 timeoutMs = 20_000,
                 timeoutMessage = "Session did not reach connected state from terminal UI"
             ) { activity ->
-                val statusView = activity.findViewById<TextView>(R.id.terminalStatusText)
+                val statusView = activity.findViewById<TextView>(R.id.terminal_status_text)
                 activity.getString(R.string.terminal_status_connected) == statusView.text.toString()
             }
 
@@ -341,14 +341,14 @@ class LocalSshIntegrationTest {
                 timeoutMs = 20_000,
                 timeoutMessage = "Command output marker not found in terminal log"
             ) { activity ->
-                val logView = activity.findViewById<TextView>(R.id.terminalOutputText)
+                val logView = activity.findViewById<TextView>(R.id.terminal_output_text)
                 logView.text?.toString()?.contains(marker) == true
             }
 
             scenario.onActivity { activity ->
-                val statusView = activity.findViewById<TextView>(R.id.terminalStatusText)
+                val statusView = activity.findViewById<TextView>(R.id.terminal_status_text)
                 if (activity.getString(R.string.terminal_status_connected) == statusView.text.toString()) {
-                    activity.findViewById<android.view.View>(R.id.terminalConnectButton).performClick()
+                    activity.findViewById<android.view.View>(R.id.terminal_connect_button).performClick()
                 }
             }
         }
@@ -379,7 +379,7 @@ class LocalSshIntegrationTest {
 
         ActivityScenario.launch(TerminalActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
-                activity.findViewById<android.view.View>(R.id.terminalConnectButton).performClick()
+                activity.findViewById<android.view.View>(R.id.terminal_connect_button).performClick()
             }
 
             waitForCondition(
@@ -387,7 +387,7 @@ class LocalSshIntegrationTest {
                 timeoutMs = 20_000,
                 timeoutMessage = "Session did not reach connected state"
             ) { activity ->
-                val statusView = activity.findViewById<TextView>(R.id.terminalStatusText)
+                val statusView = activity.findViewById<TextView>(R.id.terminal_status_text)
                 activity.getString(R.string.terminal_status_connected) == statusView.text.toString()
             }
 
@@ -407,12 +407,12 @@ class LocalSshIntegrationTest {
                 timeoutMs = 20_000,
                 timeoutMessage = "ls output did not finish in terminal"
             ) { activity ->
-                val output = activity.findViewById<TextView>(R.id.terminalOutputText).text?.toString().orEmpty()
+                val output = activity.findViewById<TextView>(R.id.terminal_output_text).text?.toString().orEmpty()
                 output.contains(doneMarker)
             }
 
             scenario.onActivity { activity ->
-                val output = activity.findViewById<TextView>(R.id.terminalOutputText).text?.toString().orEmpty()
+                val output = activity.findViewById<TextView>(R.id.terminal_output_text).text?.toString().orEmpty()
                 val fileLines = output.lineSequence().count { it.matches(Regex(".*file[0-9]{2}\\s*")) }
                 assertTrue("Expected at least 10 file lines from ls -l, got $fileLines", fileLines >= 10)
             }
@@ -461,7 +461,7 @@ class LocalSshIntegrationTest {
         try {
             ActivityScenario.launch(KeysActivity::class.java).use { keysScenario ->
                 keysScenario.onActivity { activity ->
-                    activity.findViewById<android.view.View>(R.id.generateKeyButton).performClick()
+                    activity.findViewById<android.view.View>(R.id.generate_key_button).performClick()
                 }
                 // Key generation now prompts for an optional passphrase first; confirm with it
                 // left blank (an explicit, supported "no passphrase" choice) to proceed.
@@ -770,7 +770,7 @@ class LocalSshIntegrationTest {
         ActivityScenario.launch(TerminalActivity::class.java).use { scenario ->
             log("TerminalActivity launched, clicking connect")
             scenario.onActivity { activity ->
-                activity.findViewById<android.view.View>(R.id.terminalConnectButton).performClick()
+                activity.findViewById<android.view.View>(R.id.terminal_connect_button).performClick()
             }
 
             waitForCondition(
@@ -778,7 +778,7 @@ class LocalSshIntegrationTest {
                 timeoutMs = 20_000,
                 timeoutMessage = "Session did not reach connected state"
             ) { activity ->
-                val statusView = activity.findViewById<TextView>(R.id.terminalStatusText)
+                val statusView = activity.findViewById<TextView>(R.id.terminal_status_text)
                 activity.getString(R.string.terminal_status_connected) == statusView.text.toString()
             }
 
@@ -789,7 +789,7 @@ class LocalSshIntegrationTest {
             for (cycle in 1..KEYBOARD_CYCLES) {
                 // Open keyboard by focusing the terminal view.
                 scenario.onActivity { activity ->
-                    val terminalView = activity.findViewById<TerminalView>(R.id.terminalOutputText)
+                    val terminalView = activity.findViewById<TerminalView>(R.id.terminal_output_text)
                     terminalView.requestFocus()
                     val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
                         as? android.view.inputmethod.InputMethodManager
@@ -851,7 +851,7 @@ class LocalSshIntegrationTest {
                     } catch (e: AssertionError) {
                         var terminalLog = ""
                         scenario.onActivity { activity ->
-                            terminalLog = activity.findViewById<TerminalView>(R.id.terminalOutputText).getRawText()
+                            terminalLog = activity.findViewById<TerminalView>(R.id.terminal_output_text).getRawText()
                         }
                         log("FAIL after command '$cmd'. Terminal log:\n$terminalLog")
                         failureMessage = e.message
@@ -872,15 +872,15 @@ class LocalSshIntegrationTest {
             // Capture final terminal log regardless of outcome.
             var finalLog = ""
             scenario.onActivity { activity ->
-                finalLog = activity.findViewById<TerminalView>(R.id.terminalOutputText).getRawText()
+                finalLog = activity.findViewById<TerminalView>(R.id.terminal_output_text).getRawText()
             }
             log("Final terminal log:\n$finalLog")
 
             // Disconnect if still connected.
             scenario.onActivity { activity ->
-                val statusView = activity.findViewById<TextView>(R.id.terminalStatusText)
+                val statusView = activity.findViewById<TextView>(R.id.terminal_status_text)
                 if (activity.getString(R.string.terminal_status_connected) == statusView.text.toString()) {
-                    activity.findViewById<android.view.View>(R.id.terminalConnectButton).performClick()
+                    activity.findViewById<android.view.View>(R.id.terminal_connect_button).performClick()
                 }
             }
         }
@@ -1259,8 +1259,8 @@ class LocalSshIntegrationTest {
 
         var debugState = "(unavailable)"
         scenario.onActivity { activity ->
-            val statusView = activity.findViewById<TextView>(R.id.sessionStatusText)
-            val targetView = activity.findViewById<TextView>(R.id.sessionTargetText)
+            val statusView = activity.findViewById<TextView>(R.id.session_status_text)
+            val targetView = activity.findViewById<TextView>(R.id.session_target_text)
             debugState = "status=${statusView.text}, target=${targetView.text}"
         }
         assertTrue("$timeoutMessage | $debugState", false)
@@ -1299,8 +1299,8 @@ class LocalSshIntegrationTest {
         var statusText = ""
         var terminalLog = ""
         scenario.onActivity { activity ->
-            statusText = activity.findViewById<TextView>(R.id.terminalStatusText).text.toString()
-            terminalLog = activity.findViewById<TerminalView>(R.id.terminalOutputText).getRawText()
+            statusText = activity.findViewById<TextView>(R.id.terminal_status_text).text.toString()
+            terminalLog = activity.findViewById<TerminalView>(R.id.terminal_output_text).getRawText()
         }
         log("Connection check after $label — status='$statusText'")
         val connectedLabel = context.getString(R.string.terminal_status_connected)
@@ -1321,7 +1321,7 @@ class LocalSshIntegrationTest {
     ): Int {
         var count = 0
         scenario.onActivity { activity ->
-            val text = activity.findViewById<TextView>(R.id.terminalOutputText).text?.toString().orEmpty()
+            val text = activity.findViewById<TextView>(R.id.terminal_output_text).text?.toString().orEmpty()
             for (i in 0 until text.length - 1) {
                 val ch = text[i]
                 if ((ch == '$' || ch == '#') && text[i + 1] == ' ') {

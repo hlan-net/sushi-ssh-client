@@ -56,11 +56,11 @@ class TerminalKeyRowLayoutTest {
      */
     @Test
     fun everyKeyIsAtLeastATouchTarget() {
-        assertIsATouchTarget("arrow up", R.id.terminalArrowUpButton)
-        assertIsATouchTarget("arrow down", R.id.terminalArrowDownButton)
-        assertIsATouchTarget("enter", R.id.terminalEnterButton)
-        assertIsATouchTarget("tab", R.id.terminalTabButton)
-        assertIsATouchTarget("backspace", R.id.terminalBackspaceButton)
+        assertIsATouchTarget("arrow up", R.id.terminal_arrow_up_button)
+        assertIsATouchTarget("arrow down", R.id.terminal_arrow_down_button)
+        assertIsATouchTarget("enter", R.id.terminal_enter_button)
+        assertIsATouchTarget("tab", R.id.terminal_tab_button)
+        assertIsATouchTarget("backspace", R.id.terminal_backspace_button)
     }
 
     private fun assertIsATouchTarget(name: String, id: Int) {
@@ -79,8 +79,8 @@ class TerminalKeyRowLayoutTest {
     /** The arrows share a row with nothing else, so each gets about half the width. */
     @Test
     fun theArrowsShareTheirRowEvenly() {
-        val up = button(R.id.terminalArrowUpButton).measuredWidth
-        val down = button(R.id.terminalArrowDownButton).measuredWidth
+        val up = button(R.id.terminal_arrow_up_button).measuredWidth
+        val down = button(R.id.terminal_arrow_down_button).measuredWidth
 
         assertTrue("arrows differ in width: $up vs $down", Math.abs(up - down) <= dp(1))
         assertTrue("arrows are unexpectedly narrow: $up", up >= dp(120))
@@ -89,9 +89,9 @@ class TerminalKeyRowLayoutTest {
     /** No key row may run off the side of the screen. */
     @Test
     fun noKeyRowOverflowsTheScreen() {
-        assertRowFits(R.id.terminalArrowUpButton)
-        assertRowFits(R.id.terminalEnterButton)
-        assertRowFits(R.id.terminalCtrlCButton)
+        assertRowFits(R.id.terminal_arrow_up_button)
+        assertRowFits(R.id.terminal_enter_button)
+        assertRowFits(R.id.terminal_ctrl_c_button)
     }
 
     /** Named by a key inside it, since the rows themselves have no ids. */
