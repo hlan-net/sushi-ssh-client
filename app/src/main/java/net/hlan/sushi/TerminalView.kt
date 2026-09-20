@@ -409,6 +409,9 @@ class TerminalView @JvmOverloads constructor(
      * (`ESC =` / `ESC >` keypad mode, `ESC 7` / `ESC 8` cursor save), and the charset
      * designators (`ESC ( B`). Emitting the withheld ESC for those used to leak their payload
      * as text: `ESC = ESC ( B` printed a literal `=(B` at the prompt.
+     *
+     * An `ESC` always re-synchronises, in every state: a sequence the remote truncated cannot
+     * swallow the output that follows it.
      */
     private fun processChar(ch: Char) {
         when (escState) {
@@ -462,7 +465,18 @@ class TerminalView @JvmOverloads constructor(
                 return
             }
             EscState.IN_STRING_ESC_SEEN -> {
-                escState = if (ch == '\\') EscState.NONE else EscState.IN_STRING
+                if (ch == '\\') {
+                    // ST: the string sequence ends here.
+                    escState = EscState.NONE
+                    return
+                }
+                // Any other byte after that ESC abandons the string and begins a new escape,
+                // as the VT500 parser has it — ESC leaves the string state whatever follows it.
+                // Returning to the string instead let an unterminated OSC swallow the next
+                // sequence and everything after it, up to the length guard. This recurses
+                // exactly once: ESC_SEEN never re-enters.
+                escState = EscState.ESC_SEEN
+                processChar(ch)
                 return
             }
             EscState.NONE -> Unit

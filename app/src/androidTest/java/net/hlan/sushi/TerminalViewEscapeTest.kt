@@ -109,6 +109,19 @@ class TerminalViewEscapeTest {
         assertEquals("(B\n", view.getRawText())
     }
 
+    @Test
+    fun escapeAfterATruncatedStringSequenceReSyncs() {
+        // A remote that cuts an OSC short must not take the next sequence down with it.
+        view.appendLog("\u001B]0;title\u001B\u001B[31mvisible\n")
+        assertEquals("visible\n", view.text.toString())
+    }
+
+    @Test
+    fun twoByteEscapeAbandonsATruncatedStringSequence() {
+        view.appendLog("\u001B]0;title\u001B=visible\n")
+        assertEquals("visible\n", view.getRawText())
+    }
+
     // --- Carriage-return overwrite (#127) ---
 
     @Test
