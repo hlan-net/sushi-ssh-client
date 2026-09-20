@@ -8,7 +8,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Regression tests for OSC filtering (#126) and carriage-return overwrite (#127).
+ * Regression tests for escape filtering (#126) and carriage-return overwrite (#127).
  */
 @RunWith(AndroidJUnit4::class)
 class TerminalViewEscapeTest {
@@ -59,6 +59,54 @@ class TerminalViewEscapeTest {
     fun csiColorSequencesStillRender() {
         view.appendLog("\u001B[31mred\u001B[0m\n")
         assertEquals("red\n", view.text.toString())
+    }
+
+    // --- Non-CSI escapes ---
+
+    @Test
+    fun keypadAndCharsetEscapesLeaveNothingVisible() {
+        // What bash emits around its prompt; these used to print a literal "=(B".
+        view.appendLog("\u001B=\u001B(Blarry@edge:~ $ ")
+        assertEquals("larry@edge:~ $ ", view.getRawText())
+    }
+
+    @Test
+    fun twoByteEscapesAreFiltered() {
+        view.appendLog("\u001B>\u001B7a\u001B8\u001BMok\n")
+        assertEquals("aok\n", view.getRawText())
+    }
+
+    @Test
+    fun charsetDesignatorSplitAcrossChunksIsFiltered() {
+        view.appendLog("\u001B(")
+        view.appendLog("Bhello\n")
+        assertEquals("hello\n", view.getRawText())
+    }
+
+    @Test
+    fun dcsStringSequenceIsFiltered() {
+        view.appendLog("\u001BPquery\u001B\\ok\n")
+        assertEquals("ok\n", view.getRawText())
+    }
+
+    @Test
+    fun escFollowedByEscStartsANewSequence() {
+        view.appendLog("\u001B\u001B=ok\n")
+        assertEquals("ok\n", view.getRawText())
+    }
+
+    @Test
+    fun controlCharacterAbandonsAnUnfinishedEscape() {
+        view.appendLog("a\u001B\nb\n")
+        assertEquals("a\nb\n", view.getRawText())
+    }
+
+    @Test
+    fun clearLogResetsTheFilterState() {
+        view.appendLog("\u001B")
+        view.clearLog()
+        view.appendLog("(B\n")
+        assertEquals("(B\n", view.getRawText())
     }
 
     // --- Carriage-return overwrite (#127) ---

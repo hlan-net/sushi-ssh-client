@@ -27,14 +27,18 @@ class TerminalView @JvmOverloads constructor(
     private var currentBgColor: Int? = null
     private val rawTextBuffer = StringBuilder()
     private var pendingCarriageReturn = false
-    private var oscState = OscState.NONE
-    private var oscLength = 0
+    private var escState = EscState.NONE
+    private var escStringLength = 0
     var onInputText: ((String) -> Unit)? = null
     var renderAnsi: Boolean = true
 
-    // OSC sequences (ESC ] ... BEL/ST) can be split across network chunks,
-    // so the filter state must persist between appendLog calls.
-    private enum class OscState { NONE, ESC_SEEN, IN_OSC, IN_OSC_ESC_SEEN }
+    /**
+     * Escape sequences can be split across network chunks, so the filter state must persist
+     * between appendLog calls. [IN_STRING] covers the string sequences (OSC, DCS, SOS, PM, APC)
+     * that run until BEL or ST; [ESC_INTERMEDIATE] covers the two-part escapes whose first byte
+     * is an intermediate, such as the charset designator `ESC ( B`.
+     */
+    private enum class EscState { NONE, ESC_SEEN, IN_STRING, IN_STRING_ESC_SEEN, ESC_INTERMEDIATE }
 
     private var ansiPalette: IntArray? = null
     private var ansiBackgroundPalette: IntArray? = null
@@ -81,8 +85,14 @@ class TerminalView @JvmOverloads constructor(
 
         private const val MAX_LINES = 500
         private const val MAX_CHARS = 200_000
-        // Unterminated OSC guard: a missing BEL/ST must not swallow output forever.
-        private const val MAX_OSC_LENGTH = 2048
+        // Unterminated string-sequence guard: a missing BEL/ST must not swallow output forever.
+        private const val MAX_ESC_STRING_LENGTH = 2048
+
+        /**
+         * Bytes that turn an escape into a string sequence running until BEL or ST: OSC (`]`,
+         * xterm window titles), DCS (`P`), SOS (`X`), PM (`^`) and APC (`_`).
+         */
+        private const val STRING_SEQUENCE_STARTERS = "]PX^_"
         private val ESCAPE_PATTERN = Pattern.compile("\u001B\\[[0-9;?]*[a-ln-zA-LN-Z]")
         private val SGR_PATTERN = Pattern.compile("\u001B\\[([0-9;]*)m")
     }
@@ -311,6 +321,7 @@ class TerminalView @JvmOverloads constructor(
         currentFgColor = null
         currentBgColor = null
         pendingCarriageReturn = false
+        escState = EscState.NONE
         text = ""
         scrollTo(0, 0)
     }
@@ -390,43 +401,84 @@ class TerminalView @JvmOverloads constructor(
     }
 
     /**
-     * Filters OSC sequences (ESC ] ... BEL/ST — e.g. xterm window titles) out of the
-     * stream before buffering. CSI sequences pass through untouched; parseAnsi strips
-     * or renders them later.
+     * Filters escape sequences out of the stream before buffering, with one exception: CSI
+     * (`ESC [ ...`) passes through, because parseAnsi renders the colours and strips the rest.
+     *
+     * Everything else is consumed here and never reaches the buffer — the string sequences
+     * (OSC, DCS, SOS, PM, APC), the two-byte escapes a shell emits around its prompt
+     * (`ESC =` / `ESC >` keypad mode, `ESC 7` / `ESC 8` cursor save), and the charset
+     * designators (`ESC ( B`). Emitting the withheld ESC for those used to leak their payload
+     * as text: `ESC = ESC ( B` printed a literal `=(B` at the prompt.
      */
     private fun processChar(ch: Char) {
-        when (oscState) {
-            OscState.ESC_SEEN -> {
-                oscState = OscState.NONE
-                if (ch == ']') {
-                    oscState = OscState.IN_OSC
-                    oscLength = 0
-                    return
-                }
-                // Not an OSC — emit the withheld ESC, then handle ch normally.
-                appendChar('\u001B')
-            }
-            OscState.IN_OSC -> {
-                oscLength++
+        when (escState) {
+            EscState.ESC_SEEN -> {
                 when {
-                    ch == '\u0007' -> oscState = OscState.NONE
-                    ch == '\u001B' -> oscState = OscState.IN_OSC_ESC_SEEN
-                    oscLength > MAX_OSC_LENGTH -> oscState = OscState.NONE
+                    // A second ESC abandons this sequence and starts a new one.
+                    ch == '\u001B' -> return
+                    ch == '[' -> {
+                        // CSI: hand both bytes to the buffer for parseAnsi to deal with.
+                        escState = EscState.NONE
+                        appendChar('\u001B')
+                    }
+                    ch in STRING_SEQUENCE_STARTERS -> {
+                        escState = EscState.IN_STRING
+                        escStringLength = 0
+                        return
+                    }
+                    ch.isEscapeIntermediate() -> {
+                        escState = EscState.ESC_INTERMEDIATE
+                        return
+                    }
+                    // A control character is executed where it stands; the escape is abandoned.
+                    ch < ' ' -> escState = EscState.NONE
+                    // Any other byte is the final one of a two-byte escape: consume both.
+                    else -> {
+                        escState = EscState.NONE
+                        return
+                    }
+                }
+            }
+            EscState.ESC_INTERMEDIATE -> {
+                when {
+                    ch == '\u001B' -> escState = EscState.ESC_SEEN
+                    ch.isEscapeIntermediate() -> Unit
+                    ch < ' ' -> {
+                        escState = EscState.NONE
+                        appendChar(ch)
+                    }
+                    // The final byte, e.g. the `B` of `ESC ( B`.
+                    else -> escState = EscState.NONE
                 }
                 return
             }
-            OscState.IN_OSC_ESC_SEEN -> {
-                oscState = if (ch == '\\') OscState.NONE else OscState.IN_OSC
+            EscState.IN_STRING -> {
+                escStringLength++
+                when {
+                    ch == '\u0007' -> escState = EscState.NONE
+                    ch == '\u001B' -> escState = EscState.IN_STRING_ESC_SEEN
+                    escStringLength > MAX_ESC_STRING_LENGTH -> escState = EscState.NONE
+                }
                 return
             }
-            OscState.NONE -> Unit
+            EscState.IN_STRING_ESC_SEEN -> {
+                escState = if (ch == '\\') EscState.NONE else EscState.IN_STRING
+                return
+            }
+            EscState.NONE -> Unit
         }
         if (ch == '\u001B') {
-            oscState = OscState.ESC_SEEN
+            escState = EscState.ESC_SEEN
             return
         }
         appendChar(ch)
     }
+
+    /**
+     * Intermediate bytes (0x20-0x2F) — `ESC ( B`, `ESC # 8`, `ESC % G` — each announce that one
+     * more byte belongs to the sequence.
+     */
+    private fun Char.isEscapeIntermediate(): Boolean = this in ' '..'/'
 
     /**
      * Appends with carriage-return overwrite semantics: a `\r` not followed by `\n`
@@ -459,8 +511,8 @@ class TerminalView @JvmOverloads constructor(
      * Erases the last printable character on the current line, never crossing a `\n`.
      * Trailing CSI/SGR escape sequences (`ESC [ [0-9;?]* letter`, e.g. a `ESC[0m`
      * color reset) are skipped rather than truncated, so a backspace can't corrupt a
-     * still-open escape sequence into raw codes. OSC is already stripped upstream in
-     * [processChar], so only CSI sequences and printable text reach the buffer.
+     * still-open escape sequence into raw codes. Every other escape is already stripped
+     * upstream in [processChar], so only CSI sequences and printable text reach the buffer.
      */
     private fun eraseLastPrintableChar() {
         var i = rawTextBuffer.length - 1
