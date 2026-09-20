@@ -37,6 +37,12 @@ An open source Android SSH client focused on fast connections, clean session man
 
 ## Recent Release Highlights
 
+### v0.8.3
+- **Light Mode**: The terminal follows the system theme instead of a fixed dark screen. In light mode its key labels had been drawn at 1.04:1 against their own background — present, but invisible. The ANSI palette came with it, since the raw colour constants suit a dark terminal and put yellow and white at about 1.1:1 on a light one.
+- **Readable ANSI Backgrounds**: `ESC[40m`–`ESC[47m` had reused the foreground palette, so a highlight painted text in its own colour — a blank rectangle at exactly 1.00:1. Backgrounds are now their own palette per theme, and a foreground that would fall short against one is shifted toward white or black until it reads.
+- **No More Escape Codes at the Prompt**: The terminal filtered only two kinds of escape sequence and let the rest through with their payload visible, so a prompt arrived as `=(B larry@edge:~ $`. Every escape shape is now recognised and consumed.
+- **Visible Gemini Responses**: The response bubble drew its text in the terminal's colour, which in dark mode was its own background colour. It now reads at about 16:1 in both themes.
+
 ### v0.8.2
 - **Command History from the Terminal**: Up and Down buttons send the cursor sequences to the shell, so `history` is reachable from the phone. A hardware keyboard's arrows work too — neither reached the shell before.
 - **Readable Status Lines**: The terminal's own messages no longer run into each other or into the shell prompt; the same fix applies to the Plays session log.
