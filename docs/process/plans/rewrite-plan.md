@@ -668,6 +668,24 @@ Room (two databases per §4.2), DataStore settings, `SecureStore`
 (Keystore AES-256-GCM in `:app`, interface in `:data`), repositories
 exposing `Flow`, and `LegacyMigrator` per §4.4.
 
+**One store for both UI patterns.** Phase 5 replaces screens one at a
+time, so for its whole duration a Compose screen on the new repositories
+and a legacy activity on `GeminiSettings` / `SshSettings` / the
+`*DatabaseHelper`s run side by side. If those read different stores, an
+API key saved in the new Settings never reaches `MainActivity`, and a
+command the old terminal records after migration never reaches the new
+history screen — `migration_version` rightly forbids copying twice. So in
+this phase every legacy accessor becomes a **facade over the new
+repository**, keeping its class name and signatures: `GeminiSettings`,
+`SshSettings`, `DriveLogSettings`, `FeedbackSettings`, `AppThemeSettings`,
+`KeyPassphraseCache`, `PhraseDatabaseHelper`, `PlayDatabaseHelper`,
+`CommandHistoryDatabaseHelper`, `GeminiTranscriptDatabaseHelper`,
+`TerminalLogRepository`, `ConsoleLogRepository`. Before
+`migration_version = 1` the facades read the legacy stores (§4.4 step 4);
+from the moment it is set, every screen — old or new — reads and writes
+the same store through them. The facades are deleted in Phase 6 with their
+last caller.
+
 **Tests**
 
 - DAO tests (instrumented, in-memory Room).
@@ -675,11 +693,19 @@ exposing `Flow`, and `LegacyMigrator` per §4.4.
 - `CommandHistoryDatabaseHelperTest` and
   `GeminiTranscriptDatabaseHelperTest` assertions ported to the
   repositories.
+- **Coexistence**, instrumented, against a migrated store: a value written
+  through `GeminiRepository` is read back through `GeminiSettings` and
+  vice versa; a command recorded through `CommandHistoryDatabaseHelper`
+  after migration is returned by `CommandHistoryRepository`; a host saved
+  through the new `HostRepository` is what `SshSettings.getHosts()`
+  returns. This test stays until Phase 6 removes the facades.
 
-**Acceptance**: migration test green on the emulator; the old app code
-still reads the old stores (this phase adds the new ones and the migrator;
-the migrator is invoked from `SushiApplication` behind a feature flag that
-is off until Phase 5's first screen needs the new repositories).
+**Acceptance**: migration and coexistence tests green on the emulator;
+the app behaves as before (the facades are byte-for-byte transparent
+while `migration_version` is unset); the migrator is invoked from
+`SushiApplication` behind a feature flag that is off until Phase 5's first
+screen needs the new repositories — and turning it on is safe precisely
+because the facades exist.
 
 ### Phase 5 — `:app` UI, screen by screen (several PRs)
 
@@ -688,7 +714,9 @@ replaces one screen group: new `ViewModel` + Compose screen + Compose UI
 test, navigation switched to it, **the legacy activity and its layouts
 deleted in the same PR**.
 
-**Precondition for every group: its Figma card is *Approved*** (Phase 0
+**Precondition for every group: its Figma card is *Approved*** and Phase
+4's facades are in place, so the screen being replaced and the screens
+still legacy share one store from the first Compose PR on (Phase 0
 creates them; `docs/process/UX_PROPOSALS.md` §4 says how to build from
 one). **The default is a 1:1 port** — same elements, same order, same
 texts, same states as the current screen — because a rewrite that also
