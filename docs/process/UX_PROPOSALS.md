@@ -8,9 +8,14 @@ person or agent *making* a proposal and, just as much, for the one
 *implementing* it.
 
 Sushi Figma file: `https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi`
-— pages *Foundations* (palette), *Main Screens*, *Secondary Screens*,
-*Dialogs & Overlays*, *Navigation Flow*, and **Proposals**, where every card
-lives.
+— pages *Foundations* (palette), **Components** (five base components on
+the *Sushi* variable collection — Light/Dark colour tokens whose Android
+code syntax is the `R.color` name, plus *Sushi Layout* for spacing, radius
+and the 48 dp touch target, and the `Sushi/*` text styles), *Main Screens*,
+*Secondary Screens*, *Dialogs & Overlays*, *Navigation Flow*, and
+**Proposals**, where every card lives. Sketch with the components and the
+tokens where they fit: `get_design_context` then hands the implementer
+token names instead of hex values.
 
 ## 1. The pipeline
 
@@ -28,7 +33,10 @@ GitHub issue, label `user-story`
 A card can also start from the roadmap rather than an issue — the three
 cards of 2026-09-21 (B-18, the conversation screen, the v0.9.x touches)
 did — in which case the *Issue / PR* line points at the roadmap section and
-the PR that introduced it.
+the PR that introduced it. The rewrite plan's Phase 5 is nine such cards
+plus a navigation map, all made in its Phase 0 and each *Approved* before
+its screen is built; the plan's default there is a 1:1 port, so a card
+that shows today's screen unchanged is a valid, finished card.
 
 ## 2. Anatomy of a card
 
@@ -41,7 +49,7 @@ the Proposals page. A card is 820 × 580 and reads left to right:
 | Issue / PR · Author · Date | Where it came from | The issue or roadmap section is the requirement; the card is its shape. |
 | **Problem** | What is wrong today, concretely | The acceptance test in prose: after the PR, this sentence must be false. |
 | **Goal** | What the user can do afterwards | The second acceptance test: this must be true. |
-| **UX Checklist** | Five boxes — visual style, 360 dp, empty/error states, strings, permissions | Owned by the implementer (§5). |
+| **UX Checklist** | Six boxes — visual style, 360 dp, empty/error states, strings, permissions, accessibility | Owned by the implementer (§5). |
 | **Current State** panel | Screenshot or sketch of today | What must *not* survive the PR. If the current state is not drawn, draw it before designing — half the value of a card is the contrast. |
 | **Proposed Design** panel | The sketch you build from | Structure and states, not pixels (§4). |
 | **Notes / open questions** | Edge cases and decisions left open | Every open question must be closed — in the PR description or by editing the card — before the card goes *Approved*. |
@@ -110,7 +118,10 @@ agent — with a card and a task does the following, in order.
    change looks like the screens beside it), 360 dp (test on a small
    emulator or the device runner), empty and error states (every state the
    card shows exists and is reachable), strings (all five locales),
-   permissions (none added, or the manifest change is in the PR).
+   permissions (none added, or the manifest change is in the PR),
+   accessibility (TalkBack reads the new element in order and says what it
+   is; every touch target is at least 48 dp; nothing conveys meaning by
+   colour alone).
 8. **Link the card in the PR** under *Figma frame*, tick *Yes*, and let the
    UX Gate confirm. When the PR merges, set the card's status to *Merged*.
 
@@ -132,7 +143,9 @@ maintainer whether the change is small enough for *No — purely logic*.
 ## 6. The gate, exactly
 
 `ux-gate.yml` runs on every PR. It lists the changed files; if any is a
-layout, menu, drawable or `*Activity.kt`, it requires the PR body to
+layout, menu, `strings.xml`, `colors.xml`, `*Activity.kt`, `*Fragment.kt`,
+`*Adapter.kt`, or a Compose screen (`ui/**/*.kt`, `*Screen.kt`,
+`*Theme.kt`), it requires the PR body to
 contain either a `figma.com/design/` (or `/proto/`, `/board/`) link or the
 checked box `[x] No — purely logic/backend change`. Otherwise it fails and
 comments with the two ways to fix it.

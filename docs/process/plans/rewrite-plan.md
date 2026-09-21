@@ -336,6 +336,16 @@ committed text is sent as bytes, IME composing text shown as an overlay. The
 extra-keys row (Esc, Tab, Ctrl, Alt, arrows, `|`, `/`, `-`, and the
 existing Up/Down history buttons) is kept.
 
+**Accessibility** — the one place the rewrite can make things worse. The
+`TextView` gave TalkBack, selection and magnification for free; a `Canvas`
+gives nothing. The renderer therefore exposes the screen to accessibility
+services row by row (`Modifier.semantics` with a `contentDescription` per
+visible row, `LiveRegion` on the cursor row so TalkBack announces new
+output when enabled), keeps selection operable with Switch Access, gives
+every key in the extra-keys row a 48 dp target, and passes
+`TerminalContrastTest`'s thresholds for the default theme. These are
+acceptance criteria of Phase 5.7, not follow-ups.
+
 ### 3.4 What is preserved exactly
 
 - `sushi-pty.c` and its JNI signatures (`nativeStart`, `nativeRead`,
@@ -363,8 +373,60 @@ existing Up/Down history buttons) is kept.
 - The theme: `AppThemeSettings` (mode, accent variant, terminal font size)
   and the `sushi_*` colour tokens, which were re-tuned for contrast in v0.8.3
   and are asserted by `TerminalContrastTest`. The Compose theme maps the same
-  tokens; the ANSI palettes and the `readableOn` contrast nudge move into
+  tokens, and Figma carries them as variables — collection *Sushi*, modes
+  Light and Dark, `codeSyntax.ANDROID` set to the `R.color` name — created
+  in Phase 0 so that a card's `get_design_context` yields token names rather
+  than hex values. `colorPrimary` is whichever of the four accent variants
+  (`sushi_green`, `sushi_accent_wasabi`, `sushi_accent_gari`,
+  `sushi_accent_terracotta`) the user chose in Settings; the token is
+  `color/primary`, the variants are primitives behind it; the ANSI palettes and the `readableOn` contrast nudge move into
   the emulator's colour resolution, with the same test.
+
+### 3.5 Navigation map
+
+One activity, one `NavHost`, type-safe routes. The map is a Figma card on
+the Proposals page ([*Navigation map — rewrite*](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi?node-id=114-2)), *Approved*
+before Phase 5.1, because the first screen fixes the graph's shape. What it
+must settle:
+
+**Routes** (route class → what it shows):
+
+| Route | Screen | Arguments |
+|---|---|---|
+| `Home` | Terminal tab + Plays tab, host switcher, setup checklist | — (start destination) |
+| `Terminal(hostId)` | full-screen terminal for one session | host |
+| `Conversation(hostId, sessionId?)` | the AI conversation | host; optional past session to reopen |
+| `Hosts`, `HostEdit(hostId?)` | host list, host editor | optional host |
+| `Keys`, `HostKeys` | key pair, trusted server keys | — |
+| `Phrases`, `Plays`, `PlayEdit(playId?)` | lists and editor | optional play |
+| `PlayRun(playId, hostId)` | run dialog with parameter preview | play, host |
+| `CommandHistory(hostId)`, `GeminiHistory`, `Transcript(sessionId)` | history screens | — |
+| `Persona(hostId)` | remote `SUSHI.md` editor | host |
+| `Settings(page?)` | the four pages | optional page to open on |
+| `Upload(uri)`, `Download(hostId)` | SFTP | from `ACTION_SEND` / from the terminal |
+| `About` | — | — |
+
+**Back stack** — `Home` is the root and the only screen with tabs.
+`Terminal` and `Conversation` are siblings under `Home`: back from either
+returns to `Home`, never to the other; switching between them is a
+`navigate` with `popUpTo(Home)`. Host-key trust, host-key changed,
+passphrase and delete confirmations are dialog destinations, not screens.
+Nothing declares `configChanges`: rotation recreates the activity and every
+screen survives through its `ViewModel` and `SavedStateHandle`.
+
+**Deep links** — the entry points the small features in `ROADMAP.md`
+v0.9.x need, and the ones the old activities served by intent:
+
+| Entry | Route |
+|---|---|
+| Quick Settings tile, App Shortcut | `Home` with `connect=hostId` → connects, then `Terminal(hostId)` |
+| `SshConnectionService` notification | `Terminal(hostId)` of the live session |
+| `ACTION_SEND` via the `ShareActivity` trampoline | `Upload(uri)` with the host picker inside |
+| `sushi://host/{id}` (future) | `Home` with `connect=hostId` |
+
+**Session ownership** — `SessionManager` is application-scoped; no route
+owns a session. Leaving `Terminal` does not disconnect; `Home`'s session
+card shows the live session and offers *Return to terminal*, as today.
 
 ---
 
@@ -489,6 +551,30 @@ and may be done in any order once Phase 1 has merged; Phase 5 needs all of
 - `ROADMAP.md`: add a `v0.9.0 — Rewrite` section that links here and lists
   the phases with checkboxes; add `v1.0.0 — Cutover`.
 - `docs/process/plans/rewrite-plan.md` (this file) marked *in progress*.
+- **UX, before any Compose PR** — the repository's process
+  (`docs/process/UX_PROPOSALS.md`) says every layout change starts from an
+  *Approved* Figma card, and Phase 5 is nine layout changes:
+  - `ux-gate.yml`'s file pattern extended so Compose screens trigger it
+    (`/ui/.*\.kt$`, `Screen\.kt$`, `Theme\.kt$`, and `colors.xml` in
+    `values` and `values-night`). Today it matches only layout XML and
+    `*Activity.kt`; from Phase 5.1 on it would pass every UI change silently.
+  - **Nine proposal cards** on the Proposals page, one per Phase 5 screen
+    group, each with a *Current State* screenshot from the v0.8.3 build.
+    Figma's *Main Screens* page still shows v0.5; these cards become the
+    baseline it lacks. Cards start *In Design*; Phase 5.n does not start
+    until its card is *Approved*.
+  - The **navigation map** card (§3.5), *Approved* before Phase 5.1: the
+    first screen fixes the shape of the graph. *Made 2026-09-21:*
+    [card](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi?node-id=114-2).
+  - **Design tokens in Figma** (§3.4): the variable collection, text styles
+    and five base components, so every card from here on is drawn with the
+    tokens the Compose theme implements and `get_design_context` returns
+    names, not hex. *Made 2026-09-21:* collections *Sushi* (39 colour
+    tokens, Light/Dark, `codeSyntax.ANDROID` = the `R.color` name) and
+    *Sushi Layout* (spacing, radius, touch target, stroke), six text styles
+    `Sushi/Headline … Terminal`, and the [Components page](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi?node-id=117-2) with
+    Button, Chip, Card, TextField and Banner bound to them. What remains for
+    Phase 0 is the nine screen cards.
 
 **Acceptance**: the app is byte-for-byte the same in behaviour; all 301
 existing tests still pass; new modules build and their placeholder tests run
@@ -584,8 +670,22 @@ is off until Phase 5's first screen needs the new repositories).
 Single `MainActivity` with `NavHost`, `AppGraph`, `SessionManager`. Each PR
 replaces one screen group: new `ViewModel` + Compose screen + Compose UI
 test, navigation switched to it, **the legacy activity and its layouts
-deleted in the same PR**. Order, chosen so the riskiest screens go last and
-each PR can reuse what the previous one built:
+deleted in the same PR**.
+
+**Precondition for every group: its Figma card is *Approved*** (Phase 0
+creates them; `docs/process/UX_PROPOSALS.md` §4 says how to build from
+one). **The default is a 1:1 port** — same elements, same order, same
+texts, same states as the current screen — because a rewrite that also
+redesigns nine screens is the scope creep rule 1 forbids. The card's
+*Proposed Design* panel may show a deviation from today's screen, and
+then the PR implements the card, not the old screen; but a deviation lives
+on the card *before* the PR, never in the PR alone. Improvements from
+`docs/improvements/06-ux.md` ride along only when the card shows them and
+the PR does not grow. The nav map (§3.5) is the tenth card and is
+*Approved* before 5.1.
+
+Order, chosen so the riskiest screens go last and each PR can reuse what
+the previous one built:
 
 1. Settings (four pages) — turns the migrator on; first user of `:data`.
 2. Hosts list, host editor, SSH keys, host keys (known hosts).
@@ -611,7 +711,12 @@ device runner.
 
 **Acceptance per PR**: the replaced screen's UI tests green on the emulator;
 the legacy activity gone from the manifest; no `binding.*` references to the
-deleted layouts; the app releasable.
+deleted layouts; the app releasable; the card linked under *Figma frame*,
+its UX checklist ticked (all six boxes, accessibility included), its status
+moved to *Merged*; any deviation from the card written on the card and in
+the PR. For 5.7 additionally the accessibility criteria in §3.3: TalkBack
+reads the terminal row by row, selection works with Switch Access, every
+key is a 48 dp target.
 
 ### Phase 6 — Cutover and removal
 

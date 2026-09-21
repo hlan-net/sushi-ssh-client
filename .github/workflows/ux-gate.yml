@@ -27,7 +27,7 @@ jobs:
           HEAD=${{ github.event.pull_request.head.sha }}
 
           UI_CHANGED=$(git diff --name-only "$BASE" "$HEAD" | grep -E \
-            'res/layout/|res/menu/|Activity\.kt$|Fragment\.kt$|Adapter\.kt$|res/values/strings\.xml' \
+            'res/layout/|res/menu/|Activity\.kt$|Fragment\.kt$|Adapter\.kt$|res/values/strings\.xml|/ui/.*\.kt$|Screen\.kt$|Theme\.kt$|res/values(-night)?/colors\.xml' \
             | wc -l)
 
           echo "ui_changed=$UI_CHANGED" >> "$GITHUB_OUTPUT"
