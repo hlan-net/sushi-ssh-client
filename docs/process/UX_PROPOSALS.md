@@ -143,12 +143,15 @@ maintainer whether the change is small enough for *No — purely logic*.
 ## 6. The gate, exactly
 
 `ux-gate.yml` runs on every PR. It lists the changed files; if any is a
-layout, menu, `strings.xml`, `colors.xml`, `*Activity.kt`, `*Fragment.kt`,
-`*Adapter.kt`, or a Compose screen (`ui/**/*.kt`, `*Screen.kt`,
-`*Theme.kt`), it requires the PR body to
+layout, menu, `strings.xml` or `colors.xml` in **any** `values*` directory
+(a translation-only change is a visible change), `*Activity.kt`,
+`*Fragment.kt`, `*Adapter.kt`, or a Compose screen (`ui/**/*.kt`,
+`*Screen.kt`, `*Theme.kt`), it requires the PR body to
 contain either a `figma.com/design/` (or `/proto/`, `/board/`) link or the
-checked box `[x] No — purely logic/backend change`. Otherwise it fails and
-comments with the two ways to fix it.
+checked box `[x] No — purely logic/backend change`. Otherwise it posts a
+comment with the two ways to fix it **and fails** (`exit 1`). Until
+2026-09-21 it was a soft warning that did not block; it is a real check
+now, which is what this document has always described.
 
 *No — purely logic* is legitimate when an `Activity.kt` change has no
 visible effect: a refactor, a bug fix in a listener, a renamed id. It is

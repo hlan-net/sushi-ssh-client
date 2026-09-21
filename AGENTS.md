@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Sushi is an Android SSH client. Package `net.hlan.sushi`, single Gradle module `:app`, Kotlin DSL, JDK 17, min SDK 26, target SDK 36. No Compose, no ViewModel/MVVM — activity-based with view binding.
+Sushi is an Android SSH client. Package `net.hlan.sushi`, single Gradle module `:app`, Kotlin DSL, JDK 17, min SDK 26, target SDK 36. Two UI patterns coexist: legacy screens are activity-based with view binding; new and migrated screens are Compose + ViewModel, mounted in the existing activity. No new UI logic goes into `MainActivity` or `SettingsActivity`. `CLAUDE.md` → Architecture has the rules and the migration order; `docs/process/plans/rewrite-plan.md` is the reference plan for a full rewrite (not committed).
 
 `CLAUDE.md` covers the same ground in more detail; keep the two reconciled when changing one.
 
@@ -40,13 +40,14 @@ JSch reflectively loads crypto providers — its classes are kept in `app/progua
 ./scripts/setup-local-ssh-test.sh          # wizard; writes .local/local-ssh-test.env (chmod 600, gitignored)
 ./scripts/run-local-ssh-test.sh            # runs LocalSshIntegrationTest using above creds
 ./scripts/install-git-hooks.sh             # installs pre-push hook (runs unit tests)
+./scripts/check-versions.sh                # every dependency vs latest stable (docs/process/DEPENDENCY_LIFECYCLE.md)
 ```
 
 Bypass pre-push hook: `SKIP_PRE_PUSH_TESTS=1 git push`.
 
 ## Architecture
 
-UI logic stays in activities; service logic lives in helpers:
+Legacy screens keep UI logic in the activity; new and migrated screens put state in a `ViewModel` (`viewModelScope` + `StateFlow`) and render it in Compose. Service logic lives in helpers either way:
 
 - `SshClient` — JSch wrapper (password/key auth, jump servers, PTY).
 - `GeminiClient` — Gemini API over raw `HttpURLConnection` (no SDK).
@@ -56,7 +57,7 @@ UI logic stays in activities; service logic lives in helpers:
 - `PhraseDatabaseHelper` / `PlayDatabaseHelper` — `SQLiteOpenHelper`. `PhraseDatabaseHelper` exposes a `MutableStateFlow` for reactive UI.
 - `ConsoleLogRepository` / `TerminalLogRepository` — session log persistence.
 
-Main UI: `MainActivity` is a `ViewPager2` (Terminal + Plays tabs); `SettingsActivity` is a `ViewPager2` carousel (General/SSH/Gemini/Drive); `TerminalActivity` uses the custom `TerminalView`.
+Main UI: `MainActivity` is a `ViewPager2` (Terminal + Plays tabs); `SettingsActivity` is a `ViewPager2` carousel (General/SSH/Gemini/Drive); `TerminalActivity` uses the custom `TerminalView`, which is not rewritten during the migration (a Compose screen wraps it in `AndroidView`). Migration order: the Gemini conversation first (it is an `AlertDialog` in `MainActivity` today), then Settings pages, then the Plays tab, the host list, the Terminal tab last.
 
 ## Threading
 
@@ -66,10 +67,11 @@ Mixed by design: legacy code uses `Thread { } / runOnUiThread { }`, newer code u
 
 - Kotlin official style, 4-space indent, no wildcard imports, one top-level class per file.
 - All user-visible strings → `app/src/main/res/values/strings.xml`.
-- View binding only (`binding.*`), never `findViewById`.
+- View binding (`binding.*`) in legacy screens, never `findViewById`; Compose screens use neither.
 - Resource IDs `lower_snake_case`; layouts `activity_*.xml`.
 - Error boundaries: `runCatching { }.getOrElse { }` mapping to small result data classes (`GeminiResult`, `DriveUploadResult`).
-- New settings → add UI to `SettingsActivity` + store in `SecurePrefs` if sensitive.
+- New settings → a Compose page with its own ViewModel mounted in `SettingsActivity`, not a new block in the activity; secrets in `SecurePrefs`.
+- Anything that changes a layout, a user-visible string or a screen's states starts from a Figma proposal card and links it in the PR: `docs/process/UX_PROPOSALS.md`. The UX Gate CI check fails without the link or an explicit no-UI declaration.
 - New deps → `app/build.gradle.kts`. New permissions → `AndroidManifest.xml` only when required.
 
 ## Tests

@@ -91,9 +91,13 @@ connection and picks the path:
 | "Running" chips | from `tmux ls -F '#{session_name}'`, filtered by the `sushi-agent-` prefix, refreshed on connect | the one process, for the life of the session |
 | Attach / Kill | `tmux attach` / `tmux kill-session` | detach = Ctrl-C |
 
-`<slug>` is the directory's basename, lower-cased, non-alphanumerics
-replaced by `-`, so the same directory started twice attaches to the
-existing session instead of starting a second one.
+`<slug>` is `<tool>-<basename>-<hash>`: the tool id, the directory's
+basename lower-cased with non-alphanumerics replaced by `-`, and the first
+six hex digits of SHA-1 over the canonical path (`realpath`). The basename
+keeps the chip readable; the hash keeps `/work/client/app` and
+`/home/me/app` apart; the tool keeps two agents in one directory apart. The
+same tool in the same directory started twice attaches to the existing
+session instead of starting a second one.
 
 The `tmux` path is what makes the feature worth having: start the agent,
 close Sushi, drive it from the vendor app, and come back to the terminal
@@ -145,8 +149,11 @@ button opens a bottom sheet:
 Running sessions are chips in the terminal's status row, one per
 `sushi-agent-*` `tmux` session, each with Attach and Kill.
 
-This touches `activity_terminal.xml`, so the PR needs a Figma frame for the
-sheet and the chips. The proposal card, with a current-state sketch beside
+The button lives on **both** terminal surfaces: the Terminal tab of the
+home screen (`page_main_terminal.xml`, beside `phrases_button`) and the
+full-screen terminal (`activity_terminal.xml`, beside
+`terminal_phrases_button`); the chips sit in each surface's status row. Both
+layouts change, so the PR needs a Figma frame for the sheet and the chips. The proposal card, with a current-state sketch beside
 the sheet and the chips, is on the Proposals page:
 [Remote agent launcher (B-18)](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi?node-id=102-2).
 
@@ -155,20 +162,29 @@ the sheet and the chips, is on the Proposals page:
 Three PRs, each releasable, in this order. The first two are general Play
 features with their own value.
 
-1. **Interactive Plays** — `Play.interactive`, `PlayRunner` routing through
-   `sendCommand`, the history exclusion, the "sent to terminal" state in
-   the run dialog. Tests: `PlayRunner` unit tests for routing and the
-   history rule.
-2. **Discovered choices** — `PlayParameter.choicesCommand`, the picker in
-   the run dialog, per-host last-used memory. Tests: parameter
-   encode/decode round-trip; picker UI test with a fake backend returning
-   fixed lines.
+1. **Interactive Plays** — `Play.interactive`, persisted as a new column:
+   `sushi_plays.db` is at schema version 2 with no such column
+   (`PlayDatabaseHelper.kt`), so this PR carries the v2 → v3 migration
+   (`ALTER TABLE plays ADD COLUMN interactive INTEGER NOT NULL DEFAULT 0`)
+   and a test that seeds a v2 row and reads it back as `interactive =
+   false`. Then `PlayRunner` routing through `sendCommand`, the history
+   exclusion, the "sent to terminal" state in the run dialog. Tests:
+   `PlayRunner` unit tests for routing and the history rule.
+2. **Discovered choices** — `PlayParameter.choicesCommand`. Parameters are
+   JSON inside `parameters_json`, so no schema change: old rows decode with
+   `choicesCommand = null`. The picker in the run dialog, per-host
+   last-used memory. Tests: parameter encode/decode round-trip including a
+   pre-existing JSON without the field; picker UI test with a fake backend
+   returning fixed lines.
 3. **The launcher** — the tool table, the `tmux` detection and wrapper, the
    managed Play *Start remote agent* (`interactive = true`, directory
    parameter with the tool's `choicesCommand`), the pairing-link watcher
-   and the Open action, the chips. Tests: slug derivation; wrapper command
-   rendering for both paths; link detection against recorded `claude rc`
-   output; chips against a fake `tmux ls`.
+   and the Open action, the chips, and the **log redaction** below. Tests:
+   slug derivation, including two directories with the same basename and
+   two tools in one directory; wrapper command rendering for both paths;
+   link detection against recorded `claude rc` output; chips against a
+   fake `tmux ls`; a saved and an uploaded log that contain a pairing URL
+   come out redacted.
 
 Nothing here depends on the rewrite plan. It fits the current structure and
 it fits the future one; the launcher sheet becomes a Compose screen
@@ -190,9 +206,17 @@ whenever the Terminal tab does.
 
 The command runs as the SSH user in that user's home directory: no new
 privilege on the target. The new surface is the **pairing link** — whoever
-has it drives the agent — which is why it is never written to command
-history and why the Open action goes straight to an intent rather than
-through the clipboard. Directory discovery reads only names under `$HOME`;
+has it drives the agent. Keeping it out of command history is not enough:
+the link is in the terminal output, and `TerminalActivity.saveTerminalLog`
+persists that raw output through `TerminalLogRepository` and, with
+*Always save logs to Drive* on, uploads it. The launcher's link watcher
+therefore also redacts every `https://claude.ai/…` pairing URL to
+`https://claude.ai/[pairing link redacted]` in **every persisted or
+uploaded copy** — `TerminalLogRepository.saveLog`, the Drive upload, and
+`ConsoleLogRepository` if the session log ever carries terminal output —
+while the in-memory Open action keeps the real link for the life of the
+session. The Open action goes straight to an intent rather than through
+the clipboard. Directory discovery reads only names under `$HOME`;
 nothing is executed in the discovered directories until the user presses
 Start.
 

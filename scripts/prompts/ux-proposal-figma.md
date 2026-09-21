@@ -25,7 +25,7 @@ Read the issue title, body, and the UX analysis comment (look for the comment st
 
 ### Step 2 — Inspect the Proposals page
 Switch to the Proposals page and list existing cards to find a clear position for the new one.
-Place new cards 60px below the last existing card, or to the right with 80px gap.
+Place the new card 660 px below the lowest existing card, top edge to top edge (580 px card + 80 px gap), never to the right — the page is one column.
 
 ### Step 3 — Create the proposal card in Figma
 Use `use_figma` to create the card by **cloning the template node** (`template.clone()`, then `page.appendChild`) — cloning keeps every style exact, which rebuilding by hand does not. Place it 660 px below the lowest existing card. Then set the texts by name and remove the two placeholder texts inside the Current State and Proposed Design panels. The structure you are filling in:

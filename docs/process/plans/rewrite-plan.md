@@ -117,13 +117,14 @@ Each row is a decision. "Keep" means the dependency survives to v1.0.
 | Single `:app` module | Replace with the module graph in §3.1. | Pure-JVM modules are what makes the core unit-testable. |
 | `minifiedDebug` build type + `testBuildType = "minifiedDebug"` + the three ProGuard files | Keep the mechanism. Rewrite the rules as legacy classes go. | Running instrumented tests against the minified APK has caught real R8 breakage (`kotlin.collections.MapsKt` stripped, adapter `getCurrentList` stripped). It stays. |
 | `lint-baseline.xml` (182 suppressed issues) | Delete at cutover. Each new module starts with no baseline. | The baseline is a debt ledger; the rewrite pays it. |
-| `ndk 27.0.12077973`, `cmake 3.22.1`, `abiFilters arm64-v8a, armeabi-v7a, x86_64` | Keep. | `sushi-pty.c` needs them. |
+| NDK + CMake + `abiFilters arm64-v8a, armeabi-v7a, x86_64` | Keep the mechanism; **versions follow `docs/process/DEPENDENCY_LIFECYCLE.md`** — the newest LTS NDK line and current CMake, moved by the `ROADMAP.md` v0.9.x dependency PR before Phase 0, so this plan never pins r27 / 3.22.1. | `sushi-pty.c` needs a toolchain, not a particular one. |
 
 ### 2.2 Runtime dependencies
 
 | Today | Decision | Why |
 |---|---|---|
-| `com.github.mwiede:jsch` 2.28.7 + `jzlib` | **Keep**, wrapped in `:core:ssh`. | The only maintained Android-compatible SSH library with OpenSSH 9+/10+ kex and host-key algorithms. Nothing to gain by replacing it. JSch classes stay `-keep`'d (reflection-loaded crypto). |
+| `com.github.mwiede:jsch` 2.28.7 | **Keep**, wrapped in `:core:ssh`. | The only maintained Android-compatible SSH library with OpenSSH 9+/10+ kex and host-key algorithms. Nothing to gain by replacing it. JSch classes stay `-keep`'d (reflection-loaded crypto). |
+| `com.jcraft:jzlib` 1.1.3 | **Remove** (scheduled in `ROADMAP.md` v0.9.x, before Phase 0). | The JSch jar ships `com.jcraft.jsch.juz.Compression` on `java.util.zip`; the app never enables compression. A 2013 dependency for nothing. |
 | `bcprov-jdk18on` 1.86 | **Keep**. | Ed25519 on API < 33; ML-KEM. |
 | `sushi-pty.c` (217 lines C, JNI) | **Keep as is.** Moves to `:app` unchanged. | Works, tested (`LocalShellBackendTest`), nothing to improve. |
 | `androidx.security:security-crypto` 1.1.0 (`EncryptedSharedPreferences`) | **Replace** with an in-house `SecureStore`: Android Keystore AES-256-GCM key, values encrypted per entry, stored in a plain file or DataStore. Keep the library **only** to read the legacy file during migration (Phase 4); remove it two releases after cutover. | Google deprecated Jetpack Security Crypto; it will not get fixes. The migration must read the old file, so the library cannot go until the migration window closes. |
@@ -294,7 +295,9 @@ truncated OSC) must be a test here.
   all parameter values incl. 3 for scrollback), `IL DL ICH DCH ECH`
   (insert/delete), `SU SD` (scroll), `DECSTBM`, `SGR` (below), `DECSET` /
   `DECRST` (the modes above), `DSR 5` and `DSR 6` (respond), `DA` (respond
-  as a VT220: `ESC [ ? 62 ; c`), `TBC`, `REP`, `SCP`/`RCP` (`s`/`u`).
+  as a VT220: `ESC [ ? 62 c` — a trailing `;` would announce another
+  parameter; options, if ever advertised, go after it as `ESC [ ? 62 ; 22 c`),
+  `TBC`, `REP`, `SCP`/`RCP` (`s`/`u`).
 - SGR: `0`, `1`–`9`, `22`–`29`, `30`–`37`, `39`, `40`–`47`, `49`, `90`–`97`,
   `100`–`107`, `38;5;n`, `48;5;n`, `38;2;r;g;b`, `48;2;r;g;b`, and the
   colon-separated forms of the last four.
@@ -456,6 +459,8 @@ scheme `AES256_GCM`. Keys and types:
 | `gemini_nano_preferred` | Boolean | `GeminiSettings` |
 | `gemini_auto_troubleshoot` | Boolean | `GeminiSettings` |
 | `drive_logs_always_save` | Boolean | `DriveLogSettings` |
+| `drive_account_email`, `drive_account_display_name` | String | `DriveAuthManager` — the signed-in identity; without them the user appears signed out after update |
+| `ssh_host`, `ssh_port`, `ssh_username`, `ssh_password` | String / Int / String / String — **legacy single-host keys** from before hosts became a list | `SshSettings.seedLocalHostIfMissing` still converts them into `ssh_hosts_json` when that key is absent (`SshSettings.kt:144–163`); the migrator runs the same conversion first, then removes them |
 | `feedback_github_token`, `feedback_github_username`, `feedback_github_device_code`, `feedback_github_user_code`, `feedback_github_verification_uri`, `feedback_github_expires_at_ms`, `feedback_github_interval_seconds` | String / Long | `FeedbackSettings` |
 
 `SshConnectionConfig` JSON field names, which the new `Host` model must
@@ -502,14 +507,22 @@ repository is read, and is idempotent:
 1. If DataStore has `migration_version >= 1`, return.
 2. Open each legacy source that exists. A missing source is not an error
    (fresh install).
-3. Copy into the new stores. For each table, assert `count(new) ==
-   count(old)` before continuing; on mismatch, abort, leave the legacy files
-   untouched, log, and surface a one-time error to the user. The app then
-   runs on whatever migrated — it must not crash-loop.
-4. Only after every source succeeded: set `migration_version = 1`. Legacy
-   files are **not deleted in this release**; a later release (after
-   Phase 6 + two versions) deletes them. Until then the old app could be
-   reinstalled and still find its data.
+3. Copy into the new stores **atomically and idempotently**. Each Room
+   database is written in one transaction that begins by clearing its
+   target tables — they hold nothing but migrated rows until step 4 — and
+   ends with `count(new) == count(old)` per table, or rolls back. Secure
+   store and DataStore entries are written by key, so a second pass
+   overwrites rather than duplicates. A failure anywhere leaves the legacy
+   files untouched and the new stores exactly as they were before the
+   attempt, logs, and surfaces a one-time error.
+4. Only after every source succeeded: set `migration_version = 1`. Until
+   it is set, the repositories serve **reads from the legacy stores**
+   through a read-only adapter and refuse writes with a visible message —
+   so a failed migration degrades to read-only on the old data, never to an
+   empty app, duplicate rows, or a crash loop; the next launch retries from
+   a clean target. Legacy files are **not deleted in this release**; a later
+   release (after Phase 6 + two versions) deletes them. Until then the old
+   app could be reinstalled and still find its data.
 
 Test: an instrumented test that writes fixture files in the legacy formats
 (an `EncryptedSharedPreferences` with every key above, the four databases
@@ -548,9 +561,12 @@ and may be done in any order once Phase 1 has merged; Phase 5 needs all of
 - `CLAUDE.md`: replace the Architecture section with §3 of this document in
   summary form and a link here; replace "Adding features" accordingly; keep
   the build commands, machine setup and SSH-credentials sections.
-- `ROADMAP.md`: add a `v0.9.0 — Rewrite` section that links here and lists
-  the phases with checkboxes; add `v1.0.0 — Cutover`.
-- `docs/process/plans/rewrite-plan.md` (this file) marked *in progress*.
+- `ROADMAP.md`: **only if the maintainer has committed to the full rewrite**
+  (see the scope note at the top), add a `v1.0.0 — Rewrite` section that
+  links here and lists the phases with checkboxes, and mark this file *in
+  progress*. Phase 0 never touches the v0.9.0 section, which is scoped on
+  its own terms; until that commitment this file stays *reference* and
+  Phase 0 is not started.
 - **UX, before any Compose PR** — the repository's process
   (`docs/process/UX_PROPOSALS.md`) says every layout change starts from an
   *Approved* Figma card, and Phase 5 is nine layout changes:
@@ -695,9 +711,12 @@ the previous one built:
 6. Share (`ACTION_SEND` → SFTP upload) and SFTP download.
 7. **Main**: Terminal tab on the new emulator + renderer, Plays tab, host
    switcher, setup checklist, connection status, voice input.
-8. Gemini conversation dialog (chat bubbles, raw terminal mode toggle,
-   streaming output, auto-troubleshoot toggle) — on `ConversationManager`
-   from `:core:ai`.
+8. Gemini conversation — **already a Compose screen** by then
+   (`ROADMAP.md` v0.9.0 replaced the dialog first). This step re-homes
+   `ConversationScreen` onto the nav graph (`Conversation(host, session?)`),
+   `SessionManager` and `:core:ai`'s `ConversationManager`, and deletes the
+   shim that mounted it inside `MainActivity`. If v0.9.0 has not shipped
+   when this step is reached, it does both.
 9. Full-screen terminal (`TerminalActivity`'s role) as a destination of
    the same nav graph, sharing the session with the Main tab through
    `SessionManager`.

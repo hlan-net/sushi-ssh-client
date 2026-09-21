@@ -33,7 +33,12 @@ pick_latest() {
   if [[ "$current" =~ ^v[0-9]+-rev ]]; then
     echo "$all" | (grep -E "^${current%%-rev*}-rev" || true) | sort -V | tail -1; return
   fi
-  if [[ "$current" == *-* ]]; then suffix="-${current##*-}"; fi
+  # A suffix is a classifier (guava's -android, -jre) only when it is not a
+  # pre-release tag: 1.0.0-beta4 must be compared against 1.0.0, not against -beta4.
+  if [[ "$current" == *-* ]]; then
+    local cand="-${current##*-}"
+    if ! echo "$cand" | grep -qEi "$PRE"; then suffix="$cand"; fi
+  fi
   local list
   list=$(echo "$all" | (grep -E '^[0-9]' || true) | (grep -vEi "$PRE" || true))
   # Nothing stable published yet (e.g. a library still in beta): say so instead of "not found".
