@@ -69,6 +69,18 @@ Expand what the AI layer can do and scale to more than one host.
 
 ---
 
+## v0.9.0 — One terminal model, conversation as a screen
+
+The first two steps of the [rewrite plan](docs/process/plans/rewrite-plan.md), chosen because the current structure blocks them outright: the two `TerminalView` instances share a parser that lives inside a `TextView`, and the AI conversation is an `AlertDialog` inside `MainActivity` that lifecycle events tear down. Everything else in the plan stays a reference, not a commitment.
+
+- [ ] **`TerminalBuffer`** — extract the escape state machine, CR overwrite, backspace and line trimming out of `TerminalView` into a pure Kotlin class; `TerminalView` becomes a renderer over it. Both layouts keep using `TerminalView`. `TerminalViewEscapeTest` and `TerminalViewLogLineTest` move to JVM with their assertions unchanged. No UX change. *(plan §3.3 seam — the interface a real VT emulator later drops in behind)*
+- [ ] **`ConversationViewModel`** — owns the transcript, streaming output, CONFIRM state and the raw / auto-troubleshoot toggles as `StateFlow`; `ConversationManager` moves behind it. Adds the Compose BOM, since the next step uses it. The dialog keeps working beside it.
+- [ ] **`ConversationScreen`** — the first Compose screen, replacing the `AlertDialog`; `DialogGeminiControlsBinding` and the dialog code deleted in the same PR; `AiConversationTest` ported to a Compose UI test. *(plan §5.8)*
+
+One PR each, in this order. Each leaves the app releasable.
+
+---
+
 ## Backlog — SSH client completeness
 
 Solid SSH client features that are not core to the conversational goal but round out the product.

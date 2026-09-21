@@ -1,6 +1,14 @@
 # Sushi rewrite plan — v0.9 → v1.0
 
-*Status: proposed · Written 2026-09-21 against `main` at `bb4ea00` (v0.8.3)*
+*Status: reference · Written 2026-09-21 against `main` at `bb4ea00` (v0.8.3)*
+
+> **Scope as decided on 2026-09-21:** v0.9.0 implements two pieces of this
+> plan — the `TerminalBuffer` seam from §3.3 (one terminal model behind both
+> `TerminalView` instances) and the conversation screen from §5.8, taken
+> *first* rather than in the §5 order. The rest of the plan is kept as the
+> reference for what a full rewrite would be and how it would be sequenced;
+> it is not a commitment. `ROADMAP.md` §v0.9.0 is the authoritative list of
+> what is being done.
 
 This document is the specification for rewriting Sushi in full. It is written
 to be executed by an AI coding agent working in this repository, one pull
