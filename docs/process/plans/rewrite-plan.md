@@ -41,10 +41,14 @@ These are not suggestions.
    migration and the seeded test.
 5. **No new dependency without a row in §2** with a rationale, added in the
    same PR. No dependency outside the ones §2 approves.
-6. **The target-side protocol is frozen.** `~/.config/sushi/SUSHI.md`,
-   `~/.config/sushi/config.conf`, `~/.sushi_logs/`, the persona init script and
-   the shape of what `ConversationManager` sends to the model are part of
-   what the user has on their servers. They do not change in this rewrite.
+6. **The target-side protocol is frozen in meaning, open to addition.**
+   `~/.config/sushi/SUSHI.md`, `~/.config/sushi/config.conf`, `~/.sushi_logs/`,
+   the persona init script and the shape of what `ConversationManager` sends
+   to the model are part of what the user has on their servers. Nothing that
+   exists changes meaning or format in this rewrite. A new *optional* file
+   whose absence means "feature off" (such as `status.sh`, `ROADMAP.md`
+   v0.9.x) is allowed, because a host initialised before it keeps behaving
+   as before.
 7. **Preserve behaviour, not code.** The existing tests (§6) are the
    behavioural specification. When you port one, its assertions move
    unchanged. When you cannot port one without changing what it asserts,
@@ -383,6 +387,7 @@ scheme `AES256_GCM`. Keys and types:
 | `ssh_key_passphrase` | String | `SshSettings` |
 | `ssh_hosts_json` | String — JSON array of `SshConnectionConfig` | `SshSettings` |
 | `ssh_active_host_id` | String (UUID) | `SshSettings` |
+| `ssh_hosts_json_backup` | String — last-known-good copy of `ssh_hosts_json`, written before every save *(added by `ROADMAP.md` v0.9.x; may be absent)* | `SshSettings` |
 | `gemini_enabled` | Boolean | `GeminiSettings` |
 | `gemini_api_key` | String | `GeminiSettings` |
 | `gemini_cloud_model` | String | `GeminiSettings` |
@@ -398,7 +403,8 @@ name differs):
 `kind` (`"SSH"` | `"LOCAL"`), `id`, `alias`, `host`, `port`, `username`,
 `password`, `authPreference` (`"auto"` | `"password"` | `"key"`, nullable),
 `privateKey` (nullable), `jumpEnabled`, `jumpHostId` (nullable), `jumpHost`,
-`jumpPort`, `jumpUsername`, `jumpPassword`, `jumpAuthPreference` (nullable).
+`jumpPort`, `jumpUsername`, `jumpPassword`, `jumpAuthPreference` (nullable),
+`startupCommand` (nullable, *added by `ROADMAP.md` v0.9.x; absent in older blobs*).
 Missing fields take the defaults in `SshClient.kt:34-50`. Unknown fields are
 ignored (`ignoreUnknownKeys = true`).
 
