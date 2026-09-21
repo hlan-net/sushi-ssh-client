@@ -19,7 +19,7 @@ All new proposal cards should be placed on the **Proposals** page, positioned to
 
 ### Step 1 — Fetch the issue
 ```bash
-gh issue view ISSUE_NUMBER --repo hlan-net/sushi --comments
+gh issue view ISSUE_NUMBER --repo hlan-net/sushi-ssh-client --comments
 ```
 Read the issue title, body, and the UX analysis comment (look for the comment starting with "## 🎨 UX Analysis").
 
@@ -28,7 +28,7 @@ Switch to the Proposals page and list existing cards to find a clear position fo
 Place new cards 60px below the last existing card, or to the right with 80px gap.
 
 ### Step 3 — Create the proposal card in Figma
-Use `use_figma` to create a new proposal card. Do NOT duplicate the template node — build the card directly with the same structure:
+Use `use_figma` to create the card by **cloning the template node** (`template.clone()`, then `page.appendChild`) — cloning keeps every style exact, which rebuilding by hand does not. Place it 660 px below the lowest existing card. Then set the texts by name and remove the two placeholder texts inside the Current State and Proposed Design panels. The structure you are filling in:
 - Green top stripe (6px, #2F7D4E)
 - Title: the issue title (or a short descriptive name)
 - Status badge: "In Design" (yellow, #FFF8E1 / #F9A825)
@@ -38,7 +38,7 @@ Use `use_figma` to create a new proposal card. Do NOT duplicate the template nod
 - Right panel: "Proposed Design" placeholder frame with a text note listing the screens to design
 - Footer notes: paste the "Suggested UX approach" bullet points
 
-Card dimensions: 820 × 580px. Use the same colors and font sizes as the template.
+Card dimensions: 820 × 580px. The Problem and Goal boxes are fixed at 76 px — about 150 characters each; Notes about 190. Longer text is clipped. Sketches inside the panels: 220 px wide auto-layout roots, `#131C1A` panels, Inter 7–10 px, JetBrains Mono for terminal text, colours from the Foundations page. See `docs/process/UX_PROPOSALS.md` for the full path from card to merged PR.
 
 ### Step 4 — Get the frame link
 After creating the card, return its node ID. The share link format is:
@@ -47,7 +47,7 @@ After creating the card, return its node ID. The share link format is:
 
 ### Step 5 — Post the Figma link to the issue
 ```bash
-gh issue comment ISSUE_NUMBER --repo hlan-net/sushi --body "..."
+gh issue comment ISSUE_NUMBER --repo hlan-net/sushi-ssh-client --body "..."
 ```
 
 Comment body:

@@ -92,6 +92,7 @@ Two UI patterns coexist while the screens migrate, one at a time, from the first
 - New settings → a Compose page with its own ViewModel, mounted in `SettingsActivity` — not a new block in the activity. Secrets in `SecurePrefs`.
 - New dependencies → `app/build.gradle.kts`.
 - New permissions → `AndroidManifest.xml` (only when necessary).
+- Anything that changes a layout, a string a user sees, or a screen's states starts from a Figma proposal card and links it in the PR — `docs/process/UX_PROPOSALS.md` is the path from card to merged PR, including how to read a card with the Figma MCP.
 - JSch crypto classes referenced only by name → add to `proguard-rules.pro` to prevent stripping.
 
 ## Build types

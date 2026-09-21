@@ -19,7 +19,7 @@ if [[ -z "$ISSUE_NUMBER" ]]; then
   exit 1
 fi
 
-REPO="hlan-net/sushi"
+REPO="hlan-net/sushi-ssh-client"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROMPT_FILE="$SCRIPT_DIR/prompts/ux-proposal-figma.md"
 
