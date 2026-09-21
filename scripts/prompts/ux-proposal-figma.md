@@ -29,7 +29,7 @@ Place the new card 660 px below the lowest existing card, top edge to top edge (
 
 ### Step 3 — Create the proposal card in Figma
 Use `use_figma` to create the card by **cloning the template node** (`template.clone()`, then `page.appendChild`) — cloning keeps every style exact, which rebuilding by hand does not. Place it 660 px below the lowest existing card. Then set the texts by name and remove the two placeholder texts inside the Current State and Proposed Design panels. The structure you are filling in:
-- Green top stripe (6px, #2F7D4E)
+- Top stripe (6px) — inherited from the clone, do not restyle it; it is the template's own marker, not an app colour
 - Title: the issue title (or a short descriptive name)
 - Status badge: "In Design" (yellow, #FFF8E1 / #F9A825)
 - Meta row: issue link, author (from issue), today's date
@@ -38,7 +38,7 @@ Use `use_figma` to create the card by **cloning the template node** (`template.c
 - Right panel: "Proposed Design" placeholder frame with a text note listing the screens to design
 - Footer notes: paste the "Suggested UX approach" bullet points
 
-Card dimensions: 820 × 580px. The Problem and Goal boxes are fixed at 76 px — about 150 characters each; Notes about 190. Longer text is clipped. Sketches inside the panels: 220 px wide auto-layout roots, `#131C1A` panels, Inter 7–10 px, JetBrains Mono for terminal text, colours from the Foundations page. See `docs/process/UX_PROPOSALS.md` for the full path from card to merged PR.
+Card dimensions: 820 × 580px. The Problem and Goal boxes are fixed at 76 px — about 150 characters each; Notes about 190. Longer text is clipped. Sketches inside the panels: 220 px wide auto-layout roots, `#131C1A` panels, Inter 7–10 px, JetBrains Mono for terminal text. Colours are bound to the *Sushi* variable collection (`color/primary`, `color/on-surface`, `color/background`, …), never typed as hex, and the *Foundations* page's *Sushi Green #2F7D4E* is stale and must not appear; instances from the *Components* page (Button, Chip, Card, TextField, Banner) are preferred over drawn rectangles wherever one fits. See `docs/process/UX_PROPOSALS.md` for the full path from card to merged PR.
 
 ### Step 4 — Get the frame link
 After creating the card, return its node ID. The share link format is:

@@ -85,7 +85,7 @@ connection and picks the path:
 
 | | `tmux` (or `screen`) present | neither |
 |---|---|---|
-| Start | `tmux new-session -d -s sushi-agent-<slug> -c <dir> '<command>'`, then `tmux attach -t sushi-agent-<slug>` in Sushi's PTY | `cd <dir> && <command>` in Sushi's PTY |
+| Start | `tmux new-session -d -s q(sushi-agent-<slug>) -c q(<dir>) q(<command>)`, then `tmux attach -t q(sushi-agent-<slug>)` in Sushi's PTY | `cd q(<dir>) && <command>` in Sushi's PTY |
 | Survives SSH disconnect | yes | no — the launcher says so before starting |
 | Survives the phone sleeping | yes | while `SshConnectionService` keeps the session alive |
 | "Running" chips | from `tmux ls -F '#{session_name}'`, filtered by the `sushi-agent-` prefix, refreshed on connect | the one process, for the life of the session |
@@ -98,6 +98,24 @@ keeps the chip readable; the hash keeps `/work/client/app` and
 `/home/me/app` apart; the tool keeps two agents in one directory apart. The
 same tool in the same directory started twice attaches to the existing
 session instead of starting a second one.
+
+**Every dynamic argument is shell-quoted, once, by one routine.** `q()` in
+the table is `ShellQuote.posix(value)`: wrap in single quotes and replace
+each `'` with `'\''`, which is the only quoting that is safe in every POSIX
+shell regardless of the target's `$SHELL`. It is applied to the directory
+(a user-typed path or a discovered one — `find` output is not trusted
+either), the session name, and each argument of a *Custom* tool's
+template; the built-in commands are literals. The wrapper never
+concatenates a raw value into shell syntax, and a Custom template is split
+into arguments before rendering rather than pasted as a string. Tests
+(PR 3) run the rendered command through `sh -c` on a fake target with
+directories named `my project`, `it's here`, `$(touch pwned)`, `` `id` ``,
+`a;b` and `-rf`, and assert that the agent starts in exactly that
+directory and nothing else runs; the rendered string for each is also
+golden-tested so a change to the quoting is a visible diff. The slug is
+derived from the canonical path *after* `realpath`, and its character set
+(`[a-z0-9-]`) makes the session name safe by construction — it is quoted
+anyway, because the rule has no exceptions.
 
 The `tmux` path is what makes the feature worth having: start the agent,
 close Sushi, drive it from the vendor app, and come back to the terminal
@@ -181,7 +199,8 @@ features with their own value.
    parameter with the tool's `choicesCommand`), the pairing-link watcher
    and the Open action, the chips, and the **log redaction** below. Tests:
    slug derivation, including two directories with the same basename and
-   two tools in one directory; wrapper command rendering for both paths;
+   two tools in one directory; wrapper command rendering for both paths
+   and the shell-quoting cases above, executed under `sh -c`;
    link detection against recorded `claude rc` output; chips against a
    fake `tmux ls`; a saved and an uploaded log that contain a pairing URL
    come out redacted.
@@ -216,7 +235,9 @@ uploaded copy** — `TerminalLogRepository.saveLog`, the Drive upload, and
 `ConsoleLogRepository` if the session log ever carries terminal output —
 while the in-memory Open action keeps the real link for the life of the
 session. The Open action goes straight to an intent rather than through
-the clipboard. Directory discovery reads only names under `$HOME`;
+the clipboard. The directory and the session name reach the shell only
+through `ShellQuote.posix` (above), so a path such as `$(rm -rf ~)` is a
+directory name, not a command. Directory discovery reads only names under `$HOME`;
 nothing is executed in the discovered directories until the user presses
 Start.
 

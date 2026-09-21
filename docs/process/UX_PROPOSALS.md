@@ -8,7 +8,8 @@ person or agent *making* a proposal and, just as much, for the one
 *implementing* it.
 
 Sushi Figma file: `https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi`
-— pages *Foundations* (palette), **Components** (five base components on
+— pages *Foundations* (an early palette; its *Sushi Green #2F7D4E* swatch
+is not an app colour and is not used), **Components** (five base components on
 the *Sushi* variable collection — Light/Dark colour tokens whose Android
 code syntax is the `R.color` name, plus *Sushi Layout* for spacing, radius
 and the 48 dp touch target, and the `Sushi/*` text styles), *Main Screens*,
@@ -55,9 +56,12 @@ the Proposals page. A card is 820 × 580 and reads left to right:
 | **Notes / open questions** | Edge cases and decisions left open | Every open question must be closed — in the PR description or by editing the card — before the card goes *Approved*. |
 
 The sketches are deliberately low fidelity: dark `#131C1A` panels, Inter at
-7–10 px, JetBrains Mono for terminal text, the Foundations palette. They
-show *which* elements exist, in *what* order, with *what* text — not the
-final spacing.
+7–10 px, JetBrains Mono for terminal text, and every colour a variable of
+the *Sushi* collection (`color/primary`, `color/on-surface`, …) — not a hex
+value, and never the *Foundations* page's stale `#2F7D4E`. Where a
+*Components* instance fits (button, chip, card, text field, banner), use
+it. They show *which* elements exist, in *what* order, with *what* text —
+not the final spacing.
 
 ## 3. Making a card
 

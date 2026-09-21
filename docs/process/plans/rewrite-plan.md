@@ -258,8 +258,14 @@ spec, tested against §6.3.
 
 **Model**
 
-- `Screen(cols, rows)`: primary and alternate buffers of `Cell(codePoint,
-  fg: Color, bg: Color, attrs: Attrs)`, where `Color` is one of `Default`,
+- `Screen(cols, rows)`: primary and alternate buffers of `Cell(grapheme:
+  String, fg: Color, bg: Color, attrs: Attrs)`. `grapheme` is one extended
+  grapheme cluster — a base code point followed by its combining marks
+  (`e` + U+0301, a flag pair, an emoji with a skin-tone modifier) — never a
+  bare code point: a cell that stored one code point would drop every
+  combining mark, and `é` typed as two code points would render as `e`.
+  The empty cell is `""`, and the second half of a wide character is a
+  sentinel `Cell.WIDE_TAIL`. `Color` is one of `Default`,
   `Indexed(0..255)`, `Rgb(r,g,b)` and `Attrs` is a bitset of bold, dim,
   italic, underline, blink, inverse, invisible, strikethrough.
 - Scrollback: ring buffer of rows above the primary screen, size configurable
@@ -272,9 +278,11 @@ spec, tested against §6.3.
   bracketed paste (2004), alternate screen (47, 1047, 1049 — with cursor
   save/restore for 1049), 1000/1002/1006 mouse tracking recorded but not
   acted on (no mouse in v1).
-- Wide characters (East Asian Wide/Fullwidth) occupy two cells; combining
-  marks attach to the previous cell. UTF-8 decoding is incremental across
-  chunk boundaries.
+- Wide characters (East Asian Wide/Fullwidth) occupy two cells; a combining
+  mark (general category `Mn`, `Mc`, `Me`, plus ZWJ sequences and variation
+  selectors) is appended to the previous cell's `grapheme` and does not
+  advance the cursor, also when it arrives in a later chunk. UTF-8 decoding
+  is incremental across chunk boundaries.
 
 **Parser** — the VT500 state machine (Paul Williams' description): `ground`,
 `escape`, `escape_intermediate`, `csi_entry`, `csi_param`,
@@ -515,14 +523,27 @@ repository is read, and is idempotent:
    overwrites rather than duplicates. A failure anywhere leaves the legacy
    files untouched and the new stores exactly as they were before the
    attempt, logs, and surfaces a one-time error.
-4. Only after every source succeeded: set `migration_version = 1`. Until
-   it is set, the repositories serve **reads from the legacy stores**
-   through a read-only adapter and refuse writes with a visible message —
-   so a failed migration degrades to read-only on the old data, never to an
-   empty app, duplicate rows, or a crash loop; the next launch retries from
-   a clean target. Legacy files are **not deleted in this release**; a later
-   release (after Phase 6 + two versions) deletes them. Until then the old
-   app could be reinstalled and still find its data.
+4. Only after every source succeeded: set `migration_version = 1` and
+   clear `migration_failed_at`. On failure set `migration_failed_at` to
+   the attempt's timestamp instead. Legacy files are **not deleted in this
+   release**; a later release (after Phase 6 + two versions) deletes them.
+   Until then the old app could be reinstalled and still find its data.
+
+The two DataStore keys give the data layer exactly three states, and every
+facade and repository (Phase 4) reads them the same way:
+
+| State | Keys | Reads | Writes |
+|---|---|---|---|
+| **Not started** — the migrator has not run (feature flag off, or first launch before it ran) | neither set | legacy stores | legacy stores |
+| **Failed** — the migrator ran and rolled back | `migration_failed_at` set, `migration_version` unset | legacy stores | **refused** with a visible message; the next launch retries from a clean target |
+| **Completed** | `migration_version = 1` | new stores | new stores |
+
+*Not started* is transparent: the app is the old app with new class
+names underneath. *Failed* degrades to read-only on the old data — never to
+an empty app, duplicate rows, or a crash loop. *Completed* is the only
+state in which the new stores are read. A migrated store is never written
+in *Not started* or *Failed*, and a legacy store is never written in
+*Completed*, which is what keeps the retry in step 3 safe.
 
 Test: an instrumented test that writes fixture files in the legacy formats
 (an `EncryptedSharedPreferences` with every key above, the four databases
@@ -680,11 +701,12 @@ repository**, keeping its class name and signatures: `GeminiSettings`,
 `SshSettings`, `DriveLogSettings`, `FeedbackSettings`, `AppThemeSettings`,
 `KeyPassphraseCache`, `PhraseDatabaseHelper`, `PlayDatabaseHelper`,
 `CommandHistoryDatabaseHelper`, `GeminiTranscriptDatabaseHelper`,
-`TerminalLogRepository`, `ConsoleLogRepository`. Before
-`migration_version = 1` the facades read the legacy stores (§4.4 step 4);
-from the moment it is set, every screen — old or new — reads and writes
-the same store through them. The facades are deleted in Phase 6 with their
-last caller.
+`TerminalLogRepository`, `ConsoleLogRepository`. A facade routes by the
+three states of §4.4: in *Not started* it reads **and writes** the legacy
+store, exactly as the class it replaced did; in *Failed* it reads the
+legacy store and refuses writes; in *Completed* every screen — old or new
+— reads and writes the new store through it. The facades are deleted in
+Phase 6 with their last caller.
 
 **Tests**
 
@@ -693,6 +715,10 @@ last caller.
 - `CommandHistoryDatabaseHelperTest` and
   `GeminiTranscriptDatabaseHelperTest` assertions ported to the
   repositories.
+- **State routing**, JVM, per facade: in *Not started* a write lands in
+  the legacy store and the new store stays empty; in *Failed* a write is
+  refused and the legacy store is unchanged; in *Completed* a write lands
+  in the new store and the legacy store is unchanged.
 - **Coexistence**, instrumented, against a migrated store: a value written
   through `GeminiRepository` is read back through `GeminiSettings` and
   vice versa; a command recorded through `CommandHistoryDatabaseHelper`
@@ -700,12 +726,12 @@ last caller.
   through the new `HostRepository` is what `SshSettings.getHosts()`
   returns. This test stays until Phase 6 removes the facades.
 
-**Acceptance**: migration and coexistence tests green on the emulator;
-the app behaves as before (the facades are byte-for-byte transparent
-while `migration_version` is unset); the migrator is invoked from
-`SushiApplication` behind a feature flag that is off until Phase 5's first
+**Acceptance**: migration, state-routing and coexistence tests green;
+with the feature flag off the data layer is in *Not started* and the app
+behaves as before, reads and writes alike; the migrator is invoked from
+`SushiApplication` behind that flag, which stays off until Phase 5's first
 screen needs the new repositories — and turning it on is safe precisely
-because the facades exist.
+because the facades route by state.
 
 ### Phase 5 — `:app` UI, screen by screen (several PRs)
 
