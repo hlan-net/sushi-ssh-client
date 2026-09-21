@@ -37,6 +37,7 @@ Lint reports go to `app/build/reports/`.
 ./scripts/setup-local-ssh-test.sh          # wizard to store SSH test credentials
 ./scripts/run-local-ssh-test.sh            # runs LocalSshIntegrationTest
 ./scripts/install-git-hooks.sh             # installs pre-push hook (runs unit tests)
+./scripts/check-versions.sh                # every dependency vs latest stable on Maven Central / Google Maven (see docs/process/DEPENDENCY_LIFECYCLE.md)
 ./scripts/unlock-device.sh [device]        # enters the device PIN (Espresso needs the user unlocked)
 ./scripts/unlock-sim.sh [pin|puk] [device] # unlocks a SIM asking for its PIN or PUK
 sudo ./scripts/install-adb-systemd-service.sh  # Device Tests runner host: adb as a systemd service
@@ -46,13 +47,15 @@ Skip the pre-push hook with `SKIP_PRE_PUSH_TESTS=1 git push`.
 
 ## Architecture
 
+A full rewrite is specified in `docs/process/plans/rewrite-plan.md` — module graph, library decisions, data-compatibility contract, phases and the rules an executing agent follows. Read it before any structural change. Until its Phase 0 has merged, the rules below are what applies.
+
 Two UI patterns coexist while the screens migrate, one at a time, from the first to the second. The helpers listed below are the stable core under both and are not being rewritten.
 
 **Legacy screens** — activity-based with view binding; UI logic in the activity, business logic in helpers. `MainActivity` (~1.7k lines) and `SettingsActivity` (~1k lines) are the two that grew past what this pattern carries. Do not add UI logic to either: a feature that would touch them gets its own state holder and screen in the pattern below, mounted into the existing activity.
 
 **Migrated screens** — a `ViewModel` (`viewModelScope` + `StateFlow`) per screen owns the state, and a Compose screen renders it, mounted in the existing activity through `ComposeView` so navigation and intents keep working. Compose is not in `app/build.gradle.kts` yet: the first migration PR adds the Compose BOM, and no Compose code is written before that lands.
 
-**Migration order:** `SettingsActivity` pages first (self-contained, no SSH session), then `MainActivity`'s Plays tab, then its host list, then the Terminal tab last. `TerminalView` is a custom `AppCompatTextView` and stays as it is — a Compose screen that needs it wraps it in `AndroidView`. It is never rewritten in Compose: text selection, the IME connection and span rendering are the riskiest part of the app, and 38 releases of fixes live in it.
+**Migration order:** the Gemini conversation first — it is an `AlertDialog` inside `MainActivity` today and becomes the first Compose screen (`ROADMAP.md` §v0.9.0) — then `SettingsActivity` pages (self-contained, no SSH session), then `MainActivity`'s Plays tab, then its host list, then the Terminal tab last. `TerminalView` is a custom `AppCompatTextView` and stays as it is during this migration — a Compose screen that needs it wraps it in `AndroidView`; text selection, the IME connection and span rendering are the riskiest part of the app, and 38 releases of fixes live in it. The one thing that may replace it is the rewrite plan's terminal emulator (its Phases 2 and 5.7), and only if that plan is taken up; a migration PR never rewrites it.
 
 **Each migration is its own PR that leaves the app releasable.** The screen's instrumented tests move with it (`createAndroidComposeRule` in place of Espresso view matchers), and its ViewModel gets JVM unit tests. That is the point of the exercise: logic that today can only be verified on a device becomes testable in `testDebugUnitTest`.
 
@@ -90,6 +93,7 @@ Two UI patterns coexist while the screens migrate, one at a time, from the first
 - New settings → a Compose page with its own ViewModel, mounted in `SettingsActivity` — not a new block in the activity. Secrets in `SecurePrefs`.
 - New dependencies → `app/build.gradle.kts`.
 - New permissions → `AndroidManifest.xml` (only when necessary).
+- Anything that changes a layout, a string a user sees, or a screen's states starts from a Figma proposal card and links it in the PR — `docs/process/UX_PROPOSALS.md` is the path from card to merged PR, including how to read a card with the Figma MCP.
 - JSch crypto classes referenced only by name → add to `proguard-rules.pro` to prevent stripping.
 
 ## Build types

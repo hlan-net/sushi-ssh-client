@@ -1,6 +1,7 @@
 # Improvement proposals
 
 A codebase review of Sushi (v0.7.1, 2026-07) produced these improvement proposals.
+*Status marks in the priority tables were refreshed against v0.8.3 on 2026-09-21; the per-document findings have not been, so read those as of July.*
 Each document describes concrete findings with file references, proposed changes,
 and a rough effort estimate. They complement — and cross-reference — the existing
 [ROADMAP.md](../../ROADMAP.md).
@@ -22,17 +23,17 @@ and a rough effort estimate. They complement — and cross-reference — the exi
 
 | Item | Doc | Why |
 |------|-----|-----|
-| Enable SSH host key verification (TOFU + known-hosts store) | [1](01-security.md) | `StrictHostKeyChecking=no` today → silent MITM exposure |
-| Support passphrase-protected private keys | [1](01-security.md) | Encrypted keys (the recommended kind) cannot be used at all |
-| Extra-keys row: Esc, arrows, Ctrl modifier | [2](02-terminal-emulation.md), [6](06-ux.md) | Without Esc/arrows, shell history and most CLI tools are unusable |
+| ~~Enable SSH host key verification (TOFU + known-hosts store)~~ ✅ shipped (`StrictHostKeyChecking=ask`, `TrackingHostKeyRepository`, Host Keys screen) | [1](01-security.md) | `StrictHostKeyChecking=no` today → silent MITM exposure |
+| ~~Support passphrase-protected private keys~~ ✅ shipped (`KeyPassphraseDialog`, `KeyPassphraseCache`) | [1](01-security.md) | Encrypted keys (the recommended kind) cannot be used at all |
+| Extra-keys row: Esc, arrows, Ctrl modifier — **partly** shipped: ↑ ↓ Tab Backspace Ctrl-C Ctrl-D exist; Esc, ← →, a generic Ctrl modifier do not | [2](02-terminal-emulation.md), [6](06-ux.md) | Without Esc/arrows, shell history and most CLI tools are unusable |
 
 **P1 — high value**
 
 | Item | Doc | Why |
 |------|-----|-----|
 | Real terminal emulation (screen buffer, cursor addressing) | [2](02-terminal-emulation.md) | vim/htop/less do not render today |
-| Foreground service keep-alive + auto-reconnect | [3](03-connection-reliability.md) | Already on roadmap (T-8); sessions die on backgrounding |
-| `keyboard-interactive` auth support | [3](03-connection-reliability.md) | Many servers (esp. with 2FA) require it |
+| Foreground service keep-alive ✅ shipped (`SshConnectionService`); auto-reconnect still open → `ROADMAP.md` v0.9.x | [3](03-connection-reliability.md) | Already on roadmap (T-8); sessions die on backgrounding |
+| ~~`keyboard-interactive` auth support~~ ✅ shipped (`SshClient` preferred-auth list) | [3](03-connection-reliability.md) | Many servers (esp. with 2FA) require it |
 | Per-host SSH identities | [1](01-security.md) | Single global key pair today (roadmap A-6) |
 | Break up `MainActivity` (1230 lines) | [4](04-architecture-code-quality.md) | Biggest maintainability risk |
 | Rendering performance: incremental append instead of full re-parse | [2](02-terminal-emulation.md) | O(n²) behaviour on long sessions |
