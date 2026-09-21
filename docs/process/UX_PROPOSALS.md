@@ -144,6 +144,28 @@ maintainer whether the change is small enough for *No — purely logic*.
 | *Approved* → *Merged* | implementer | when the PR merges |
 | Refreshing `scripts/prompts/ux-analysis.md`'s app context | whoever ships a new screen | in the PR that ships it — a stale context makes the bot propose against screens that no longer exist |
 
+A status change is an edit of the card's badge — the small frame at the
+top right and the text inside it — to the text and the colours below.
+These are card chrome, not app colours, so they are plain hex values and
+not *Sushi* variables; the template's *In Design* pair is the one it has
+always carried.
+
+| Status | Badge fill | Text and stroke |
+|---|---|---|
+| *In Design* | `#FFF8E1` | `#F9A825` |
+| *Ready for Review* | `#E3F2FD` | `#1565C0` |
+| *Approved* | `#E8F5E9` | `#2E7D32` |
+| *Merged* | `#ECEFF1` | `#546E7A` |
+| *On Hold* | `#FFEBEE` | `#C62828` |
+
+The badge is a fixed-width frame (110 px on the template, sized for *In
+Design*); a longer status needs a wider frame — widen it and move it left
+so its right edge stays at the card's right margin, as the cards moved on
+2026-09-21 were. By hand: double-click the badge text, type the status,
+then set the frame's fill and stroke and the text's fill. With the Figma
+MCP: `use_figma` on the badge frame and its text node, loading `Inter
+Medium` first.
+
 ## 6. The gate, exactly
 
 `ux-gate.yml` runs on every PR. It lists the changed files; if any is a
