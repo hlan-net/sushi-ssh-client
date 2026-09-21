@@ -46,6 +46,8 @@ Skip the pre-push hook with `SKIP_PRE_PUSH_TESTS=1 git push`.
 
 ## Architecture
 
+A full rewrite is specified in `docs/process/plans/rewrite-plan.md` — module graph, library decisions, data-compatibility contract, phases and the rules an executing agent follows. Read it before any structural change. Until its Phase 0 has merged, the rules below are what applies.
+
 Two UI patterns coexist while the screens migrate, one at a time, from the first to the second. The helpers listed below are the stable core under both and are not being rewritten.
 
 **Legacy screens** — activity-based with view binding; UI logic in the activity, business logic in helpers. `MainActivity` (~1.7k lines) and `SettingsActivity` (~1k lines) are the two that grew past what this pattern carries. Do not add UI logic to either: a feature that would touch them gets its own state holder and screen in the pattern below, mounted into the existing activity.
