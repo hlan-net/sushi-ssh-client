@@ -3,6 +3,7 @@ package net.hlan.sushi.conversation
 import android.content.Context
 import android.util.Log
 import com.google.mlkit.genai.common.FeatureStatus
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import net.hlan.sushi.CommandHistoryDatabaseHelper
@@ -27,18 +28,20 @@ class AppConversationEnvironment(
     private val geminiSettings: GeminiSettings,
     private val geminiClient: GeminiClient,
     private val nanoClient: GeminiNanoClient,
-    private val sshSettings: SshSettings
+    private val sshSettings: SshSettings,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ConversationEnvironment {
 
     private val appContext = context.applicationContext
 
     // Both overrides below are main-safe: they read SharedPreferences and SQLite (createSession)
     // or make a blocking HttpURLConnection call (generateCommand's cloud branch), so they
-    // dispatch to Dispatchers.IO themselves rather than requiring the caller to — the same
-    // convention ConversationManager's own suspend functions already follow.
+    // dispatch to ioDispatcher themselves rather than requiring the caller to — the same
+    // convention ConversationManager's own suspend functions already follow. The dispatcher is
+    // injected, not hardcoded, so a test can substitute one without real background threads.
 
     override suspend fun createSession(backend: TerminalBackend): ConversationSession =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val useNano = geminiSettings.getNanoPreferred() && isNanoAvailable()
             val activeConfig = sshSettings.getConfigOrNull()
             val hostLabel = activeConfig?.let { HostLabels.shortLabel(appContext, it) }
@@ -62,7 +65,7 @@ class AppConversationEnvironment(
         }
 
     override suspend fun generateCommand(prompt: String): GeminiResult =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val useNano = geminiSettings.getNanoPreferred() && isNanoAvailable()
             if (useNano) {
                 Log.d(TAG, "Routing voice command to Gemini Nano (on-device)")

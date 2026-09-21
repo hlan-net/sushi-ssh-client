@@ -12,7 +12,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import net.hlan.sushi.ConversationManager
 import net.hlan.sushi.FakeTerminalBackend
@@ -116,8 +115,16 @@ class ConversationViewModelTest {
     @Test
     fun disconnect_whileATurnIsInFlight_discardsItsLateResultWithoutPublishingAnError() = runBlocking {
         connection.connect(backend)
-        val gate = CountDownLatch(1)
-        backend.beforeExecute = { gate.await(5, TimeUnit.SECONDS) }
+        // Two latches make the race deterministic: the test waits for `started` before
+        // disconnecting, so the backend call is genuinely in flight (not merely scheduled) —
+        // without it, disconnect's cancellation can beat the real IO thread pool to actually
+        // starting the dispatched work, and the assertions below would test nothing.
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        backend.beforeExecute = {
+            started.countDown()
+            release.await(5, TimeUnit.SECONDS)
+        }
         environment.replies("Checking.\nEXECUTE: uptime")
         val vm = viewModel()
         vm.awaitIdle()
@@ -125,6 +132,7 @@ class ConversationViewModelTest {
 
         vm.send("is it up?")
         assertTrue(vm.state.value.isBusy)
+        assertTrue("the backend call should start", started.await(5, TimeUnit.SECONDS))
 
         connection.disconnect()
         assertEquals(ConversationStatus.Disconnected, vm.state.value.status)
@@ -136,17 +144,9 @@ class ConversationViewModelTest {
         // Let the stalled backend call return on its own (real, non-test) thread. The coroutine
         // it belongs to was cancelled along with the session above, so its resumption must not
         // publish a late transcript row, a reconnected status, or an error event.
-        gate.countDown()
-        val ranAfterDisconnect = withTimeoutOrNull(2_000) {
-            while (backend.executed.isEmpty()) {
-                yield()
-                delay(10)
-            }
-            true
-        }
-        assertTrue("the stalled command should still complete on its own thread", ranAfterDisconnect == true)
-        // A moment for the cancelled coroutine's resumption to (fail to) publish anything.
-        delay(100)
+        release.countDown()
+        // A moment of real wall-clock time for the cancelled coroutine's resumption to (fail to) publish.
+        delay(200)
 
         assertEquals(ConversationStatus.Disconnected, vm.state.value.status)
         assertTrue(vm.state.value.transcript.isEmpty())

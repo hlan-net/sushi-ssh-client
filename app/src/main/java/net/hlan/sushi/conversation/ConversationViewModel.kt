@@ -245,10 +245,9 @@ class ConversationViewModel(
                 val result = current.processUserMessage(message) { chunk ->
                     appendChunk(turnId, message, chunk, isRaw = false)
                 }
-                finishTurn(turnId, message, result, isRaw = false)
+                finishTurn(turnId, message, result, isRaw = false, confirmation(message, turnId, result))
                 when {
                     !result.success -> log("Error: ${result.systemResponse}")
-                    result.needsConfirmation -> askConfirmation(message, turnId, result)
                     result.commandBlocked -> log("Blocked: ${result.commandAttempted}")
                     result.commandExecuted != null -> log(
                         "Executed: ${result.commandExecuted}\n" +
@@ -270,35 +269,38 @@ class ConversationViewModel(
                 ) { chunk ->
                     appendChunk(pending.turnId, pending.userMessage, chunk, isRaw = false)
                 }
-                finishTurn(pending.turnId, pending.userMessage, result, isRaw = false)
+                // A troubleshooting chain can hit a second CONFIRM step after this one was
+                // approved; without this the run would stop silently at that step. Computed
+                // before finishTurn so isBusy and the new pendingConfirmation land in the same
+                // state update — a separate update in between is a window a collector (a test,
+                // or the real UI) can observe as "idle, nothing pending" that never really existed.
+                finishTurn(
+                    pending.turnId,
+                    pending.userMessage,
+                    result,
+                    isRaw = false,
+                    confirmation(pending.userMessage, pending.turnId, result)
+                )
                 if (result.commandExecuted != null) {
                     log(
                         "Executed (confirmed): ${result.commandExecuted}\n" +
                             "Result: ${if (result.commandSuccess) "success" else "failed"}"
                     )
                 }
-                // A troubleshooting chain can hit a second CONFIRM step after this one was
-                // approved; without this the run would stop silently at that step.
-                if (result.needsConfirmation) {
-                    askConfirmation(pending.userMessage, pending.turnId, result)
-                }
             }
         }
     }
 
-    private fun askConfirmation(userMessage: String, turnId: Long, result: ConversationResult) {
-        val command = result.commandToConfirm ?: return
-        _state.update {
-            it.copy(
-                pendingConfirmation = PendingConfirmation(
-                    command = command,
-                    userMessage = userMessage,
-                    kind = PendingConfirmation.Kind.AI,
-                    turnId = turnId,
-                    result = result
-                )
-            )
-        }
+    private fun confirmation(userMessage: String, turnId: Long, result: ConversationResult): PendingConfirmation? {
+        if (!result.needsConfirmation) return null
+        val command = result.commandToConfirm ?: return null
+        return PendingConfirmation(
+            command = command,
+            userMessage = userMessage,
+            kind = PendingConfirmation.Kind.AI,
+            turnId = turnId,
+            result = result
+        )
     }
 
     // ---------------------------------------------------------------- raw mode
@@ -394,14 +396,24 @@ class ConversationViewModel(
 
     /**
      * Replace the turn's streamed output with the final response — or append the turn when
-     * nothing streamed — and record the response as the last output.
+     * nothing streamed — and record the response as the last output. [pendingConfirmation], when
+     * given, lands in the same update as clearing `isBusy`: a collector (the real UI or a test
+     * awaiting idle) must never observe "not busy, nothing pending" as an intermediate state on
+     * a turn that is about to ask for confirmation.
      */
-    private fun finishTurn(turnId: Long, prompt: String, result: ConversationResult, isRaw: Boolean) {
+    private fun finishTurn(
+        turnId: Long,
+        prompt: String,
+        result: ConversationResult,
+        isRaw: Boolean,
+        pendingConfirmation: PendingConfirmation? = null
+    ) {
         _state.update {
             it.copy(
                 isBusy = false,
                 lastOutput = result.systemResponse,
-                transcript = it.transcript.upsertTurn(turnId, prompt, isRaw) { result.systemResponse }
+                transcript = it.transcript.upsertTurn(turnId, prompt, isRaw) { result.systemResponse },
+                pendingConfirmation = pendingConfirmation
             )
         }
     }
