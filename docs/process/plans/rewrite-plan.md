@@ -1,6 +1,14 @@
 # Sushi rewrite plan — v0.9 → v1.0
 
-*Status: proposed · Written 2026-09-21 against `main` at `bb4ea00` (v0.8.3)*
+*Status: reference · Written 2026-09-21 against `main` at `bb4ea00` (v0.8.3)*
+
+> **Scope as decided on 2026-09-21:** v0.9.0 implements two pieces of this
+> plan — the `TerminalBuffer` seam from §3.3 (one terminal model behind both
+> `TerminalView` instances) and the conversation screen from §5.8, taken
+> *first* rather than in the §5 order. The rest of the plan is kept as the
+> reference for what a full rewrite would be and how it would be sequenced;
+> it is not a commitment. `ROADMAP.md` §v0.9.0 is the authoritative list of
+> what is being done.
 
 This document is the specification for rewriting Sushi in full. It is written
 to be executed by an AI coding agent working in this repository, one pull
@@ -33,10 +41,14 @@ These are not suggestions.
    migration and the seeded test.
 5. **No new dependency without a row in §2** with a rationale, added in the
    same PR. No dependency outside the ones §2 approves.
-6. **The target-side protocol is frozen.** `~/.config/sushi/SUSHI.md`,
-   `~/.config/sushi/config.conf`, `~/.sushi_logs/`, the persona init script and
-   the shape of what `ConversationManager` sends to the model are part of
-   what the user has on their servers. They do not change in this rewrite.
+6. **The target-side protocol is frozen in meaning, open to addition.**
+   `~/.config/sushi/SUSHI.md`, `~/.config/sushi/config.conf`, `~/.sushi_logs/`,
+   the persona init script and the shape of what `ConversationManager` sends
+   to the model are part of what the user has on their servers. Nothing that
+   exists changes meaning or format in this rewrite. A new *optional* file
+   whose absence means "feature off" (such as `status.sh`, `ROADMAP.md`
+   v0.9.x) is allowed, because a host initialised before it keeps behaving
+   as before.
 7. **Preserve behaviour, not code.** The existing tests (§6) are the
    behavioural specification. When you port one, its assertions move
    unchanged. When you cannot port one without changing what it asserts,
@@ -105,13 +117,14 @@ Each row is a decision. "Keep" means the dependency survives to v1.0.
 | Single `:app` module | Replace with the module graph in §3.1. | Pure-JVM modules are what makes the core unit-testable. |
 | `minifiedDebug` build type + `testBuildType = "minifiedDebug"` + the three ProGuard files | Keep the mechanism. Rewrite the rules as legacy classes go. | Running instrumented tests against the minified APK has caught real R8 breakage (`kotlin.collections.MapsKt` stripped, adapter `getCurrentList` stripped). It stays. |
 | `lint-baseline.xml` (182 suppressed issues) | Delete at cutover. Each new module starts with no baseline. | The baseline is a debt ledger; the rewrite pays it. |
-| `ndk 27.0.12077973`, `cmake 3.22.1`, `abiFilters arm64-v8a, armeabi-v7a, x86_64` | Keep. | `sushi-pty.c` needs them. |
+| NDK + CMake + `abiFilters arm64-v8a, armeabi-v7a, x86_64` | Keep the mechanism; **versions follow `docs/process/DEPENDENCY_LIFECYCLE.md`** — the newest LTS NDK line and current CMake, moved by the `ROADMAP.md` v0.9.x dependency PR before Phase 0, so this plan never pins r27 / 3.22.1. | `sushi-pty.c` needs a toolchain, not a particular one. |
 
 ### 2.2 Runtime dependencies
 
 | Today | Decision | Why |
 |---|---|---|
-| `com.github.mwiede:jsch` 2.28.7 + `jzlib` | **Keep**, wrapped in `:core:ssh`. | The only maintained Android-compatible SSH library with OpenSSH 9+/10+ kex and host-key algorithms. Nothing to gain by replacing it. JSch classes stay `-keep`'d (reflection-loaded crypto). |
+| `com.github.mwiede:jsch` 2.28.7 | **Keep**, wrapped in `:core:ssh`. | The only maintained Android-compatible SSH library with OpenSSH 9+/10+ kex and host-key algorithms. Nothing to gain by replacing it. JSch classes stay `-keep`'d (reflection-loaded crypto). |
+| `com.jcraft:jzlib` 1.1.3 | **Remove** (scheduled in `ROADMAP.md` v0.9.x, before Phase 0). | The JSch jar ships `com.jcraft.jsch.juz.Compression` on `java.util.zip`; the app never enables compression. A 2013 dependency for nothing. |
 | `bcprov-jdk18on` 1.86 | **Keep**. | Ed25519 on API < 33; ML-KEM. |
 | `sushi-pty.c` (217 lines C, JNI) | **Keep as is.** Moves to `:app` unchanged. | Works, tested (`LocalShellBackendTest`), nothing to improve. |
 | `androidx.security:security-crypto` 1.1.0 (`EncryptedSharedPreferences`) | **Replace** with an in-house `SecureStore`: Android Keystore AES-256-GCM key, values encrypted per entry, stored in a plain file or DataStore. Keep the library **only** to read the legacy file during migration (Phase 4); remove it two releases after cutover. | Google deprecated Jetpack Security Crypto; it will not get fixes. The migration must read the old file, so the library cannot go until the migration window closes. |
@@ -245,8 +258,14 @@ spec, tested against §6.3.
 
 **Model**
 
-- `Screen(cols, rows)`: primary and alternate buffers of `Cell(codePoint,
-  fg: Color, bg: Color, attrs: Attrs)`, where `Color` is one of `Default`,
+- `Screen(cols, rows)`: primary and alternate buffers of `Cell(grapheme:
+  String, fg: Color, bg: Color, attrs: Attrs)`. `grapheme` is one extended
+  grapheme cluster — a base code point followed by its combining marks
+  (`e` + U+0301, a flag pair, an emoji with a skin-tone modifier) — never a
+  bare code point: a cell that stored one code point would drop every
+  combining mark, and `é` typed as two code points would render as `e`.
+  The empty cell is `""`, and the second half of a wide character is a
+  sentinel `Cell.WIDE_TAIL`. `Color` is one of `Default`,
   `Indexed(0..255)`, `Rgb(r,g,b)` and `Attrs` is a bitset of bold, dim,
   italic, underline, blink, inverse, invisible, strikethrough.
 - Scrollback: ring buffer of rows above the primary screen, size configurable
@@ -259,9 +278,11 @@ spec, tested against §6.3.
   bracketed paste (2004), alternate screen (47, 1047, 1049 — with cursor
   save/restore for 1049), 1000/1002/1006 mouse tracking recorded but not
   acted on (no mouse in v1).
-- Wide characters (East Asian Wide/Fullwidth) occupy two cells; combining
-  marks attach to the previous cell. UTF-8 decoding is incremental across
-  chunk boundaries.
+- Wide characters (East Asian Wide/Fullwidth) occupy two cells; a combining
+  mark (general category `Mn`, `Mc`, `Me`, plus ZWJ sequences and variation
+  selectors) is appended to the previous cell's `grapheme` and does not
+  advance the cursor, also when it arrives in a later chunk. UTF-8 decoding
+  is incremental across chunk boundaries.
 
 **Parser** — the VT500 state machine (Paul Williams' description): `ground`,
 `escape`, `escape_intermediate`, `csi_entry`, `csi_param`,
@@ -282,7 +303,9 @@ truncated OSC) must be a test here.
   all parameter values incl. 3 for scrollback), `IL DL ICH DCH ECH`
   (insert/delete), `SU SD` (scroll), `DECSTBM`, `SGR` (below), `DECSET` /
   `DECRST` (the modes above), `DSR 5` and `DSR 6` (respond), `DA` (respond
-  as a VT220: `ESC [ ? 62 ; c`), `TBC`, `REP`, `SCP`/`RCP` (`s`/`u`).
+  as a VT220: `ESC [ ? 62 c` — a trailing `;` would announce another
+  parameter; options, if ever advertised, go after it as `ESC [ ? 62 ; 22 c`),
+  `TBC`, `REP`, `SCP`/`RCP` (`s`/`u`).
 - SGR: `0`, `1`–`9`, `22`–`29`, `30`–`37`, `39`, `40`–`47`, `49`, `90`–`97`,
   `100`–`107`, `38;5;n`, `48;5;n`, `38;2;r;g;b`, `48;2;r;g;b`, and the
   colon-separated forms of the last four.
@@ -324,6 +347,16 @@ committed text is sent as bytes, IME composing text shown as an overlay. The
 extra-keys row (Esc, Tab, Ctrl, Alt, arrows, `|`, `/`, `-`, and the
 existing Up/Down history buttons) is kept.
 
+**Accessibility** — the one place the rewrite can make things worse. The
+`TextView` gave TalkBack, selection and magnification for free; a `Canvas`
+gives nothing. The renderer therefore exposes the screen to accessibility
+services row by row (`Modifier.semantics` with a `contentDescription` per
+visible row, `LiveRegion` on the cursor row so TalkBack announces new
+output when enabled), keeps selection operable with Switch Access, gives
+every key in the extra-keys row a 48 dp target, and passes
+`TerminalContrastTest`'s thresholds for the default theme. These are
+acceptance criteria of Phase 5.7, not follow-ups.
+
 ### 3.4 What is preserved exactly
 
 - `sushi-pty.c` and its JNI signatures (`nativeStart`, `nativeRead`,
@@ -351,8 +384,60 @@ existing Up/Down history buttons) is kept.
 - The theme: `AppThemeSettings` (mode, accent variant, terminal font size)
   and the `sushi_*` colour tokens, which were re-tuned for contrast in v0.8.3
   and are asserted by `TerminalContrastTest`. The Compose theme maps the same
-  tokens; the ANSI palettes and the `readableOn` contrast nudge move into
+  tokens, and Figma carries them as variables — collection *Sushi*, modes
+  Light and Dark, `codeSyntax.ANDROID` set to the `R.color` name — created
+  in Phase 0 so that a card's `get_design_context` yields token names rather
+  than hex values. `colorPrimary` is whichever of the four accent variants
+  (`sushi_green`, `sushi_accent_wasabi`, `sushi_accent_gari`,
+  `sushi_accent_terracotta`) the user chose in Settings; the token is
+  `color/primary`, the variants are primitives behind it; the ANSI palettes and the `readableOn` contrast nudge move into
   the emulator's colour resolution, with the same test.
+
+### 3.5 Navigation map
+
+One activity, one `NavHost`, type-safe routes. The map is a Figma card on
+the Proposals page ([*Navigation map — rewrite*](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi?node-id=114-2)), *Approved*
+before Phase 5.1, because the first screen fixes the graph's shape. What it
+must settle:
+
+**Routes** (route class → what it shows):
+
+| Route | Screen | Arguments |
+|---|---|---|
+| `Home` | Terminal tab + Plays tab, host switcher, setup checklist | — (start destination) |
+| `Terminal(hostId)` | full-screen terminal for one session | host |
+| `Conversation(hostId, sessionId?)` | the AI conversation | host; optional past session to reopen |
+| `Hosts`, `HostEdit(hostId?)` | host list, host editor | optional host |
+| `Keys`, `HostKeys` | key pair, trusted server keys | — |
+| `Phrases`, `Plays`, `PlayEdit(playId?)` | lists and editor | optional play |
+| `PlayRun(playId, hostId)` | run dialog with parameter preview | play, host |
+| `CommandHistory(hostId)`, `GeminiHistory`, `Transcript(sessionId)` | history screens | — |
+| `Persona(hostId)` | remote `SUSHI.md` editor | host |
+| `Settings(page?)` | the four pages | optional page to open on |
+| `Upload(uri)`, `Download(hostId)` | SFTP | from `ACTION_SEND` / from the terminal |
+| `About` | — | — |
+
+**Back stack** — `Home` is the root and the only screen with tabs.
+`Terminal` and `Conversation` are siblings under `Home`: back from either
+returns to `Home`, never to the other; switching between them is a
+`navigate` with `popUpTo(Home)`. Host-key trust, host-key changed,
+passphrase and delete confirmations are dialog destinations, not screens.
+Nothing declares `configChanges`: rotation recreates the activity and every
+screen survives through its `ViewModel` and `SavedStateHandle`.
+
+**Deep links** — the entry points the small features in `ROADMAP.md`
+v0.9.x need, and the ones the old activities served by intent:
+
+| Entry | Route |
+|---|---|
+| Quick Settings tile, App Shortcut | `Home` with `connect=hostId` → connects, then `Terminal(hostId)` |
+| `SshConnectionService` notification | `Terminal(hostId)` of the live session |
+| `ACTION_SEND` via the `ShareActivity` trampoline | `Upload(uri)` with the host picker inside |
+| `sushi://host/{id}` (future) | `Home` with `connect=hostId` |
+
+**Session ownership** — `SessionManager` is application-scoped; no route
+owns a session. Leaving `Terminal` does not disconnect; `Home`'s session
+card shows the live session and offers *Return to terminal*, as today.
 
 ---
 
@@ -375,12 +460,15 @@ scheme `AES256_GCM`. Keys and types:
 | `ssh_key_passphrase` | String | `SshSettings` |
 | `ssh_hosts_json` | String — JSON array of `SshConnectionConfig` | `SshSettings` |
 | `ssh_active_host_id` | String (UUID) | `SshSettings` |
+| `ssh_hosts_json_backup` | String — last-known-good copy of `ssh_hosts_json`, written before every save *(added by `ROADMAP.md` v0.9.x; may be absent)* | `SshSettings` |
 | `gemini_enabled` | Boolean | `GeminiSettings` |
 | `gemini_api_key` | String | `GeminiSettings` |
 | `gemini_cloud_model` | String | `GeminiSettings` |
 | `gemini_nano_preferred` | Boolean | `GeminiSettings` |
 | `gemini_auto_troubleshoot` | Boolean | `GeminiSettings` |
 | `drive_logs_always_save` | Boolean | `DriveLogSettings` |
+| `drive_account_email`, `drive_account_display_name` | String | `DriveAuthManager` — the signed-in identity; without them the user appears signed out after update |
+| `ssh_host`, `ssh_port`, `ssh_username`, `ssh_password` | String / Int / String / String — **legacy single-host keys** from before hosts became a list | `SshSettings.seedLocalHostIfMissing` still converts them into `ssh_hosts_json` when that key is absent (`SshSettings.kt:144–163`); the migrator runs the same conversion first, then removes them |
 | `feedback_github_token`, `feedback_github_username`, `feedback_github_device_code`, `feedback_github_user_code`, `feedback_github_verification_uri`, `feedback_github_expires_at_ms`, `feedback_github_interval_seconds` | String / Long | `FeedbackSettings` |
 
 `SshConnectionConfig` JSON field names, which the new `Host` model must
@@ -390,7 +478,8 @@ name differs):
 `kind` (`"SSH"` | `"LOCAL"`), `id`, `alias`, `host`, `port`, `username`,
 `password`, `authPreference` (`"auto"` | `"password"` | `"key"`, nullable),
 `privateKey` (nullable), `jumpEnabled`, `jumpHostId` (nullable), `jumpHost`,
-`jumpPort`, `jumpUsername`, `jumpPassword`, `jumpAuthPreference` (nullable).
+`jumpPort`, `jumpUsername`, `jumpPassword`, `jumpAuthPreference` (nullable),
+`startupCommand` (nullable, *added by `ROADMAP.md` v0.9.x; absent in older blobs*).
 Missing fields take the defaults in `SshClient.kt:34-50`. Unknown fields are
 ignored (`ignoreUnknownKeys = true`).
 
@@ -426,14 +515,35 @@ repository is read, and is idempotent:
 1. If DataStore has `migration_version >= 1`, return.
 2. Open each legacy source that exists. A missing source is not an error
    (fresh install).
-3. Copy into the new stores. For each table, assert `count(new) ==
-   count(old)` before continuing; on mismatch, abort, leave the legacy files
-   untouched, log, and surface a one-time error to the user. The app then
-   runs on whatever migrated — it must not crash-loop.
-4. Only after every source succeeded: set `migration_version = 1`. Legacy
-   files are **not deleted in this release**; a later release (after
-   Phase 6 + two versions) deletes them. Until then the old app could be
-   reinstalled and still find its data.
+3. Copy into the new stores **atomically and idempotently**. Each Room
+   database is written in one transaction that begins by clearing its
+   target tables — they hold nothing but migrated rows until step 4 — and
+   ends with `count(new) == count(old)` per table, or rolls back. Secure
+   store and DataStore entries are written by key, so a second pass
+   overwrites rather than duplicates. A failure anywhere leaves the legacy
+   files untouched and the new stores exactly as they were before the
+   attempt, logs, and surfaces a one-time error.
+4. Only after every source succeeded: set `migration_version = 1` and
+   clear `migration_failed_at`. On failure set `migration_failed_at` to
+   the attempt's timestamp instead. Legacy files are **not deleted in this
+   release**; a later release (after Phase 6 + two versions) deletes them.
+   Until then the old app could be reinstalled and still find its data.
+
+The two DataStore keys give the data layer exactly three states, and every
+facade and repository (Phase 4) reads them the same way:
+
+| State | Keys | Reads | Writes |
+|---|---|---|---|
+| **Not started** — the migrator has not run (feature flag off, or first launch before it ran) | neither set | legacy stores | legacy stores |
+| **Failed** — the migrator ran and rolled back | `migration_failed_at` set, `migration_version` unset | legacy stores | **refused** with a visible message; the next launch retries from a clean target |
+| **Completed** | `migration_version = 1` | new stores | new stores |
+
+*Not started* is transparent: the app is the old app with new class
+names underneath. *Failed* degrades to read-only on the old data — never to
+an empty app, duplicate rows, or a crash loop. *Completed* is the only
+state in which the new stores are read. A migrated store is never written
+in *Not started* or *Failed*, and a legacy store is never written in
+*Completed*, which is what keeps the retry in step 3 safe.
 
 Test: an instrumented test that writes fixture files in the legacy formats
 (an `EncryptedSharedPreferences` with every key above, the four databases
@@ -472,9 +582,36 @@ and may be done in any order once Phase 1 has merged; Phase 5 needs all of
 - `CLAUDE.md`: replace the Architecture section with §3 of this document in
   summary form and a link here; replace "Adding features" accordingly; keep
   the build commands, machine setup and SSH-credentials sections.
-- `ROADMAP.md`: add a `v0.9.0 — Rewrite` section that links here and lists
-  the phases with checkboxes; add `v1.0.0 — Cutover`.
-- `docs/process/plans/rewrite-plan.md` (this file) marked *in progress*.
+- `ROADMAP.md`: **only if the maintainer has committed to the full rewrite**
+  (see the scope note at the top), add a `v1.0.0 — Rewrite` section that
+  links here and lists the phases with checkboxes, and mark this file *in
+  progress*. Phase 0 never touches the v0.9.0 section, which is scoped on
+  its own terms; until that commitment this file stays *reference* and
+  Phase 0 is not started.
+- **UX, before any Compose PR** — the repository's process
+  (`docs/process/UX_PROPOSALS.md`) says every layout change starts from an
+  *Approved* Figma card, and Phase 5 is nine layout changes:
+  - `ux-gate.yml`'s file pattern extended so Compose screens trigger it
+    (`/ui/.*\.kt$`, `Screen\.kt$`, `Theme\.kt$`, and `colors.xml` in
+    `values` and `values-night`). Today it matches only layout XML and
+    `*Activity.kt`; from Phase 5.1 on it would pass every UI change silently.
+  - **Nine proposal cards** on the Proposals page, one per Phase 5 screen
+    group, each with a *Current State* screenshot from the v0.8.3 build.
+    Figma's *Main Screens* page still shows v0.5; these cards become the
+    baseline it lacks. Cards start *In Design*; Phase 5.n does not start
+    until its card is *Approved*.
+  - The **navigation map** card (§3.5), *Approved* before Phase 5.1: the
+    first screen fixes the shape of the graph. *Made 2026-09-21:*
+    [card](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi?node-id=114-2).
+  - **Design tokens in Figma** (§3.4): the variable collection, text styles
+    and five base components, so every card from here on is drawn with the
+    tokens the Compose theme implements and `get_design_context` returns
+    names, not hex. *Made 2026-09-21:* collections *Sushi* (39 colour
+    tokens, Light/Dark, `codeSyntax.ANDROID` = the `R.color` name) and
+    *Sushi Layout* (spacing, radius, touch target, stroke), six text styles
+    `Sushi/Headline … Terminal`, and the [Components page](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi?node-id=117-2) with
+    Button, Chip, Card, TextField and Banner bound to them. What remains for
+    Phase 0 is the nine screen cards.
 
 **Acceptance**: the app is byte-for-byte the same in behaviour; all 301
 existing tests still pass; new modules build and their placeholder tests run
@@ -552,6 +689,25 @@ Room (two databases per §4.2), DataStore settings, `SecureStore`
 (Keystore AES-256-GCM in `:app`, interface in `:data`), repositories
 exposing `Flow`, and `LegacyMigrator` per §4.4.
 
+**One store for both UI patterns.** Phase 5 replaces screens one at a
+time, so for its whole duration a Compose screen on the new repositories
+and a legacy activity on `GeminiSettings` / `SshSettings` / the
+`*DatabaseHelper`s run side by side. If those read different stores, an
+API key saved in the new Settings never reaches `MainActivity`, and a
+command the old terminal records after migration never reaches the new
+history screen — `migration_version` rightly forbids copying twice. So in
+this phase every legacy accessor becomes a **facade over the new
+repository**, keeping its class name and signatures: `GeminiSettings`,
+`SshSettings`, `DriveLogSettings`, `FeedbackSettings`, `AppThemeSettings`,
+`KeyPassphraseCache`, `PhraseDatabaseHelper`, `PlayDatabaseHelper`,
+`CommandHistoryDatabaseHelper`, `GeminiTranscriptDatabaseHelper`,
+`TerminalLogRepository`, `ConsoleLogRepository`. A facade routes by the
+three states of §4.4: in *Not started* it reads **and writes** the legacy
+store, exactly as the class it replaced did; in *Failed* it reads the
+legacy store and refuses writes; in *Completed* every screen — old or new
+— reads and writes the new store through it. The facades are deleted in
+Phase 6 with their last caller.
+
 **Tests**
 
 - DAO tests (instrumented, in-memory Room).
@@ -559,19 +715,47 @@ exposing `Flow`, and `LegacyMigrator` per §4.4.
 - `CommandHistoryDatabaseHelperTest` and
   `GeminiTranscriptDatabaseHelperTest` assertions ported to the
   repositories.
+- **State routing**, JVM, per facade: in *Not started* a write lands in
+  the legacy store and the new store stays empty; in *Failed* a write is
+  refused and the legacy store is unchanged; in *Completed* a write lands
+  in the new store and the legacy store is unchanged.
+- **Coexistence**, instrumented, against a migrated store: a value written
+  through `GeminiRepository` is read back through `GeminiSettings` and
+  vice versa; a command recorded through `CommandHistoryDatabaseHelper`
+  after migration is returned by `CommandHistoryRepository`; a host saved
+  through the new `HostRepository` is what `SshSettings.getHosts()`
+  returns. This test stays until Phase 6 removes the facades.
 
-**Acceptance**: migration test green on the emulator; the old app code
-still reads the old stores (this phase adds the new ones and the migrator;
-the migrator is invoked from `SushiApplication` behind a feature flag that
-is off until Phase 5's first screen needs the new repositories).
+**Acceptance**: migration, state-routing and coexistence tests green;
+with the feature flag off the data layer is in *Not started* and the app
+behaves as before, reads and writes alike; the migrator is invoked from
+`SushiApplication` behind that flag, which stays off until Phase 5's first
+screen needs the new repositories — and turning it on is safe precisely
+because the facades route by state.
 
 ### Phase 5 — `:app` UI, screen by screen (several PRs)
 
 Single `MainActivity` with `NavHost`, `AppGraph`, `SessionManager`. Each PR
 replaces one screen group: new `ViewModel` + Compose screen + Compose UI
 test, navigation switched to it, **the legacy activity and its layouts
-deleted in the same PR**. Order, chosen so the riskiest screens go last and
-each PR can reuse what the previous one built:
+deleted in the same PR**.
+
+**Precondition for every group: its Figma card is *Approved*** and Phase
+4's facades are in place, so the screen being replaced and the screens
+still legacy share one store from the first Compose PR on (Phase 0
+creates them; `docs/process/UX_PROPOSALS.md` §4 says how to build from
+one). **The default is a 1:1 port** — same elements, same order, same
+texts, same states as the current screen — because a rewrite that also
+redesigns nine screens is the scope creep rule 1 forbids. The card's
+*Proposed Design* panel may show a deviation from today's screen, and
+then the PR implements the card, not the old screen; but a deviation lives
+on the card *before* the PR, never in the PR alone. Improvements from
+`docs/improvements/06-ux.md` ride along only when the card shows them and
+the PR does not grow. The nav map (§3.5) is the tenth card and is
+*Approved* before 5.1.
+
+Order, chosen so the riskiest screens go last and each PR can reuse what
+the previous one built:
 
 1. Settings (four pages) — turns the migrator on; first user of `:data`.
 2. Hosts list, host editor, SSH keys, host keys (known hosts).
@@ -581,9 +765,12 @@ each PR can reuse what the previous one built:
 6. Share (`ACTION_SEND` → SFTP upload) and SFTP download.
 7. **Main**: Terminal tab on the new emulator + renderer, Plays tab, host
    switcher, setup checklist, connection status, voice input.
-8. Gemini conversation dialog (chat bubbles, raw terminal mode toggle,
-   streaming output, auto-troubleshoot toggle) — on `ConversationManager`
-   from `:core:ai`.
+8. Gemini conversation — **already a Compose screen** by then
+   (`ROADMAP.md` v0.9.0 replaced the dialog first). This step re-homes
+   `ConversationScreen` onto the nav graph (`Conversation(host, session?)`),
+   `SessionManager` and `:core:ai`'s `ConversationManager`, and deletes the
+   shim that mounted it inside `MainActivity`. If v0.9.0 has not shipped
+   when this step is reached, it does both.
 9. Full-screen terminal (`TerminalActivity`'s role) as a destination of
    the same nav graph, sharing the session with the Main tab through
    `SessionManager`.
@@ -597,7 +784,12 @@ device runner.
 
 **Acceptance per PR**: the replaced screen's UI tests green on the emulator;
 the legacy activity gone from the manifest; no `binding.*` references to the
-deleted layouts; the app releasable.
+deleted layouts; the app releasable; the card linked under *Figma frame*,
+its UX checklist ticked (all six boxes, accessibility included), its status
+moved to *Merged*; any deviation from the card written on the card and in
+the PR. For 5.7 additionally the accessibility criteria in §3.3: TalkBack
+reads the terminal row by row, selection works with Switch Access, every
+key is a 48 dp target.
 
 ### Phase 6 — Cutover and removal
 
