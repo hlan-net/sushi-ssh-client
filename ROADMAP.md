@@ -75,7 +75,7 @@ The first two steps of the [rewrite plan](docs/process/plans/rewrite-plan.md), c
 
 - [ ] **`TerminalBuffer`** — extract the escape state machine, CR overwrite, backspace and line trimming out of `TerminalView` into a pure Kotlin class; `TerminalView` becomes a renderer over it. Both layouts keep using `TerminalView`. `TerminalViewEscapeTest` and `TerminalViewLogLineTest` move to JVM with their assertions unchanged. No UX change. *(plan §3.3 seam — the interface a real VT emulator later drops in behind)*
 - [ ] **`ConversationViewModel`** — owns the transcript, streaming output, CONFIRM state and the raw / auto-troubleshoot toggles as `StateFlow`; `ConversationManager` moves behind it. Adds the Compose BOM, since the next step uses it. The dialog keeps working beside it.
-- [ ] **`ConversationScreen`** — the first Compose screen, replacing the `AlertDialog`; `DialogGeminiControlsBinding` and the dialog code deleted in the same PR; `AiConversationTest` ported to a Compose UI test. *(plan §5.8)*
+- [ ] **`ConversationScreen`** — the first Compose screen, replacing the `AlertDialog`; `DialogGeminiControlsBinding` and the dialog code deleted in the same PR; `AiConversationTest` ported to a Compose UI test. *(plan §5.8 · [Figma proposal](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi?node-id=103-2))*
 
 One PR each, in this order. Each leaves the app releasable.
 
@@ -83,7 +83,7 @@ One PR each, in this order. Each leaves the app releasable.
 
 ## v0.9.x — Fixes and small features
 
-Taken as a set on 2026-09-21, after checking that none contradicts another or the v0.9.0 work. Each is its own PR. Dependencies and ordering are stated where they exist; everything else can go in any order.
+Taken as a set on 2026-09-21, after checking that none contradicts another or the v0.9.0 work. Each is its own PR. Dependencies and ordering are stated where they exist; everything else can go in any order. The four that touch a layout — startup command field, status line, search bar, reconnect banner — share one [Figma proposal card](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi?node-id=105-2).
 
 ### Fixes
 
@@ -125,7 +125,7 @@ Solid SSH client features that are not core to the conversational goal but round
 | [SOCKS proxy (B-11)](docs/features/tunneled-web-browsing.md) | P2 | Non-VPN foundation for tunneled web browsing |
 | Sensor capture to remote file (B-12, B-13, B-14) | P1–P2 | |
 | ~~Pin default host (B-8)~~ | — | Moved to v0.9.x, as the prerequisite of the Quick Settings tile and App Shortcuts |
-| [Remote agent launcher (B-18)](docs/features/remote-agent-launcher.md) | P1 | Start `claude rc` (or another agent CLI) on the target in a discovered project directory, in `tmux` where available, with the pairing link surfaced as an *Open in Claude* action. Two general Play improvements underneath — interactive Plays and target-discovered parameter choices. Independent of the rewrite plan. |
+| [Remote agent launcher (B-18)](docs/features/remote-agent-launcher.md) | P1 | Start `claude rc` (or another agent CLI) on the target in a discovered project directory, in `tmux` where available, with the pairing link surfaced as an *Open in Claude* action. Two general Play improvements underneath — interactive Plays and target-discovered parameter choices. Independent of the rewrite plan. [Figma proposal](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi?node-id=102-2). |
 
 ---
 

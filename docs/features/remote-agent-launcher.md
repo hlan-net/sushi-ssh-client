@@ -146,7 +146,9 @@ Running sessions are chips in the terminal's status row, one per
 `sushi-agent-*` `tmux` session, each with Attach and Kill.
 
 This touches `activity_terminal.xml`, so the PR needs a Figma frame for the
-sheet and the chips.
+sheet and the chips. The proposal card, with a current-state sketch beside
+the sheet and the chips, is on the Proposals page:
+[Remote agent launcher (B-18)](https://www.figma.com/design/heP71zbxhc6Mtgpghp0dDw/Sushi?node-id=102-2).
 
 ## Implementation
 
