@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import net.hlan.sushi.ConversationManager
 import net.hlan.sushi.FakeTerminalBackend
@@ -74,6 +75,27 @@ class ConversationViewModelTest {
     }
 
     @Test
+    fun send_sessionInitializationFailed_reportsFailureInsteadOfStandaloneFallback() = runBlocking {
+        backend.sushiMdReadResult = SshCommandResult(false, 1, "permission denied")
+        connection.connect(backend)
+        val vm = viewModel()
+        vm.awaitIdle()
+        assertTrue(vm.state.value.status is ConversationStatus.Failed)
+
+        vm.send("is it up?")
+        vm.awaitIdle()
+
+        // A session exists even though its initialisation failed, so the message must go
+        // through ConversationManager — whose own not-initialized guard produces the response
+        // below — rather than silently behaving as if no session existed at all and falling
+        // back to the standalone, no-session suggestion path.
+        val turn = vm.state.value.transcript.filterIsInstance<TranscriptItem.Turn>().single()
+        assertEquals("is it up?", turn.prompt)
+        assertTrue(turn.response.contains("not initialized", ignoreCase = true))
+        assertTrue(backend.executed.isEmpty())
+    }
+
+    @Test
     fun disconnect_clearsHostStatusAndPendingConfirmation() = runBlocking {
         connection.connect(backend)
         environment.replies("Restarting.\nEXECUTE: sudo systemctl restart nginx")
@@ -89,6 +111,48 @@ class ConversationViewModelTest {
         assertNull(vm.state.value.hostLabel)
         assertEquals(ConversationStatus.Disconnected, vm.state.value.status)
         assertNull(vm.state.value.pendingConfirmation)
+    }
+
+    @Test
+    fun disconnect_whileATurnIsInFlight_discardsItsLateResultWithoutPublishingAnError() = runBlocking {
+        connection.connect(backend)
+        val gate = CountDownLatch(1)
+        backend.beforeExecute = { gate.await(5, TimeUnit.SECONDS) }
+        environment.replies("Checking.\nEXECUTE: uptime")
+        val vm = viewModel()
+        vm.awaitIdle()
+        val events = recordEventsOf(vm)
+
+        vm.send("is it up?")
+        assertTrue(vm.state.value.isBusy)
+
+        connection.disconnect()
+        assertEquals(ConversationStatus.Disconnected, vm.state.value.status)
+        assertFalse(
+            "a disconnect mid-request must not leave the UI stuck showing one in flight",
+            vm.state.value.isBusy
+        )
+
+        // Let the stalled backend call return on its own (real, non-test) thread. The coroutine
+        // it belongs to was cancelled along with the session above, so its resumption must not
+        // publish a late transcript row, a reconnected status, or an error event.
+        gate.countDown()
+        val ranAfterDisconnect = withTimeoutOrNull(2_000) {
+            while (backend.executed.isEmpty()) {
+                yield()
+                delay(10)
+            }
+            true
+        }
+        assertTrue("the stalled command should still complete on its own thread", ranAfterDisconnect == true)
+        // A moment for the cancelled coroutine's resumption to (fail to) publish anything.
+        delay(100)
+
+        assertEquals(ConversationStatus.Disconnected, vm.state.value.status)
+        assertTrue(vm.state.value.transcript.isEmpty())
+        assertFalse(vm.state.value.isBusy)
+        assertTrue(events.all.none { it is ConversationEvent.Error })
+        events.job.cancel()
     }
 
     @Test

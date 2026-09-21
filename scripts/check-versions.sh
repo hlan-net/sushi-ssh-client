@@ -108,7 +108,11 @@ report() { # coordinate current latest
 echo "Dependencies (app/build.gradle.kts)"
 echo "-----------------------------------"
 coroutines_version=$(grep -oE 'coroutines_version = "[^"]+"' "$GRADLE_FILE" | sed 's/.*"\(.*\)"/\1/')
-grep -oE '(implementation|testImplementation|androidTestImplementation)\("[^"]+"\)' "$GRADLE_FILE" \
+# Matches every *Implementation configuration, plain (implementation, debugImplementation) or
+# quoted for a build-type name the DSL has no keyword for ("minifiedDebugImplementation"(...)) —
+# not just the three literal names this used to list, which silently dropped any other build
+# type's dependencies from the audit.
+grep -oE '"?[a-zA-Z]*[Ii]mplementation"?\("[^"]+"\)' "$GRADLE_FILE" \
   | sed -E 's/.*\("//;s/"\)//' | sort -u | while IFS=: read -r group artifact version; do
   version="${version//\$coroutines_version/$coroutines_version}"
   # Compose artifacts take their version from the BOM (checked separately below).

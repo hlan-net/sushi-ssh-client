@@ -68,6 +68,18 @@ class AppConversationEnvironment(
         get() = geminiSettings.getAutoTroubleshootEnabled()
         set(value) = geminiSettings.setAutoTroubleshootEnabled(value)
 
+    /**
+     * [nanoClient] is constructed by [net.hlan.sushi.MainActivity] and handed to this
+     * environment, but the environment — not the activity — is what a rotation-surviving
+     * [ConversationViewModel] keeps calling into, so closing it belongs here too: the activity
+     * that constructed [nanoClient] is destroyed on every rotation, while this environment (and
+     * the model it wraps) is meant to outlive that. Closing from `Activity.onDestroy()` instead
+     * would close the model out from under a ViewModel that survives the same rotation.
+     */
+    override fun close() {
+        nanoClient.close()
+    }
+
     private suspend fun isNanoAvailable(): Boolean =
         runCatching { nanoClient.checkStatus() == FeatureStatus.AVAILABLE }.getOrDefault(false)
 

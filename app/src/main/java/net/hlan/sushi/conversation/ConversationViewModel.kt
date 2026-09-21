@@ -4,8 +4,13 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,32 +60,57 @@ class ConversationViewModel(
 
     private val turnIds = AtomicLong(0)
 
+    /**
+     * Scope for everything bound to the current SSH session — [initializeSession] and every
+     * AI/raw-mode run. A fresh child of [viewModelScope]'s job on each connect, cancelled on
+     * disconnect (and superseded by a new one on the next connect), so a coroutine started
+     * against a backend that has since gone away cannot publish its result: without this, a
+     * request in flight when the session drops could complete afterward and push `Connected`
+     * or a transcript row for a session the user is no longer in.
+     */
+    private var sessionScope: CoroutineScope = newSessionScope()
+
     private val listener = object : ActiveConnection.Listener {
         override fun onConnected() {
-            viewModelScope.launch { initializeSession() }
+            sessionScope = newSessionScope()
+            sessionScope.launch { initializeSession() }
         }
 
         override fun onDisconnected() {
-            viewModelScope.launch { clearSession() }
+            // Not suspend, and callbacks may arrive on any thread; run it inline so the scope
+            // is cancelled and the state cleared before anything else can observe either.
+            clearSession()
         }
     }
 
     init {
         connection.addListener(listener)
         if (connection.isConnected()) {
-            viewModelScope.launch { initializeSession() }
+            sessionScope.launch { initializeSession() }
         }
     }
 
     override fun onCleared() {
         connection.removeListener(listener)
+        sessionScope.cancel()
+        environment.close()
     }
+
+    private fun newSessionScope(): CoroutineScope =
+        CoroutineScope(viewModelScope.coroutineContext + SupervisorJob(viewModelScope.coroutineContext[Job]))
 
     // ---------------------------------------------------------------- intents
 
     /**
      * Send what the user typed or said. Raw mode runs it as a shell command; a live session
      * hands it to the AI; with no session it becomes a command suggestion, as before v0.7.
+     *
+     * A session that exists but has not finished initialising (still connecting, or its
+     * persona failed to load) still goes to [runMessage]: [ConversationManager.processUserMessage]
+     * itself returns a "not initialized" [ConversationResult] in that case, which the normal
+     * turn/log handling below surfaces. Only the absence of a session at all — [current] null
+     * — falls back to a standalone suggestion; a failed session must not silently behave as if
+     * none existed.
      */
     fun send(text: String) {
         val message = text.trim()
@@ -88,7 +118,7 @@ class ConversationViewModel(
         val current = manager
         when {
             _state.value.isRawMode -> sendRaw(message)
-            current != null && current.isInitialized() -> runMessage(current, message)
+            current != null -> runMessage(current, message)
             else -> generateStandalone(message)
         }
     }
@@ -136,7 +166,7 @@ class ConversationViewModel(
         _state.update { it.copy(pendingConfirmation = null) }
         val current = manager ?: return
         if (pending.kind == PendingConfirmation.Kind.AI && pending.result.commandExecuted != null) {
-            viewModelScope.launch {
+            sessionScope.launch {
                 runCatching { withContext(ioDispatcher) { current.persistDeclinedRun(pending.result) } }
                     .onFailure { e -> Log.w(TAG, "Failed to persist declined run", e) }
             }
@@ -179,10 +209,20 @@ class ConversationViewModel(
     }
 
     private fun clearSession() {
+        // Cancel first: nothing started against the old backend gets to publish after this.
+        // Cancelling leaves a run that was mid-flight without its normal completion (which is
+        // what would have cleared isBusy), so this update clears it explicitly — otherwise a
+        // disconnect that arrives while a request is running leaves the UI stuck busy forever.
+        sessionScope.cancel()
         manager?.clearHistory()
         manager = null
         _state.update {
-            it.copy(hostLabel = null, status = ConversationStatus.Disconnected, pendingConfirmation = null)
+            it.copy(
+                isBusy = false,
+                hostLabel = null,
+                status = ConversationStatus.Disconnected,
+                pendingConfirmation = null
+            )
         }
     }
 
@@ -202,8 +242,8 @@ class ConversationViewModel(
     private fun runMessage(current: ConversationManager, message: String) {
         val turnId = turnIds.incrementAndGet()
         setBusy(true)
-        viewModelScope.launch {
-            try {
+        sessionScope.launch {
+            runTracked("Error processing message") {
                 val result = withContext(ioDispatcher) {
                     current.processUserMessage(message) { chunk ->
                         appendChunk(turnId, message, chunk, isRaw = false)
@@ -219,16 +259,14 @@ class ConversationViewModel(
                             "Result: ${if (result.commandSuccess) "success" else "failed"}"
                     )
                 }
-            } catch (e: Exception) {
-                fail("Error processing message", e)
             }
         }
     }
 
     private fun runConfirmed(current: ConversationManager, pending: PendingConfirmation) {
         setBusy(true)
-        viewModelScope.launch {
-            try {
+        sessionScope.launch {
+            runTracked("Error executing confirmed command") {
                 val result = withContext(ioDispatcher) {
                     current.executeConfirmedCommand(
                         pending.userMessage,
@@ -250,8 +288,6 @@ class ConversationViewModel(
                 if (result.needsConfirmation) {
                     askConfirmation(pending.userMessage, pending.turnId, result)
                 }
-            } catch (e: Exception) {
-                fail("Error executing confirmed command", e)
             }
         }
     }
@@ -276,8 +312,8 @@ class ConversationViewModel(
     private fun runRaw(current: ConversationManager, command: String) {
         val turnId = turnIds.incrementAndGet()
         setBusy(true)
-        viewModelScope.launch {
-            try {
+        sessionScope.launch {
+            runTracked("Error executing raw command") {
                 val result = withContext(ioDispatcher) {
                     current.executeRawCommand(command) { chunk ->
                         appendChunk(turnId, command, chunk, isRaw = true)
@@ -296,7 +332,7 @@ class ConversationViewModel(
                             )
                         )
                     }
-                    return@launch
+                    return@runTracked
                 }
                 finishTurn(turnId, command, result, isRaw = true)
                 if (result.commandBlocked) {
@@ -307,16 +343,14 @@ class ConversationViewModel(
                             "Result: ${if (result.commandSuccess) "success" else "failed"}"
                     )
                 }
-            } catch (e: Exception) {
-                fail("Error executing raw command", e)
             }
         }
     }
 
     private fun runConfirmedRaw(current: ConversationManager, pending: PendingConfirmation) {
         setBusy(true)
-        viewModelScope.launch {
-            try {
+        sessionScope.launch {
+            runTracked("Error executing confirmed raw command") {
                 val result = withContext(ioDispatcher) {
                     current.executeConfirmedRawCommand(pending.command) { chunk ->
                         appendChunk(pending.turnId, pending.command, chunk, isRaw = true)
@@ -329,8 +363,6 @@ class ConversationViewModel(
                             "Result: ${if (result.commandSuccess) "success" else "failed"}"
                     )
                 }
-            } catch (e: Exception) {
-                fail("Error executing confirmed raw command", e)
             }
         }
     }
@@ -342,7 +374,7 @@ class ConversationViewModel(
         val turnId = turnIds.incrementAndGet()
         setBusy(true)
         viewModelScope.launch {
-            try {
+            runTracked("Error generating command") {
                 val result = withContext(ioDispatcher) { environment.generateCommand(prompt) }
                 _state.update {
                     it.copy(
@@ -352,8 +384,6 @@ class ConversationViewModel(
                     )
                 }
                 _events.send(ConversationEvent.CommandGenerated(prompt, result.message))
-            } catch (e: Exception) {
-                fail("Error generating command", e)
             }
         }
     }
@@ -402,6 +432,24 @@ class ConversationViewModel(
 
     private fun log(text: String) {
         _events.trySend(ConversationEvent.LogLine(text))
+    }
+
+    /**
+     * Runs [block], turning any failure into a [ConversationEvent.Error] — except cancellation,
+     * which is rethrown rather than swallowed. [fail] itself is plain, non-suspending code
+     * (`setBusy`, `trySend`), so it would otherwise still run to completion inside a coroutine
+     * whose job has already been cancelled — publishing a state update for a session (or a
+     * ViewModel) that is already gone, exactly what cancelling [sessionScope] on disconnect is
+     * meant to prevent.
+     */
+    private suspend fun runTracked(errorContext: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            fail(errorContext, e)
+        }
     }
 
     private fun fail(what: String, e: Exception) {

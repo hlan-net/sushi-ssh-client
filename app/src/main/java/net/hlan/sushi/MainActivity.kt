@@ -50,8 +50,11 @@ class MainActivity : AppCompatActivity() {
     private val driveAuthManager by lazy { DriveAuthManager(this) }
     private val driveLogSettings by lazy { DriveLogSettings(this) }
     private val driveLogUploader by lazy { DriveLogUploader(this) }
-    private val geminiClient by lazy { GeminiClient(this, geminiSettings, driveAuthManager) }
-    private val nanoClient by lazy { GeminiNanoClient(this) }
+    // Application context: both objects only use it for getString(), and the copies handed to
+    // AppConversationEnvironment are kept by ConversationViewModel across rotation — an
+    // Activity context there would leak this (destroyed) instance.
+    private val geminiClient by lazy { GeminiClient(applicationContext, geminiSettings, driveAuthManager) }
+    private val nanoClient by lazy { GeminiNanoClient(applicationContext) }
     private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
     private val sshSettings by lazy { SshSettings(this) }
     private val playDb by lazy { PlayDatabaseHelper.getInstance(this) }
@@ -266,7 +269,11 @@ class MainActivity : AppCompatActivity() {
         geminiDialogBinding = null
         confirmationDialog?.dismiss()
         confirmationDialog = null
-        nanoClient.close()
+        // Not nanoClient.close() here: on a rotation this onDestroy() runs while
+        // conversationViewModel (and the AppConversationEnvironment holding the same
+        // nanoClient) survives into the new activity instance, so closing now would hand it a
+        // dead model. AppConversationEnvironment.close() does this instead, from
+        // ConversationViewModel.onCleared() — the point the conversation is actually done.
     }
 
     private fun maybeResumePendingGitHubSignIn() {

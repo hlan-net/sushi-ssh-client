@@ -24,4 +24,13 @@ interface ConversationEnvironment {
 
     /** The persisted multi-step troubleshooting preference. */
     var autoTroubleshootEnabled: Boolean
+
+    /**
+     * Release whatever [createSession] and [generateCommand] hold open. Called once, from
+     * [ConversationViewModel.onCleared] — the point the conversation is actually done, not an
+     * activity recreation the ViewModel survives. A production implementation that owns a
+     * closeable model (on-device inference, a network client) overrides this; the default is a
+     * no-op, which is what every test fake needs.
+     */
+    fun close() {}
 }

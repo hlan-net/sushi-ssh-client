@@ -18,6 +18,9 @@ class FakeTerminalBackend(
     /** Output streamed through `onChunk` before the result, per command. */
     private val chunks = mutableMapOf<String, List<String>>()
 
+    /** When set, the SUSHI.md read returns this instead of [sushiMd] — for a failed init. */
+    var sushiMdReadResult: SshCommandResult? = null
+
     fun on(command: String, result: SshCommandResult, streamed: List<String> = emptyList()) {
         results[command] = result
         if (streamed.isNotEmpty()) chunks[command] = streamed
@@ -29,7 +32,7 @@ class FakeTerminalBackend(
         onChunk: ((String) -> Unit)?
     ): SshCommandResult {
         if (command.startsWith("cat ~/.config/sushi/SUSHI.md")) {
-            return SshCommandResult(true, 0, sushiMd)
+            return sushiMdReadResult ?: SshCommandResult(true, 0, sushiMd)
         }
         if (command.startsWith("cat ~/.config/sushi/config.conf") ||
             command.startsWith("mkdir -p ") ||
