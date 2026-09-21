@@ -3,6 +3,8 @@ package net.hlan.sushi.conversation
 import android.content.Context
 import android.util.Log
 import com.google.mlkit.genai.common.FeatureStatus
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import net.hlan.sushi.CommandHistoryDatabaseHelper
 import net.hlan.sushi.ConversationContextBuilder
 import net.hlan.sushi.ConversationManager
@@ -30,39 +32,46 @@ class AppConversationEnvironment(
 
     private val appContext = context.applicationContext
 
-    override suspend fun createSession(backend: TerminalBackend): ConversationSession {
-        val useNano = geminiSettings.getNanoPreferred() && isNanoAvailable()
-        val activeConfig = sshSettings.getConfigOrNull()
-        val hostLabel = activeConfig?.let { HostLabels.shortLabel(appContext, it) }
-        val infrastructure = ConversationContextBuilder.infrastructureSection(
-            hosts = sshSettings.getHosts(),
-            activeHostId = activeConfig?.id
-        )
-        val manager = ConversationManager(
-            backend = backend,
-            geminiClient = geminiClient,
-            geminiNanoClient = nanoClient,
-            useNano = useNano,
-            transcriptStore = GeminiTranscriptDatabaseHelper.getInstance(appContext),
-            commandHistoryStore = CommandHistoryDatabaseHelper.getInstance(appContext),
-            sessionId = UUID.randomUUID().toString(),
-            hostId = activeConfig?.id,
-            hostLabel = hostLabel,
-            infrastructureContext = infrastructure
-        )
-        return ConversationSession(manager, activeConfig?.id, hostLabel)
-    }
+    // Both overrides below are main-safe: they read SharedPreferences and SQLite (createSession)
+    // or make a blocking HttpURLConnection call (generateCommand's cloud branch), so they
+    // dispatch to Dispatchers.IO themselves rather than requiring the caller to — the same
+    // convention ConversationManager's own suspend functions already follow.
 
-    override suspend fun generateCommand(prompt: String): GeminiResult {
-        val useNano = geminiSettings.getNanoPreferred() && isNanoAvailable()
-        return if (useNano) {
-            Log.d(TAG, "Routing voice command to Gemini Nano (on-device)")
-            nanoClient.generateCommand(prompt)
-        } else {
-            Log.d(TAG, "Routing voice command to cloud Gemini (${geminiSettings.getCloudModel()})")
-            geminiClient.generateCommand(prompt)
+    override suspend fun createSession(backend: TerminalBackend): ConversationSession =
+        withContext(Dispatchers.IO) {
+            val useNano = geminiSettings.getNanoPreferred() && isNanoAvailable()
+            val activeConfig = sshSettings.getConfigOrNull()
+            val hostLabel = activeConfig?.let { HostLabels.shortLabel(appContext, it) }
+            val infrastructure = ConversationContextBuilder.infrastructureSection(
+                hosts = sshSettings.getHosts(),
+                activeHostId = activeConfig?.id
+            )
+            val manager = ConversationManager(
+                backend = backend,
+                geminiClient = geminiClient,
+                geminiNanoClient = nanoClient,
+                useNano = useNano,
+                transcriptStore = GeminiTranscriptDatabaseHelper.getInstance(appContext),
+                commandHistoryStore = CommandHistoryDatabaseHelper.getInstance(appContext),
+                sessionId = UUID.randomUUID().toString(),
+                hostId = activeConfig?.id,
+                hostLabel = hostLabel,
+                infrastructureContext = infrastructure
+            )
+            ConversationSession(manager, activeConfig?.id, hostLabel)
         }
-    }
+
+    override suspend fun generateCommand(prompt: String): GeminiResult =
+        withContext(Dispatchers.IO) {
+            val useNano = geminiSettings.getNanoPreferred() && isNanoAvailable()
+            if (useNano) {
+                Log.d(TAG, "Routing voice command to Gemini Nano (on-device)")
+                nanoClient.generateCommand(prompt)
+            } else {
+                Log.d(TAG, "Routing voice command to cloud Gemini (${geminiSettings.getCloudModel()})")
+                geminiClient.generateCommand(prompt)
+            }
+        }
 
     override var autoTroubleshootEnabled: Boolean
         get() = geminiSettings.getAutoTroubleshootEnabled()

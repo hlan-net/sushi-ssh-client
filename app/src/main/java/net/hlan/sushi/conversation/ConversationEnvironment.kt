@@ -12,13 +12,14 @@ interface ConversationEnvironment {
 
     /**
      * Build a [ConversationSession] for [backend]: the manager with its model, stores and host
-     * context. Called on an IO dispatcher.
+     * context. Main-safe — implementations dispatch their own I/O, so this may be called from
+     * any dispatcher, including the main one.
      */
     suspend fun createSession(backend: TerminalBackend): ConversationSession
 
     /**
      * Turn [prompt] into a shell command with no session to run it on — the path used before
-     * any host is connected. Called on an IO dispatcher.
+     * any host is connected. Main-safe, for the same reason as [createSession].
      */
     suspend fun generateCommand(prompt: String): GeminiResult
 
@@ -32,5 +33,7 @@ interface ConversationEnvironment {
      * closeable model (on-device inference, a network client) overrides this; the default is a
      * no-op, which is what every test fake needs.
      */
-    fun close() {}
+    fun close() {
+        // Intentionally empty: nothing to release unless an implementation overrides this.
+    }
 }

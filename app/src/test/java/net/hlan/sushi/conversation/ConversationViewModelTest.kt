@@ -455,7 +455,7 @@ class ConversationViewModelTest {
 
     // ---------------------------------------------------------------- helpers
 
-    private fun viewModel() = ConversationViewModel(environment, connection, ioDispatcher = mainDispatcher)
+    private fun viewModel() = ConversationViewModel(environment, connection)
 
     private suspend fun ConversationViewModel.awaitIdle() {
         withTimeout(5_000) {

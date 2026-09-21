@@ -5,9 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -19,7 +17,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import net.hlan.sushi.ConversationManager
 import net.hlan.sushi.ConversationResult
 import java.util.concurrent.atomic.AtomicLong
@@ -32,12 +29,13 @@ import java.util.concurrent.atomic.AtomicLong
  * [ConversationManager] for it through [environment], and survives the activity's
  * recreation — so a rotation no longer tears the conversation down. Every mutation goes
  * through [MutableStateFlow.update], which is atomic, so output chunks arriving on the IO
- * thread and completions on the main thread never race on the transcript.
+ * thread and completions on the main thread never race on the transcript. No dispatcher is
+ * threaded through here: every suspend function this class calls, on [environment] and on
+ * [ConversationManager] alike, is main-safe and dispatches its own I/O.
  */
 class ConversationViewModel(
     private val environment: ConversationEnvironment,
-    private val connection: ActiveConnection,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val connection: ActiveConnection
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -167,7 +165,7 @@ class ConversationViewModel(
         val current = manager ?: return
         if (pending.kind == PendingConfirmation.Kind.AI && pending.result.commandExecuted != null) {
             sessionScope.launch {
-                runCatching { withContext(ioDispatcher) { current.persistDeclinedRun(pending.result) } }
+                runCatching { current.persistDeclinedRun(pending.result) }
                     .onFailure { e -> Log.w(TAG, "Failed to persist declined run", e) }
             }
         }
@@ -179,7 +177,7 @@ class ConversationViewModel(
         val backend = connection.activeBackend() ?: return
         _state.update { it.copy(status = ConversationStatus.Initializing) }
 
-        val session = withContext(ioDispatcher) { environment.createSession(backend) }
+        val session = environment.createSession(backend)
 
         val previousHostId = lastHostId
         val newHostId = session.hostId
@@ -195,7 +193,7 @@ class ConversationViewModel(
         manager = created
         _state.update { it.copy(hostLabel = session.hostLabel) }
 
-        val result = withContext(ioDispatcher) { created.initialize() }
+        val result = created.initialize()
         if (result.success) {
             _state.update {
                 it.copy(status = ConversationStatus.Connected(result.systemIdentity ?: "Unknown System"))
@@ -244,10 +242,8 @@ class ConversationViewModel(
         setBusy(true)
         sessionScope.launch {
             runTracked("Error processing message") {
-                val result = withContext(ioDispatcher) {
-                    current.processUserMessage(message) { chunk ->
-                        appendChunk(turnId, message, chunk, isRaw = false)
-                    }
+                val result = current.processUserMessage(message) { chunk ->
+                    appendChunk(turnId, message, chunk, isRaw = false)
                 }
                 finishTurn(turnId, message, result, isRaw = false)
                 when {
@@ -267,14 +263,12 @@ class ConversationViewModel(
         setBusy(true)
         sessionScope.launch {
             runTracked("Error executing confirmed command") {
-                val result = withContext(ioDispatcher) {
-                    current.executeConfirmedCommand(
-                        pending.userMessage,
-                        pending.result.systemResponse,
-                        pending.command
-                    ) { chunk ->
-                        appendChunk(pending.turnId, pending.userMessage, chunk, isRaw = false)
-                    }
+                val result = current.executeConfirmedCommand(
+                    pending.userMessage,
+                    pending.result.systemResponse,
+                    pending.command
+                ) { chunk ->
+                    appendChunk(pending.turnId, pending.userMessage, chunk, isRaw = false)
                 }
                 finishTurn(pending.turnId, pending.userMessage, result, isRaw = false)
                 if (result.commandExecuted != null) {
@@ -314,10 +308,8 @@ class ConversationViewModel(
         setBusy(true)
         sessionScope.launch {
             runTracked("Error executing raw command") {
-                val result = withContext(ioDispatcher) {
-                    current.executeRawCommand(command) { chunk ->
-                        appendChunk(turnId, command, chunk, isRaw = true)
-                    }
+                val result = current.executeRawCommand(command) { chunk ->
+                    appendChunk(turnId, command, chunk, isRaw = true)
                 }
                 if (result.needsConfirmation) {
                     _state.update {
@@ -351,10 +343,8 @@ class ConversationViewModel(
         setBusy(true)
         sessionScope.launch {
             runTracked("Error executing confirmed raw command") {
-                val result = withContext(ioDispatcher) {
-                    current.executeConfirmedRawCommand(pending.command) { chunk ->
-                        appendChunk(pending.turnId, pending.command, chunk, isRaw = true)
-                    }
+                val result = current.executeConfirmedRawCommand(pending.command) { chunk ->
+                    appendChunk(pending.turnId, pending.command, chunk, isRaw = true)
                 }
                 finishTurn(pending.turnId, pending.command, result, isRaw = true)
                 if (result.commandExecuted != null) {
@@ -375,7 +365,7 @@ class ConversationViewModel(
         setBusy(true)
         viewModelScope.launch {
             runTracked("Error generating command") {
-                val result = withContext(ioDispatcher) { environment.generateCommand(prompt) }
+                val result = environment.generateCommand(prompt)
                 _state.update {
                     it.copy(
                         isBusy = false,
