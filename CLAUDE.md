@@ -46,7 +46,15 @@ Skip the pre-push hook with `SKIP_PRE_PUSH_TESTS=1 git push`.
 
 ## Architecture
 
-Activity-based (no Compose, no ViewModel/MVVM). UI logic stays in activities; business logic goes into helper classes.
+Two UI patterns coexist while the screens migrate, one at a time, from the first to the second. The helpers listed below are the stable core under both and are not being rewritten.
+
+**Legacy screens** — activity-based with view binding; UI logic in the activity, business logic in helpers. `MainActivity` (~1.7k lines) and `SettingsActivity` (~1k lines) are the two that grew past what this pattern carries. Do not add UI logic to either: a feature that would touch them gets its own state holder and screen in the pattern below, mounted into the existing activity.
+
+**Migrated screens** — a `ViewModel` (`viewModelScope` + `StateFlow`) per screen owns the state, and a Compose screen renders it, mounted in the existing activity through `ComposeView` so navigation and intents keep working. Compose is not in `app/build.gradle.kts` yet: the first migration PR adds the Compose BOM, and no Compose code is written before that lands.
+
+**Migration order:** `SettingsActivity` pages first (self-contained, no SSH session), then `MainActivity`'s Plays tab, then its host list, then the Terminal tab last. `TerminalView` is a custom `AppCompatTextView` and stays as it is — a Compose screen that needs it wraps it in `AndroidView`. It is never rewritten in Compose: text selection, the IME connection and span rendering are the riskiest part of the app, and 38 releases of fixes live in it.
+
+**Each migration is its own PR that leaves the app releasable.** The screen's instrumented tests move with it (`createAndroidComposeRule` in place of Espresso view matchers), and its ViewModel gets JVM unit tests. That is the point of the exercise: logic that today can only be verified on a device becomes testable in `testDebugUnitTest`.
 
 **Key helpers:**
 - `SshClient` — JSch wrapper; handles password/key auth, jump servers, PTY sessions. JSch classes are kept in ProGuard (`proguard-rules.pro`) because JSch loads crypto providers via reflection.
@@ -62,7 +70,7 @@ Activity-based (no Compose, no ViewModel/MVVM). UI logic stays in activities; bu
 - `SettingsActivity` — `ViewPager2` carousel with General, SSH, Gemini, Drive pages.
 - `TerminalActivity` — interactive SSH terminal using the custom `TerminalView`.
 
-**Threading:** Legacy code uses `Thread { ... }` / `runOnUiThread { ... }`. Newer code uses `lifecycleScope.launch` + `Dispatchers.IO`. Do not mix styles within a new feature; follow the existing pattern in the file you're editing.
+**Threading:** Legacy code uses `Thread { ... }` / `runOnUiThread { ... }`. Newer activity code uses `lifecycleScope.launch` + `Dispatchers.IO`; ViewModels use `viewModelScope`. Do not mix styles within a new feature; follow the existing pattern in the file you're editing.
 
 **Data storage:** `SecurePrefs` for secrets, standard `SharedPreferences` for non-sensitive settings, SQLite for phrases/plays.
 
@@ -73,13 +81,13 @@ Activity-based (no Compose, no ViewModel/MVVM). UI logic stays in activities; bu
 - Null safety: prefer non-null, early-return on null with `orEmpty()` for strings.
 - Error handling at module boundaries: `runCatching { ... }.getOrElse { ... }`.
 - All user-visible strings in `app/src/main/res/values/strings.xml`.
-- View binding (`binding.*`) instead of `findViewById`.
+- View binding (`binding.*`) instead of `findViewById` in legacy screens; Compose screens use neither.
 - One top-level class per file.
 - Resource IDs: `lower_snake_case`; layout files: `activity_*.xml`.
 
 ## Adding features
 
-- New settings → `SettingsActivity` + store secrets in `SecurePrefs`.
+- New settings → a Compose page with its own ViewModel, mounted in `SettingsActivity` — not a new block in the activity. Secrets in `SecurePrefs`.
 - New dependencies → `app/build.gradle.kts`.
 - New permissions → `AndroidManifest.xml` (only when necessary).
 - JSch crypto classes referenced only by name → add to `proguard-rules.pro` to prevent stripping.
