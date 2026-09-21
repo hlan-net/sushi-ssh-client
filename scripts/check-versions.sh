@@ -111,11 +111,18 @@ coroutines_version=$(grep -oE 'coroutines_version = "[^"]+"' "$GRADLE_FILE" | se
 grep -oE '(implementation|testImplementation|androidTestImplementation)\("[^"]+"\)' "$GRADLE_FILE" \
   | sed -E 's/.*\("//;s/"\)//' | sort -u | while IFS=: read -r group artifact version; do
   version="${version//\$coroutines_version/$coroutines_version}"
+  # Compose artifacts take their version from the BOM (checked separately below).
+  if [[ -z "$version" ]]; then printf '%-62s %-22s%s\n' "$group:$artifact" "(BOM)" "  see compose-bom"; continue; fi
   versions=$(maven_central "$group" "$artifact")
   [[ -z "$versions" ]] && versions=$(google_maven "$group" "$artifact")
   latest=$(echo "$versions" | pick_latest "$version")
   report "$group:$artifact" "$version" "$latest"
 done
+
+compose_bom=$(grep -oE 'compose-bom:[^"]+' "$GRADLE_FILE" | sed 's/compose-bom://' | head -1)
+if [[ -n "$compose_bom" ]]; then
+  report "androidx.compose:compose-bom" "$compose_bom" "$(google_maven androidx.compose compose-bom | pick_latest "$compose_bom")"
+fi
 
 echo
 echo "Toolchain"
