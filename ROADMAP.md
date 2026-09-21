@@ -99,6 +99,7 @@ Solid SSH client features that are not core to the conversational goal but round
 | [SOCKS proxy (B-11)](docs/features/tunneled-web-browsing.md) | P2 | Non-VPN foundation for tunneled web browsing |
 | Sensor capture to remote file (B-12, B-13, B-14) | P1–P2 | |
 | Pin default host (B-8) | P2 | |
+| [Remote agent launcher (B-18)](docs/features/remote-agent-launcher.md) | P1 | Start `claude rc` (or another agent CLI) on the target in a discovered project directory, in `tmux` where available, with the pairing link surfaced as an *Open in Claude* action. Two general Play improvements underneath — interactive Plays and target-discovered parameter choices. Independent of the rewrite plan. |
 
 ---
 
@@ -133,4 +134,4 @@ Interesting directions that depend on the conversational core being solid first.
 
 ---
 
-*Last updated: 2026-09-20*
+*Last updated: 2026-09-21*
