@@ -143,6 +143,14 @@ pem_key_path="$(prompt_with_default "Path to a PEM-format passphrase-protected k
 if [[ -n "${pem_key_path}" ]]; then
   if [[ -f "${pem_key_path}" ]]; then
     ssh_encrypted_pem_key_b64="$(base64 < "${pem_key_path}" | tr -d '\n')"
+    # Both encrypted keys are unlocked with SSH_KEY_PASSPHRASE, but only the OpenSSH block
+    # above asks for it. A setup that adds just a PEM key would otherwise store a key it has
+    # no way to unlock, and both PEM tests would skip for want of a passphrase.
+    entered_passphrase="$(prompt_secret_keep_existing "Key passphrase" "$( [[ -n "${ssh_key_passphrase}" ]] && printf true || printf false )")"
+    entered_passphrase="${entered_passphrase#$'\n'}"
+    if [[ -n "${entered_passphrase}" ]]; then
+      ssh_key_passphrase="${entered_passphrase}"
+    fi
   else
     echo "File not found: ${pem_key_path} — skipping PEM-key setup."
   fi

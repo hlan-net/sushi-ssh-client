@@ -29,10 +29,13 @@ fi
 
 # Credentials already exported win over every stored source: CI injects them that way, and a
 # stale local file or secret should never silently override what the caller set on purpose.
-declare -A PRESET_FROM_ENV=()
+# Names in an array and values in PRESET_VALUE_<name>, rather than one associative array: the
+# Bash 3.2 that ships with macOS has no `declare -A`, and this script ran there before.
+PRESET_FROM_ENV=()
 for var in "${SSH_TEST_VARS[@]}"; do
   if [[ -n "${!var:-}" ]]; then
-    PRESET_FROM_ENV["${var}"]="${!var}"
+    PRESET_FROM_ENV+=("${var}")
+    printf -v "PRESET_VALUE_${var}" '%s' "${!var}"
   fi
 done
 
@@ -56,8 +59,10 @@ load_credentials_from_vault() {
   fi
 
   # Probe once before reading fields, so an unreachable Vault or an expired token says so instead
-  # of looking like a secret with every field missing.
-  if ! vault kv get -field=SSH_HOST "${SSH_TEST_VAULT_PATH}" >/dev/null 2>&1; then
+  # of looking like a secret with every field missing. No -field: every credential here is
+  # optional or may come from the environment, so requiring one to exist would reject a
+  # perfectly good secret.
+  if ! vault kv get "${SSH_TEST_VAULT_PATH}" >/dev/null 2>&1; then
     echo "Cannot read ${SSH_TEST_VAULT_PATH} from Vault at ${VAULT_ADDR:-<VAULT_ADDR unset>}."
     echo "Check the path, and that 'vault token lookup' succeeds."
     exit 1
@@ -66,9 +71,14 @@ load_credentials_from_vault() {
   local var value
   for var in "${SSH_TEST_VARS[@]}"; do
     # A missing field exits non-zero; most of these credentials are optional, so that is not an
-    # error. An unreachable Vault or a expired token is caught by the probe below instead.
+    # error. An unreachable Vault or an expired token is caught by the probe above instead.
     if value="$(vault kv get -field="${var}" "${SSH_TEST_VAULT_PATH}" 2>/dev/null)"; then
       export "${var}=${value}"
+    else
+      # In Vault mode the secret is the source of truth. Leaving a value sourced from
+      # .local/local-ssh-test.env in place would let a stale local password or key quietly
+      # fill a field the secret omits. Anything the caller exported is restored below.
+      unset "${var}"
     fi
   done
 }
@@ -88,9 +98,12 @@ case "${SSH_TEST_SECRET_SOURCE:-file}" in
     ;;
 esac
 
-for var in "${!PRESET_FROM_ENV[@]}"; do
-  export "${var}=${PRESET_FROM_ENV[${var}]}"
-done
+if [[ ${#PRESET_FROM_ENV[@]} -gt 0 ]]; then
+  for var in "${PRESET_FROM_ENV[@]}"; do
+    preset_ref="PRESET_VALUE_${var}"
+    export "${var}=${!preset_ref}"
+  done
+fi
 
 if [[ -z "${SSH_HOST:-}" || -z "${SSH_USERNAME:-}" ]]; then
   echo "Missing SSH_HOST or SSH_USERNAME."
