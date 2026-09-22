@@ -60,6 +60,17 @@ unlock_time() {
 
 is_unlocked() { [[ "$(unlock_time)" != "<unknown>" && -n "$(unlock_time)" ]]; }
 
+# Unlock time only says the credential was entered once since boot, which is what
+# credential-encrypted storage needs. The keyguard can be back in front of it, and
+# that alone denies the test activity window focus, so check both.
+keyguard_showing() {
+  local window_dump
+  if ! window_dump="$(adb_sh dumpsys window 2>/dev/null | tr -d '\r')"; then
+    return 0
+  fi
+  [[ "$window_dump" == *"isKeyguardShowing=true"* ]]
+}
+
 ui_dump() {
   adb_sh uiautomator dump "$UI_PATH" >/dev/null 2>&1 || true
   adb_sh cat "$UI_PATH" 2>/dev/null | tr -d '\r'
@@ -88,9 +99,14 @@ clear_field() {
   done
 }
 
-if is_unlocked; then
+if is_unlocked && ! keyguard_showing; then
   echo "Already unlocked (Unlock time: $(unlock_time)) -- nothing to do."
   exit 0
+fi
+
+if is_unlocked; then
+  echo "Credential already entered since boot (Unlock time: $(unlock_time)),"
+  echo "but the keyguard is showing again and denies the test activity window focus."
 fi
 
 SIM_STATE="$(adb_sh getprop gsm.sim.state | tr -d '\r')"
@@ -144,7 +160,7 @@ adb_sh input keyevent KEYCODE_ENTER >/dev/null
 # The unlock is asynchronous; give storage a moment to come up before judging.
 for _ in $(seq 1 10); do
   sleep 1
-  if is_unlocked; then
+  if is_unlocked && ! keyguard_showing; then
     echo ""
     echo "Unlocked. Unlock time: $(unlock_time)"
     echo "Credential-encrypted storage is available; Espresso runs can start."
@@ -153,7 +169,7 @@ for _ in $(seq 1 10); do
 done
 
 echo ""
-echo "FAILED -- the user is still locked (Unlock time: $(unlock_time))."
+echo "FAILED -- Unlock time: $(unlock_time), keyguard showing: $(keyguard_showing && echo yes || echo no)."
 echo "On screen: $(bouncer_message)"
 echo ""
 echo "Do not retry blindly: wrong attempts trigger a lockout timer on this device."
