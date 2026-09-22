@@ -164,6 +164,39 @@ class ConversationViewModelTest {
     }
 
     @Test
+    fun onConnected_firesAgainAfterDisconnect_doesNotBlockTheNextRealReconnect() = runBlocking {
+        // Simulates a stale onConnected() notification for a connection that has already ended
+        // — as if it had been delayed and only got delivered after onDisconnected() already ran.
+        // ActiveConnection.Listener's callbacks "may arrive on any thread", and the production
+        // ActiveConnection notifies listeners with no synchronization of its own, so this is
+        // reachable in practice, not just in a test's imagination.
+        connection.connect(backend)
+        val vm = viewModel()
+        vm.awaitIdle()
+        assertEquals(1, environment.createSessionCallCount)
+
+        connection.disconnect()
+        assertEquals(ConversationStatus.Disconnected, vm.state.value.status)
+
+        // The stale callback arrives after the real disconnect. There is no backend to begin a
+        // session against, so this must no-op rather than latch a phantom "attached" state.
+        connection.fireStaleOnConnected()
+        assertEquals(
+            "a stale onConnected for an already-ended connection must not begin a session",
+            1,
+            environment.createSessionCallCount
+        )
+        assertEquals(ConversationStatus.Disconnected, vm.state.value.status)
+
+        // A genuine reconnect afterward must still work — this is what got permanently blocked
+        // by the bug: the stale callback above would otherwise have left the guard stuck true.
+        connection.connect(backend)
+        vm.awaitIdle()
+        assertEquals(2, environment.createSessionCallCount)
+        assertTrue(vm.state.value.status is ConversationStatus.Connected)
+    }
+
+    @Test
     fun disconnect_clearsHostStatusAndPendingConfirmation() = runBlocking {
         connection.connect(backend)
         environment.replies("Restarting.\nEXECUTE: sudo systemctl restart nginx")
@@ -624,6 +657,15 @@ class ConversationViewModelTest {
         fun disconnect() {
             backend = null
             listeners.toList().forEach { it.onDisconnected() }
+        }
+
+        /**
+         * Re-delivers `onConnected()` without touching connection state — as if a callback for
+         * a connection that has since ended (or been superseded) only now got scheduled, after
+         * whatever notified it in the first place has moved on.
+         */
+        fun fireStaleOnConnected() {
+            listeners.toList().forEach { it.onConnected() }
         }
 
         override fun isConnected(): Boolean = backend != null

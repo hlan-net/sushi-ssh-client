@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.hlan.sushi.ConversationManager
 import net.hlan.sushi.ConversationResult
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -81,34 +80,58 @@ class ConversationViewModel(
     private val sessionGeneration = AtomicLong(0)
 
     /**
-     * Whether a session has been started for whatever connection is current, reset on
-     * disconnect. The `init` block below registers [listener] and then separately reads
-     * [ActiveConnection.isConnected] to cover a connection that was already up before this
-     * ViewModel existed — but "callbacks may arrive on any thread" ([ActiveConnection.Listener]),
-     * so the connection can finish, and [listener]'s `onConnected()` fire, in the gap between
-     * those two steps. Both would then try to begin the same session. The `compareAndSet` at
-     * each call site lets whichever one runs first win and the other silently no-op, regardless
-     * of which order they land in.
+     * Guards [sessionAttached] and every check of it below. [ActiveConnection.Listener]'s
+     * callbacks "may arrive on any thread", and `TerminalSessionHolder` — the production
+     * [ActiveConnection] — notifies listeners with no synchronization of its own (a plain
+     * `mutableListOf` iterated straight from whichever thread called `setActiveConnection` /
+     * `clearActiveConnection`), so nothing stops `onConnected()` and `onDisconnected()` from
+     * running concurrently, or a slow one from finishing after a later one.
      */
-    private val sessionAttached = AtomicBoolean(false)
+    private val connectionLock = Any()
+
+    /**
+     * Whether a session has been started for whatever connection is current, reset on
+     * disconnect. Read and written only inside [connectionLock], and every writer re-checks
+     * [ActiveConnection.isConnected] fresh at that point rather than trusting that being called
+     * means "still connected": an earlier version used a plain `AtomicBoolean.compareAndSet`
+     * (still enough to fix the race the `init` block below is about), but that let a
+     * slow-to-arrive `onConnected()` for an already-superseded connection win the CAS *after*
+     * `onDisconnected()` had already reset it — flipping this back to true against a connection
+     * that was no longer there, and staying stuck there forever since no matching
+     * `onDisconnected()` was ever coming for it. The next *real* reconnect's `onConnected()`
+     * would then find this already true and never reattach. Re-checking `isConnected()` inside
+     * the lock closes that: a stale callback sees the connection is gone (or already re-attached
+     * by whoever got there first) and no-ops instead of latching a phantom session.
+     */
+    private var sessionAttached = false
 
     private val listener = object : ActiveConnection.Listener {
         override fun onConnected() {
-            if (sessionAttached.compareAndSet(false, true)) beginSession()
+            synchronized(connectionLock) {
+                if (!sessionAttached && connection.isConnected()) {
+                    sessionAttached = true
+                    beginSession()
+                }
+            }
         }
 
         override fun onDisconnected() {
-            // Not suspend, and callbacks may arrive on any thread; run it inline so the scope
-            // is cancelled and the state cleared before anything else can observe either.
-            sessionAttached.set(false)
-            clearSession()
+            // Not suspend; run it inline so the scope is cancelled and the state cleared before
+            // anything else can observe either.
+            synchronized(connectionLock) {
+                sessionAttached = false
+                clearSession()
+            }
         }
     }
 
     init {
         connection.addListener(listener)
-        if (connection.isConnected() && sessionAttached.compareAndSet(false, true)) {
-            beginSession()
+        synchronized(connectionLock) {
+            if (!sessionAttached && connection.isConnected()) {
+                sessionAttached = true
+                beginSession()
+            }
         }
     }
 
@@ -192,13 +215,20 @@ class ConversationViewModel(
      * The user declined the pending command. An AI run that already executed steps before
      * pausing has them written to the transcript and the target-side log, so that work is
      * not lost.
+     *
+     * Launched on [viewModelScope], not [sessionScope]: [ConversationManager.persistDeclinedRun]
+     * writes to both the local SQLite history and the target-side log file, and only the second
+     * of those needs the live backend — `ConversationManager.writeToLog` already fails softly
+     * (caught, logged) if it doesn't have one. Launching this on the session scope instead would
+     * let a disconnect arriving right after the decline cancel it before the local write ever
+     * ran, silently losing history this function's own contract promises is kept.
      */
     fun declinePending() {
         val pending = _state.value.pendingConfirmation ?: return
         _state.update { it.copy(pendingConfirmation = null) }
         val current = manager ?: return
         if (pending.kind == PendingConfirmation.Kind.AI && pending.result.commandExecuted != null) {
-            sessionScope.launch {
+            viewModelScope.launch {
                 runCatching { current.persistDeclinedRun(pending.result) }
                     .onFailure { e -> Log.w(TAG, "Failed to persist declined run", e) }
             }
