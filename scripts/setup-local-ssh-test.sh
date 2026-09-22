@@ -128,6 +128,26 @@ if [[ -n "${encrypted_key_path}" ]]; then
   fi
 fi
 
+# A second encrypted key in legacy PEM format. ssh-keygen writes OpenSSH format by default, so
+# the key above covers what users actually have; this one covers `ssh-keygen -m PEM`, which JSch
+# unlocks by a different path. encryptedPemKeyConnectsWithTheCorrectPassphrase and
+# wrongPassphraseOnEncryptedKeyIsReportedAsAPassphraseFailure both skip without it.
+ssh_encrypted_pem_key_b64="${SSH_ENCRYPTED_PEM_KEY_B64:-}"
+
+echo
+pem_hint=""
+if [[ -n "${ssh_encrypted_pem_key_b64}" ]]; then
+  pem_hint=" (leave empty to keep current)"
+fi
+pem_key_path="$(prompt_with_default "Path to a PEM-format passphrase-protected key, optional${pem_hint}" "")"
+if [[ -n "${pem_key_path}" ]]; then
+  if [[ -f "${pem_key_path}" ]]; then
+    ssh_encrypted_pem_key_b64="$(base64 < "${pem_key_path}" | tr -d '\n')"
+  else
+    echo "File not found: ${pem_key_path} — skipping PEM-key setup."
+  fi
+fi
+
 jump_default_enabled="${SSH_JUMP_ENABLED:-false}"
 jump_enabled_input="$(prompt_with_default "Use jump server? [y/N]" "$( [[ "${jump_default_enabled}" == "true" ]] && printf y || printf n )")"
 case "${jump_enabled_input,,}" in
@@ -179,6 +199,7 @@ fi
   printf "SSH_JUMP_USERNAME=%q\n" "${ssh_jump_username}"
   printf "SSH_JUMP_PASSWORD=%q\n" "${ssh_jump_password}"
   printf "SSH_ENCRYPTED_PRIVATE_KEY_B64=%q\n" "${ssh_encrypted_private_key_b64}"
+  printf "SSH_ENCRYPTED_PEM_KEY_B64=%q\n" "${ssh_encrypted_pem_key_b64}"
   printf "SSH_KEY_PASSPHRASE=%q\n" "${ssh_key_passphrase}"
 } > "${CONFIG_FILE}"
 
