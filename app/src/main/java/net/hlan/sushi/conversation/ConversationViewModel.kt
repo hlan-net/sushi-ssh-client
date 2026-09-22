@@ -478,10 +478,22 @@ class ConversationViewModel(
      * the run that owns [turnId] started; a chunk arriving for a session that has since
      * disconnected or been replaced (see [sessionGeneration]'s kdoc) is dropped rather than
      * spliced into the current transcript.
+     *
+     * The generation is re-checked *inside* the [MutableStateFlow.update] lambda, not just once
+     * before calling it: `update`'s CAS loop can re-invoke this lambda, and re-reads
+     * [sessionGeneration] on every invocation, so a disconnect landing in the gap between an
+     * outer check and the state write — vanishingly unlikely, but not provably impossible on a
+     * platform with no ordering guarantee across two independent atomics — still can't slip a
+     * chunk through: the last thing evaluated before any write actually lands is this check.
      */
     private fun appendChunk(turnId: Long, prompt: String, chunk: String, isRaw: Boolean, generation: Long) {
-        if (generation != sessionGeneration.get()) return
-        _state.update { it.copy(transcript = it.transcript.upsertTurn(turnId, prompt, isRaw) { it + chunk }) }
+        _state.update {
+            if (generation != sessionGeneration.get()) {
+                it
+            } else {
+                it.copy(transcript = it.transcript.upsertTurn(turnId, prompt, isRaw) { it + chunk })
+            }
+        }
     }
 
     /**
