@@ -143,6 +143,27 @@ class ConversationViewModelTest {
     }
 
     @Test
+    fun connect_racesRegisteringTheListenerAgainstIsConnected_beginsTheSessionOnlyOnce() = runBlocking {
+        // The ViewModel's init block registers its listener and then reads
+        // connection.isConnected() as a separate step, to pick up a connection that was already
+        // up before it existed. FakeConnection's race arms the exact gap between those two
+        // steps: the listener's onConnected() fires from inside addListener() itself, before
+        // isConnected() is read back — both would try to begin the same session without the
+        // ViewModel's compareAndSet guard.
+        connection.connectRacingNextListenerRegistration(backend)
+
+        val vm = viewModel()
+        vm.awaitIdle()
+
+        assertTrue(vm.state.value.status is ConversationStatus.Connected)
+        assertEquals(
+            "a raced connect must begin the session once, not twice",
+            1,
+            environment.createSessionCallCount
+        )
+    }
+
+    @Test
     fun disconnect_clearsHostStatusAndPendingConfirmation() = runBlocking {
         connection.connect(backend)
         environment.replies("Restarting.\nEXECUTE: sudo systemctl restart nginx")
@@ -198,6 +219,47 @@ class ConversationViewModelTest {
 
         assertEquals(ConversationStatus.Disconnected, vm.state.value.status)
         assertTrue(vm.state.value.transcript.isEmpty())
+        assertFalse(vm.state.value.isBusy)
+        assertTrue(events.all.none { it is ConversationEvent.Error })
+        events.job.cancel()
+    }
+
+    @Test
+    fun disconnect_whileATurnIsInFlight_dropsALateChunkStreamedAfterTheDisconnect() = runBlocking {
+        connection.connect(backend)
+        // Same shape as the race test above, but the stalled call streams a chunk through
+        // onChunk before it returns its final result. That callback comes from
+        // SshClient.execCommand's own reader thread, not from the coroutine sessionScope
+        // cancels below, so it is not stopped by cancellation the way the final result is —
+        // appendChunk itself has to reject it.
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        backend.beforeExecute = {
+            started.countDown()
+            release.await(5, TimeUnit.SECONDS)
+        }
+        backend.on("uptime", SshCommandResult(true, 0, "late output"), streamed = listOf("late output"))
+        environment.replies("Checking.\nEXECUTE: uptime")
+        val vm = viewModel()
+        vm.awaitIdle()
+        val events = recordEventsOf(vm)
+
+        vm.send("is it up?")
+        assertTrue("the backend call should start", started.await(5, TimeUnit.SECONDS))
+
+        connection.disconnect()
+        assertEquals(ConversationStatus.Disconnected, vm.state.value.status)
+
+        // The stalled call resumes, streams its chunk, then returns — all on its own thread,
+        // after the session that started it has already been torn down.
+        release.countDown()
+        delay(200)
+
+        assertEquals(ConversationStatus.Disconnected, vm.state.value.status)
+        assertTrue(
+            "a chunk streamed after disconnect must not be spliced into the transcript",
+            vm.state.value.transcript.isEmpty()
+        )
         assertFalse(vm.state.value.isBusy)
         assertTrue(events.all.none { it is ConversationEvent.Error })
         events.job.cancel()
@@ -541,10 +603,22 @@ class ConversationViewModelTest {
     private class FakeConnection : ActiveConnection {
         private var backend: TerminalBackend? = null
         private val listeners = mutableListOf<ActiveConnection.Listener>()
+        private var raceOnNextAddListener = false
 
         fun connect(backend: TerminalBackend) {
             this.backend = backend
             listeners.toList().forEach { it.onConnected() }
+        }
+
+        /**
+         * Arms a race: the very next [addListener] call notifies the new listener before
+         * returning, as if the connection had finished on another thread in the gap between the
+         * ViewModel registering its listener and reading [isConnected] right afterward —
+         * [isConnected] already reports true by the time that read happens.
+         */
+        fun connectRacingNextListenerRegistration(backend: TerminalBackend) {
+            this.backend = backend
+            raceOnNextAddListener = true
         }
 
         fun disconnect() {
@@ -554,7 +628,13 @@ class ConversationViewModelTest {
 
         override fun isConnected(): Boolean = backend != null
         override fun activeBackend(): TerminalBackend? = backend
-        override fun addListener(listener: ActiveConnection.Listener) { listeners += listener }
+        override fun addListener(listener: ActiveConnection.Listener) {
+            listeners += listener
+            if (raceOnNextAddListener) {
+                raceOnNextAddListener = false
+                listener.onConnected()
+            }
+        }
         override fun removeListener(listener: ActiveConnection.Listener) { listeners -= listener }
     }
 
@@ -569,6 +649,8 @@ class ConversationViewModelTest {
         var createSessionFailure: Exception? = null
         /** When set, [createSession] suspends here until the test completes it. */
         var createSessionGate: CompletableDeferred<Unit>? = null
+        /** How many times [createSession] has run — one session should mean one call. */
+        var createSessionCallCount = 0
         override var autoTroubleshootEnabled: Boolean = true
 
         fun replies(vararg replies: String) {
@@ -576,6 +658,7 @@ class ConversationViewModelTest {
         }
 
         override suspend fun createSession(backend: TerminalBackend): ConversationSession {
+            createSessionCallCount++
             createSessionFailure?.let { throw it }
             createSessionGate?.await()
             val manager = ConversationManager(

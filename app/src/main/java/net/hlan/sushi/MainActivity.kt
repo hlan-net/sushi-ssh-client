@@ -57,7 +57,10 @@ class MainActivity : AppCompatActivity() {
     private val geminiClient by lazy { GeminiClient(applicationContext, geminiSettings, driveAuthManager) }
     private val nanoClient by lazy { GeminiClients.nano(applicationContext) }
     private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
-    private val sshSettings by lazy { SshSettings(this) }
+    // Application context, for the same reason as geminiClient above: the copy handed to
+    // AppConversationEnvironment is kept by ConversationViewModel across rotation, so an
+    // Activity context here would keep this (destroyed) instance reachable through it.
+    private val sshSettings by lazy { SshSettings(applicationContext) }
     private val playDb by lazy { PlayDatabaseHelper.getInstance(this) }
     private val phraseDb by lazy { PhraseDatabaseHelper.getInstance(this) }
     private val commandHistoryDb by lazy { CommandHistoryDatabaseHelper.getInstance(this) }
@@ -270,11 +273,12 @@ class MainActivity : AppCompatActivity() {
         geminiDialogBinding = null
         confirmationDialog?.dismiss()
         confirmationDialog = null
-        // Not nanoClient.close() here: on a rotation this onDestroy() runs while
-        // conversationViewModel (and the AppConversationEnvironment holding the same
-        // nanoClient) survives into the new activity instance, so closing now would hand it a
-        // dead model. AppConversationEnvironment.close() does this instead, from
-        // ConversationViewModel.onCleared() — the point the conversation is actually done.
+        // Not nanoClient.close() here: nanoClient is the process-wide GeminiClients singleton
+        // (see its kdoc), so nothing scoped to one Activity or ViewModel — including this
+        // onDestroy() and ConversationViewModel.onCleared() — closes it. Closing it from here
+        // would leave the next MainActivity/ConversationViewModel that resolves the same
+        // singleton (whether after a rotation or after this Activity is simply relaunched) with
+        // an already-closed model, since GeminiClients.nano() would keep returning it.
     }
 
     private fun maybeResumePendingGitHubSignIn() {

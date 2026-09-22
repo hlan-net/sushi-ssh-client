@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.hlan.sushi.ConversationManager
 import net.hlan.sushi.ConversationResult
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -68,24 +69,53 @@ class ConversationViewModel(
      */
     private var sessionScope: CoroutineScope = newSessionScope()
 
+    /**
+     * Bumped whenever [sessionScope] is (a new connect, or a disconnect). [appendChunk] runs
+     * from [ConversationManager]'s `onChunk` callback, which `SshClient.execCommand` invokes
+     * from its own reader thread rather than from the coroutine — so cancelling [sessionScope]
+     * does not stop a chunk callback already in flight from firing again afterward. Each run
+     * function captures the generation current when it starts and [appendChunk] checks it
+     * against the current value, so a chunk that arrives after a disconnect or a host switch is
+     * dropped instead of being spliced into a transcript that has moved on.
+     */
+    private val sessionGeneration = AtomicLong(0)
+
+    /**
+     * Whether a session has been started for whatever connection is current, reset on
+     * disconnect. The `init` block below registers [listener] and then separately reads
+     * [ActiveConnection.isConnected] to cover a connection that was already up before this
+     * ViewModel existed — but "callbacks may arrive on any thread" ([ActiveConnection.Listener]),
+     * so the connection can finish, and [listener]'s `onConnected()` fire, in the gap between
+     * those two steps. Both would then try to begin the same session. The `compareAndSet` at
+     * each call site lets whichever one runs first win and the other silently no-op, regardless
+     * of which order they land in.
+     */
+    private val sessionAttached = AtomicBoolean(false)
+
     private val listener = object : ActiveConnection.Listener {
         override fun onConnected() {
-            sessionScope = newSessionScope()
-            sessionScope.launch { initializeSession() }
+            if (sessionAttached.compareAndSet(false, true)) beginSession()
         }
 
         override fun onDisconnected() {
             // Not suspend, and callbacks may arrive on any thread; run it inline so the scope
             // is cancelled and the state cleared before anything else can observe either.
+            sessionAttached.set(false)
             clearSession()
         }
     }
 
     init {
         connection.addListener(listener)
-        if (connection.isConnected()) {
-            sessionScope.launch { initializeSession() }
+        if (connection.isConnected() && sessionAttached.compareAndSet(false, true)) {
+            beginSession()
         }
+    }
+
+    private fun beginSession() {
+        sessionGeneration.incrementAndGet()
+        sessionScope = newSessionScope()
+        sessionScope.launch { initializeSession() }
     }
 
     override fun onCleared() {
@@ -225,6 +255,10 @@ class ConversationViewModel(
     }
 
     private fun clearSession() {
+        // Bump first, same reasoning as onConnected(): a chunk callback already running against
+        // the old backend is not stopped by cancelling sessionScope below, so it must find the
+        // generation already moved on by the time it checks.
+        sessionGeneration.incrementAndGet()
         // Cancel first: nothing started against the old backend gets to publish after this.
         // Cancelling leaves a run that was mid-flight without its normal completion (which is
         // what would have cleared isBusy), so this update clears it explicitly — otherwise a
@@ -257,11 +291,12 @@ class ConversationViewModel(
 
     private fun runMessage(current: ConversationManager, message: String) {
         val turnId = turnIds.incrementAndGet()
+        val generation = sessionGeneration.get()
         setBusy(true)
         sessionScope.launch {
             runTracked("Error processing message") {
                 val result = current.processUserMessage(message) { chunk ->
-                    appendChunk(turnId, message, chunk, isRaw = false)
+                    appendChunk(turnId, message, chunk, isRaw = false, generation)
                 }
                 finishTurn(turnId, message, result, isRaw = false, confirmation(message, turnId, result))
                 when {
@@ -277,6 +312,7 @@ class ConversationViewModel(
     }
 
     private fun runConfirmed(current: ConversationManager, pending: PendingConfirmation) {
+        val generation = sessionGeneration.get()
         setBusy(true)
         sessionScope.launch {
             runTracked("Error executing confirmed command") {
@@ -285,7 +321,7 @@ class ConversationViewModel(
                     pending.result.systemResponse,
                     pending.command
                 ) { chunk ->
-                    appendChunk(pending.turnId, pending.userMessage, chunk, isRaw = false)
+                    appendChunk(pending.turnId, pending.userMessage, chunk, isRaw = false, generation)
                 }
                 // A troubleshooting chain can hit a second CONFIRM step after this one was
                 // approved; without this the run would stop silently at that step. Computed
@@ -325,11 +361,12 @@ class ConversationViewModel(
 
     private fun runRaw(current: ConversationManager, command: String) {
         val turnId = turnIds.incrementAndGet()
+        val generation = sessionGeneration.get()
         setBusy(true)
         sessionScope.launch {
             runTracked("Error executing raw command") {
                 val result = current.executeRawCommand(command) { chunk ->
-                    appendChunk(turnId, command, chunk, isRaw = true)
+                    appendChunk(turnId, command, chunk, isRaw = true, generation)
                 }
                 if (result.needsConfirmation) {
                     _state.update {
@@ -360,11 +397,12 @@ class ConversationViewModel(
     }
 
     private fun runConfirmedRaw(current: ConversationManager, pending: PendingConfirmation) {
+        val generation = sessionGeneration.get()
         setBusy(true)
         sessionScope.launch {
             runTracked("Error executing confirmed raw command") {
                 val result = current.executeConfirmedRawCommand(pending.command) { chunk ->
-                    appendChunk(pending.turnId, pending.command, chunk, isRaw = true)
+                    appendChunk(pending.turnId, pending.command, chunk, isRaw = true, generation)
                 }
                 finishTurn(pending.turnId, pending.command, result, isRaw = true)
                 if (result.commandExecuted != null) {
@@ -406,9 +444,13 @@ class ConversationViewModel(
 
     /**
      * Append streamed output to the turn [turnId], creating its row the first time a chunk
-     * arrives. Safe to call from any thread.
+     * arrives. Safe to call from any thread. [generation] is [sessionGeneration] as it was when
+     * the run that owns [turnId] started; a chunk arriving for a session that has since
+     * disconnected or been replaced (see [sessionGeneration]'s kdoc) is dropped rather than
+     * spliced into the current transcript.
      */
-    private fun appendChunk(turnId: Long, prompt: String, chunk: String, isRaw: Boolean) {
+    private fun appendChunk(turnId: Long, prompt: String, chunk: String, isRaw: Boolean, generation: Long) {
+        if (generation != sessionGeneration.get()) return
         _state.update { it.copy(transcript = it.transcript.upsertTurn(turnId, prompt, isRaw) { it + chunk }) }
     }
 
