@@ -101,14 +101,17 @@ class ConversationViewModel(
 
     /**
      * Send what the user typed or said. Raw mode runs it as a shell command; a live session
-     * hands it to the AI; with no session it becomes a command suggestion, as before v0.7.
+     * hands it to the AI; with no session at all it becomes a command suggestion, as before v0.7.
      *
-     * A session that exists but has not finished initialising (still connecting, or its
-     * persona failed to load) still goes to [runMessage]: [ConversationManager.processUserMessage]
-     * itself returns a "not initialized" [ConversationResult] in that case, which the normal
-     * turn/log handling below surfaces. Only the absence of a session at all — [current] null
-     * — falls back to a standalone suggestion; a failed session must not silently behave as if
-     * none existed.
+     * A session whose [manager] already exists — initialised or not — goes to [runMessage]:
+     * [ConversationManager.processUserMessage] itself returns a "not initialized"
+     * [ConversationResult] when it isn't ready yet, which the normal turn/log handling below
+     * surfaces. Between [ConversationStatus.Initializing] starting and [manager] being assigned
+     * — session construction is still running, or threw before it could assign one — there is a
+     * live backend but no manager to route to either; the standalone path would be just as
+     * wrong there as it would for a session that failed after initializing, so anything other
+     * than [ConversationStatus.Disconnected] reports "not connected yet" instead of falling
+     * back to it.
      */
     fun send(text: String) {
         val message = text.trim()
@@ -117,6 +120,7 @@ class ConversationViewModel(
         when {
             _state.value.isRawMode -> sendRaw(message)
             current != null -> runMessage(current, message)
+            _state.value.status !is ConversationStatus.Disconnected -> _events.trySend(ConversationEvent.NotConnected)
             else -> generateStandalone(message)
         }
     }
@@ -173,36 +177,50 @@ class ConversationViewModel(
 
     // ---------------------------------------------------------------- session
 
+    /**
+     * Not wrapped in [runTracked]: a construction failure here must land in
+     * [ConversationStatus.Failed], not in a [ConversationEvent.Error] toast with the status
+     * left at [ConversationStatus.Initializing] forever — [send] already treats any non-
+     * [ConversationStatus.Disconnected] status as "there's a session, wait or see the error",
+     * so getting to [ConversationStatus.Failed] is what lets the UI (and a retry) recover.
+     */
     private suspend fun initializeSession() {
         val backend = connection.activeBackend() ?: return
         _state.update { it.copy(status = ConversationStatus.Initializing) }
 
-        val session = environment.createSession(backend)
+        try {
+            val session = environment.createSession(backend)
 
-        val previousHostId = lastHostId
-        val newHostId = session.hostId
-        if (previousHostId != null && newHostId != null && previousHostId != newHostId) {
-            appendHostSwitch(previousHost = lastHostLabel, newHost = session.hostLabel)
-        }
-        lastHostId = newHostId
-        lastHostLabel = session.hostLabel
-
-        val created = session.manager.apply {
-            autoTroubleshootEnabled = _state.value.autoTroubleshoot
-        }
-        manager = created
-        _state.update { it.copy(hostLabel = session.hostLabel) }
-
-        val result = created.initialize()
-        if (result.success) {
-            _state.update {
-                it.copy(status = ConversationStatus.Connected(result.systemIdentity ?: "Unknown System"))
+            val previousHostId = lastHostId
+            val newHostId = session.hostId
+            if (previousHostId != null && newHostId != null && previousHostId != newHostId) {
+                appendHostSwitch(previousHost = lastHostLabel, newHost = session.hostLabel)
             }
-            if (result.isDefaultPersona) {
-                _events.send(ConversationEvent.DefaultPersonaUsed)
+            lastHostId = newHostId
+            lastHostLabel = session.hostLabel
+
+            val created = session.manager.apply {
+                autoTroubleshootEnabled = _state.value.autoTroubleshoot
             }
-        } else {
-            _state.update { it.copy(status = ConversationStatus.Failed(result.message)) }
+            manager = created
+            _state.update { it.copy(hostLabel = session.hostLabel) }
+
+            val result = created.initialize()
+            if (result.success) {
+                _state.update {
+                    it.copy(status = ConversationStatus.Connected(result.systemIdentity ?: "Unknown System"))
+                }
+                if (result.isDefaultPersona) {
+                    _events.send(ConversationEvent.DefaultPersonaUsed)
+                }
+            } else {
+                _state.update { it.copy(status = ConversationStatus.Failed(result.message)) }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing session", e)
+            _state.update { it.copy(status = ConversationStatus.Failed(e.message ?: "Unknown error")) }
         }
     }
 

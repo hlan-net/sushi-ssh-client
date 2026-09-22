@@ -1,5 +1,6 @@
 package net.hlan.sushi.conversation
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -92,6 +93,53 @@ class ConversationViewModelTest {
         assertEquals("is it up?", turn.prompt)
         assertTrue(turn.response.contains("not initialized", ignoreCase = true))
         assertTrue(backend.executed.isEmpty())
+    }
+
+    @Test
+    fun connect_sessionConstructionThrows_reportsFailedInsteadOfStuckInitializing() = runBlocking {
+        environment.createSessionFailure = IllegalStateException("boom")
+        connection.connect(backend)
+        val vm = viewModel()
+        vm.awaitIdle()
+
+        val status = vm.state.value.status
+        assertTrue(status is ConversationStatus.Failed)
+        assertEquals("boom", (status as ConversationStatus.Failed).message)
+
+        // No manager was ever assigned (construction itself threw), but the status is not
+        // Disconnected either, so a send must still not silently fall back to the standalone,
+        // no-session suggestion path.
+        val events = recordEventsOf(vm)
+        vm.send("is it up?")
+        assertTrue(events.has { it is ConversationEvent.NotConnected })
+        assertTrue(vm.state.value.transcript.isEmpty())
+        events.job.cancel()
+    }
+
+    @Test
+    fun send_duringInitialization_reportsNotConnectedInsteadOfStandaloneFallback() = runBlocking {
+        val gate = CompletableDeferred<Unit>()
+        environment.createSessionGate = gate
+        connection.connect(backend)
+        val vm = viewModel()
+        // The ViewModel's init block already ran initializeSession() up to the point it awaits
+        // the gate inside createSession(): status flipped to Initializing before that
+        // suspension, and manager is not assigned yet.
+        assertEquals(ConversationStatus.Initializing, vm.state.value.status)
+        val events = recordEventsOf(vm)
+
+        vm.send("is it up?")
+
+        assertTrue(events.has { it is ConversationEvent.NotConnected })
+        assertTrue(
+            "must not fall back to a standalone suggestion while a session is still connecting",
+            vm.state.value.transcript.isEmpty()
+        )
+
+        gate.complete(Unit)
+        vm.awaitIdle()
+        assertTrue(vm.state.value.status is ConversationStatus.Connected)
+        events.job.cancel()
     }
 
     @Test
@@ -517,6 +565,10 @@ class ConversationViewModelTest {
         var llm = ScriptedConversationLlm(mutableListOf())
         var standalone = GeminiResult(false, "no session")
         var lastManager: ConversationManager? = null
+        /** When set, [createSession] throws this instead of building a manager. */
+        var createSessionFailure: Exception? = null
+        /** When set, [createSession] suspends here until the test completes it. */
+        var createSessionGate: CompletableDeferred<Unit>? = null
         override var autoTroubleshootEnabled: Boolean = true
 
         fun replies(vararg replies: String) {
@@ -524,6 +576,8 @@ class ConversationViewModelTest {
         }
 
         override suspend fun createSession(backend: TerminalBackend): ConversationSession {
+            createSessionFailure?.let { throw it }
+            createSessionGate?.await()
             val manager = ConversationManager(
                 backend = backend,
                 geminiClient = null,

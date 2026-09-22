@@ -50,11 +50,12 @@ class MainActivity : AppCompatActivity() {
     private val driveAuthManager by lazy { DriveAuthManager(this) }
     private val driveLogSettings by lazy { DriveLogSettings(this) }
     private val driveLogUploader by lazy { DriveLogUploader(this) }
-    // Application context: both objects only use it for getString(), and the copies handed to
-    // AppConversationEnvironment are kept by ConversationViewModel across rotation — an
-    // Activity context there would leak this (destroyed) instance.
+    // Application context: geminiClient only uses it for getString(), and the copy handed to
+    // AppConversationEnvironment is kept by ConversationViewModel across rotation — an Activity
+    // context there would leak this (destroyed) instance. nanoClient is a process-wide
+    // singleton (GeminiClients.nano) rather than an Activity-scoped one: see its kdoc for why.
     private val geminiClient by lazy { GeminiClient(applicationContext, geminiSettings, driveAuthManager) }
-    private val nanoClient by lazy { GeminiNanoClient(applicationContext) }
+    private val nanoClient by lazy { GeminiClients.nano(applicationContext) }
     private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
     private val sshSettings by lazy { SshSettings(this) }
     private val playDb by lazy { PlayDatabaseHelper.getInstance(this) }
