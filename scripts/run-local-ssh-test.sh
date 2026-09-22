@@ -3,15 +3,94 @@ set -euo pipefail
 
 CONFIG_FILE=".local/local-ssh-test.env"
 
+# Every credential this script knows how to pass through. Also the field names a Vault secret is
+# expected to use, so there is no mapping table to keep in sync.
+SSH_TEST_VARS=(
+  SSH_HOST
+  SSH_PORT
+  SSH_USERNAME
+  SSH_PASSWORD
+  SSH_PRIVATE_KEY
+  SSH_PRIVATE_KEY_B64
+  SSH_ENCRYPTED_PRIVATE_KEY_B64
+  SSH_ENCRYPTED_PEM_KEY_B64
+  SSH_KEY_PASSPHRASE
+  SSH_JUMP_ENABLED
+  SSH_JUMP_HOST
+  SSH_JUMP_PORT
+  SSH_JUMP_USERNAME
+  SSH_JUMP_PASSWORD
+)
+
 if [[ "${1:-}" == "--setup" ]]; then
   ./scripts/setup-local-ssh-test.sh
   exit 0
 fi
 
+# Credentials already exported win over every stored source: CI injects them that way, and a
+# stale local file or secret should never silently override what the caller set on purpose.
+declare -A PRESET_FROM_ENV=()
+for var in "${SSH_TEST_VARS[@]}"; do
+  if [[ -n "${!var:-}" ]]; then
+    PRESET_FROM_ENV["${var}"]="${!var}"
+  fi
+done
+
 if [[ -f "${CONFIG_FILE}" ]]; then
   # shellcheck source=/dev/null
   source "${CONFIG_FILE}"
 fi
+
+# Reads credentials from Vault into the same SSH_* variables the rest of this script uses, so
+# nothing downstream changes. One `vault kv get` per field rather than one JSON read: it keeps the
+# script free of a jq or python dependency, at the cost of a request per credential.
+load_credentials_from_vault() {
+  if [[ -z "${SSH_TEST_VAULT_PATH:-}" ]]; then
+    echo "SSH_TEST_SECRET_SOURCE=vault, but SSH_TEST_VAULT_PATH is not set."
+    echo "Point it at the secret holding the credentials, e.g. secret/sushi/local-ssh-test."
+    exit 1
+  fi
+  if ! command -v vault >/dev/null 2>&1; then
+    echo "SSH_TEST_SECRET_SOURCE=vault, but the vault CLI is not on PATH."
+    exit 1
+  fi
+
+  # Probe once before reading fields, so an unreachable Vault or an expired token says so instead
+  # of looking like a secret with every field missing.
+  if ! vault kv get -field=SSH_HOST "${SSH_TEST_VAULT_PATH}" >/dev/null 2>&1; then
+    echo "Cannot read ${SSH_TEST_VAULT_PATH} from Vault at ${VAULT_ADDR:-<VAULT_ADDR unset>}."
+    echo "Check the path, and that 'vault token lookup' succeeds."
+    exit 1
+  fi
+
+  local var value
+  for var in "${SSH_TEST_VARS[@]}"; do
+    # A missing field exits non-zero; most of these credentials are optional, so that is not an
+    # error. An unreachable Vault or a expired token is caught by the probe below instead.
+    if value="$(vault kv get -field="${var}" "${SSH_TEST_VAULT_PATH}" 2>/dev/null)"; then
+      export "${var}=${value}"
+    fi
+  done
+}
+
+# Default stays the local file, so a clone with no configuration behaves exactly as before and a
+# fork never reaches for someone else's secret store. Opting in takes its own variable rather than
+# keying off VAULT_ADDR, which developers commonly export for unrelated reasons.
+case "${SSH_TEST_SECRET_SOURCE:-file}" in
+  file)
+    ;;
+  vault)
+    load_credentials_from_vault
+    ;;
+  *)
+    echo "Unknown SSH_TEST_SECRET_SOURCE='${SSH_TEST_SECRET_SOURCE}'. Use 'file' or 'vault'."
+    exit 1
+    ;;
+esac
+
+for var in "${!PRESET_FROM_ENV[@]}"; do
+  export "${var}=${PRESET_FROM_ENV[${var}]}"
+done
 
 if [[ -z "${SSH_HOST:-}" || -z "${SSH_USERNAME:-}" ]]; then
   echo "Missing SSH_HOST or SSH_USERNAME."
