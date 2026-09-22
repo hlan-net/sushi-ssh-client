@@ -384,6 +384,73 @@ class LocalSshIntegrationTest {
         }
     }
 
+    /**
+     * Covers what [trustHostKeysForUi] deliberately skips in the tests above: the first-trust
+     * dialog itself. Starts from a known-hosts store that has never seen this host, so
+     * `TerminalActivity` has to ask, and the session may only connect once the prompt is accepted.
+     */
+    @Test
+    fun firstConnectPromptsForHostKeyTrustAndConnectsWhenAccepted() {
+        val credentials = readCredentialsOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val sshSettings = SshSettings(context)
+        val testHost = SshConnectionConfig(
+            alias = "Trust Prompt Host",
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
+        )
+        sshSettings.saveHost(testHost)
+        sshSettings.setActiveHostId(testHost.id)
+        sshSettings.setPrivateKey(credentials.privateKey)
+        SshKnownHosts.file(context).delete()
+
+        ActivityScenario.launch(TerminalActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                activity.findViewById<android.view.View>(R.id.terminal_connect_button).performClick()
+            }
+
+            // A jump server presents two unseen keys: the jump host first, then the real target.
+            val prompts = if (testHost.hasJumpServer()) 2 else 1
+            repeat(prompts) { acceptHostKeyTrustPrompt(context) }
+
+            waitForCondition(
+                scenario = scenario,
+                timeoutMs = 20_000,
+                timeoutMessage = "Session did not connect after the host key was trusted"
+            ) { activity ->
+                val statusView = activity.findViewById<TextView>(R.id.terminal_status_text)
+                activity.getString(R.string.terminal_status_connected) == statusView.text.toString()
+            }
+
+            scenario.onActivity { activity ->
+                activity.findViewById<android.view.View>(R.id.terminal_connect_button).performClick()
+            }
+        }
+    }
+
+    /** Taps the first-trust dialog's confirm button once it appears, failing if it never does. */
+    private fun acceptHostKeyTrustPrompt(context: android.content.Context) {
+        val confirmLabel = context.getString(R.string.host_key_trust_confirm)
+        val deadline = System.currentTimeMillis() + 20_000
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                onView(withText(confirmLabel)).perform(click())
+                return
+            } catch (ignored: RuntimeException) {
+                // Not on screen yet; the connect runs off the main thread and the dialog follows.
+                Thread.sleep(250)
+            }
+        }
+        throw AssertionError("Host-key trust dialog never appeared")
+    }
+
     @Test
     fun terminalLsOutputPreservesExpectedLineBreaks() {
         val credentials = readCredentialsOrSkip()
@@ -429,7 +496,11 @@ class LocalSshIntegrationTest {
                 sendRawMethod.isAccessible = true
                 sendRawMethod.invoke(
                     activity,
-                    "rm -rf sushi_linecheck && mkdir sushi_linecheck && cd sushi_linecheck && touch file01 file02 file03 file04 file05 file06 file07 file08 file09 file10 && ls -1 && echo $doneMarker\\n"
+                    // "\n", not "\\n": the latter is a literal backslash-n, so the line was typed
+                    // into the shell and never submitted. The shell echoed it back, the echo
+                    // contained the marker, the wait below was satisfied by the echo, and the
+                    // assertion then counted the file lines of a command that had never run.
+                    "rm -rf sushi_linecheck && mkdir sushi_linecheck && cd sushi_linecheck && touch file01 file02 file03 file04 file05 file06 file07 file08 file09 file10 && ls -1 && echo $doneMarker\n"
                 )
             }
 
@@ -445,7 +516,18 @@ class LocalSshIntegrationTest {
             scenario.onActivity { activity ->
                 val output = activity.findViewById<TextView>(R.id.terminal_output_text).text?.toString().orEmpty()
                 val fileLines = output.lineSequence().count { it.matches(Regex(".*file[0-9]{2}\\s*")) }
-                assertTrue("Expected at least 10 file lines from ls -l, got $fileLines", fileLines >= 10)
+                // The count alone cannot tell "the shell printed nothing" apart from "the lines
+                // arrived but the terminal joined them", which is the regression this test is
+                // named for, so the tail of what was actually rendered goes into the message.
+                val tail = if (output.length > TERMINAL_TAIL_CHARS) {
+                    output.substring(output.length - TERMINAL_TAIL_CHARS)
+                } else {
+                    output
+                }
+                assertTrue(
+                    "Expected at least 10 file lines from ls -1, got $fileLines. Terminal tail:\n$tail",
+                    fileLines >= 10
+                )
             }
         }
     }
@@ -1394,6 +1476,9 @@ class LocalSshIntegrationTest {
 
     companion object {
         private const val DEFAULT_SSH_PORT = 22
+
+        /** How much rendered terminal text a failing line-break assertion reports back. */
+        private const val TERMINAL_TAIL_CHARS = 600
 
         private const val ARG_HOST = "sshHost"
         private const val ARG_PORT = "sshPort"
