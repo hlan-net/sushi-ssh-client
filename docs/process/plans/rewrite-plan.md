@@ -144,6 +144,7 @@ Each row is a decision. "Keep" means the dependency survives to v1.0.
 | Dependency | For |
 |---|---|
 | Compose BOM (current stable), `compose-ui`, `compose-material3`, `compose-foundation`, `compose-ui-tooling-preview`, `activity-compose`, `lifecycle-viewmodel-compose`, `lifecycle-runtime-compose` | UI. |
+| `org.jetbrains.kotlin.plugin.compose` Gradle plugin, at the version of AGP's built-in Kotlin | The Compose compiler. AGP 9's built-in Kotlin does not carry it; without the plugin `@Composable` functions do not compile. Added by `ROADMAP.md` v0.9.0's `ConversationViewModel` PR. |
 | `navigation-compose` with type-safe routes (`kotlinx-serialization` route classes) | Single-activity navigation. |
 | `kotlinx-serialization-json` + the `org.jetbrains.kotlin.plugin.serialization` Gradle plugin | JSON, routes. |
 | `okhttp` (current 4.x or 5.x stable) | HTTP. |
