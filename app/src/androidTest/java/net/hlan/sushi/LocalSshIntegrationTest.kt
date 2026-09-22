@@ -54,6 +54,29 @@ class LocalSshIntegrationTest {
     private fun newTestKnownHostsFile(): File =
         File.createTempFile("sushi_test_known_hosts", null).apply { deleteOnExit() }
 
+    /**
+     * Trusts the host key up front, the way a user would on their first connect, so a UI test can
+     * launch an activity without a dialog waiting on a tap that never comes.
+     *
+     * `TerminalActivity` connects through `DialogUserInfo`, which shows the real host-key trust
+     * dialog and blocks until it is answered. Nothing inside an `ActivityScenario` answers it, so
+     * the session never connects and the wait times out against a perfectly healthy app. One
+     * throwaway connect through [SshClient] writes the key — both keys, when a jump server is in
+     * play — into the same known-hosts file `TerminalActivity` reads.
+     *
+     * The trust dialog itself keeps its coverage in the tests that drive it directly; this only
+     * removes it from tests that are measuring whether a session connects.
+     */
+    private fun trustHostKeysForUi(config: SshConnectionConfig) {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val client = SshClient(config, TestUserInfo, SshKnownHosts.file(context))
+        try {
+            client.connect(onLine = {})
+        } finally {
+            client.disconnect()
+        }
+    }
+
     /** Answers the passphrase prompt with a fixed value, the way a user typing one would. */
     private class PassphraseUserInfo(private val passphrase: String) : UserInfo {
         override fun getPassphrase(): String = passphrase
@@ -319,6 +342,7 @@ class LocalSshIntegrationTest {
         sshSettings.saveHost(testHost)
         sshSettings.setActiveHostId(testHost.id)
         sshSettings.setPrivateKey(credentials.privateKey)
+        trustHostKeysForUi(testHost)
 
         val marker = "SUSHI_UI_TEST_OK_${System.currentTimeMillis()}"
 
@@ -382,6 +406,7 @@ class LocalSshIntegrationTest {
         )
         sshSettings.saveHost(host)
         sshSettings.setActiveHostId(host.id)
+        trustHostKeysForUi(host)
 
         ActivityScenario.launch(TerminalActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
@@ -761,6 +786,7 @@ class LocalSshIntegrationTest {
         )
         sshSettings.saveHost(testHost)
         sshSettings.setActiveHostId(testHost.id)
+        trustHostKeysForUi(testHost)
 
         val logBuilder = StringBuilder()
         fun log(msg: String) {
