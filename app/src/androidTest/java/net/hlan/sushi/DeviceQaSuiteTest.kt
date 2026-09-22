@@ -1,6 +1,7 @@
 package net.hlan.sushi
 
 import android.content.Intent
+import android.graphics.Rect
 import android.util.Base64
 import android.view.View
 import android.view.WindowManager
@@ -401,6 +402,13 @@ class DeviceQaSuiteTest {
      * Scrolls a view into the visible area using the activity's ScrollView.
      * Espresso's scrollTo() doesn't work for views inside ViewPager2 pages,
      * so we scroll programmatically via onActivity.
+     *
+     * `requestChildFocus` only asks the view's immediate parent, which in these layouts is a
+     * plain container that cannot scroll, so on a screen tall enough for the button the call was
+     * a no-op that happened to look correct. `requestRectangleOnScreen` walks the whole parent
+     * chain up to the ScrollView that can. The wait afterwards is what makes the assertion honest:
+     * the scroll lands on the next layout pass, and checking visibility before it does is a race
+     * that resolves differently on a tablet than on a phone.
      */
     private fun <T : AppCompatActivity> scrollIntoView(
         scenario: ActivityScenario<T>,
@@ -408,7 +416,12 @@ class DeviceQaSuiteTest {
     ) {
         scenario.onActivity { activity ->
             val view = activity.findViewById<View>(viewId) ?: return@onActivity
-            view.parent?.requestChildFocus(view, view)
+            view.requestRectangleOnScreen(Rect(0, 0, view.width, view.height), true)
+        }
+        waitForCondition(scenario) { activity ->
+            val view = activity.findViewById<View>(viewId) ?: return@waitForCondition false
+            val visible = Rect()
+            view.getGlobalVisibleRect(visible) && !visible.isEmpty
         }
     }
 
