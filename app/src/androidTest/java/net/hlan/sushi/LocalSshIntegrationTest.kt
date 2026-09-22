@@ -16,6 +16,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
+import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +29,11 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class LocalSshIntegrationTest {
+
+    @Before
+    fun grantRuntimePermissions() {
+        RuntimePermissions.grantAll()
+    }
 
     /**
      * A [UserInfo] test double that answers prompts programmatically instead of showing a
@@ -47,6 +53,29 @@ class LocalSshIntegrationTest {
      * host-key persistence, they just need somewhere harmless for JSch to read/write. */
     private fun newTestKnownHostsFile(): File =
         File.createTempFile("sushi_test_known_hosts", null).apply { deleteOnExit() }
+
+    /**
+     * Trusts the host key up front, the way a user would on their first connect, so a UI test can
+     * launch an activity without a dialog waiting on a tap that never comes.
+     *
+     * `TerminalActivity` connects through `DialogUserInfo`, which shows the real host-key trust
+     * dialog and blocks until it is answered. Nothing inside an `ActivityScenario` answers it, so
+     * the session never connects and the wait times out against a perfectly healthy app. One
+     * throwaway connect through [SshClient] writes the key — both keys, when a jump server is in
+     * play — into the same known-hosts file `TerminalActivity` reads.
+     *
+     * The trust dialog itself keeps its coverage in the tests that drive it directly; this only
+     * removes it from tests that are measuring whether a session connects.
+     */
+    private fun trustHostKeysForUi(config: SshConnectionConfig) {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val client = SshClient(config, TestUserInfo, SshKnownHosts.file(context))
+        try {
+            client.connect(onLine = {})
+        } finally {
+            client.disconnect()
+        }
+    }
 
     /** Answers the passphrase prompt with a fixed value, the way a user typing one would. */
     private class PassphraseUserInfo(private val passphrase: String) : UserInfo {
@@ -313,6 +342,11 @@ class LocalSshIntegrationTest {
         sshSettings.saveHost(testHost)
         sshSettings.setActiveHostId(testHost.id)
         sshSettings.setPrivateKey(credentials.privateKey)
+        // SshClient resolves authentication from the config it is handed, and the key
+        // is stored globally rather than on the host. Copy it in the way
+        // SshSettings.getConfigOrNull() does, or key-only credentials reach the
+        // throwaway connect with neither a key nor a password.
+        trustHostKeysForUi(testHost.copy(privateKey = credentials.privateKey))
 
         val marker = "SUSHI_UI_TEST_OK_${System.currentTimeMillis()}"
 
@@ -354,6 +388,87 @@ class LocalSshIntegrationTest {
         }
     }
 
+    /**
+     * Covers what [trustHostKeysForUi] deliberately skips in the tests above: the first-trust
+     * dialog itself. Starts from a known-hosts store that has never seen this host, so
+     * `TerminalActivity` has to ask, and the session may only connect once the prompt is accepted.
+     */
+    @Test
+    fun firstConnectPromptsForHostKeyTrustAndConnectsWhenAccepted() {
+        val credentials = readCredentialsOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val sshSettings = SshSettings(context)
+        val testHost = SshConnectionConfig(
+            alias = "Trust Prompt Host",
+            host = credentials.host,
+            port = credentials.port,
+            username = credentials.username,
+            password = credentials.password,
+            jumpEnabled = credentials.jumpEnabled,
+            jumpHost = credentials.jumpHost,
+            jumpPort = credentials.jumpPort,
+            jumpUsername = credentials.jumpUsername,
+            jumpPassword = credentials.jumpPassword
+        )
+        sshSettings.saveHost(testHost)
+        sshSettings.setActiveHostId(testHost.id)
+        sshSettings.setPrivateKey(credentials.privateKey)
+        SshKnownHosts.file(context).delete()
+
+        ActivityScenario.launch(TerminalActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                activity.findViewById<android.view.View>(R.id.terminal_connect_button).performClick()
+            }
+
+            // A jump server presents two unseen keys: the jump host first, then the real target.
+            val prompts = if (testHost.hasJumpServer()) 2 else 1
+            repeat(prompts) { acceptHostKeyTrustPrompt(context) }
+
+            waitForCondition(
+                scenario = scenario,
+                timeoutMs = 20_000,
+                timeoutMessage = "Session did not connect after the host key was trusted"
+            ) { activity ->
+                val statusView = activity.findViewById<TextView>(R.id.terminal_status_text)
+                activity.getString(R.string.terminal_status_connected) == statusView.text.toString()
+            }
+
+            scenario.onActivity { activity ->
+                activity.findViewById<android.view.View>(R.id.terminal_connect_button).performClick()
+            }
+        }
+    }
+
+    /** Taps the first-trust dialog's confirm button once it appears, failing if it never does. */
+    private fun acceptHostKeyTrustPrompt(context: android.content.Context) {
+        clickWhenPresent(context.getString(R.string.host_key_trust_confirm))
+    }
+
+    /**
+     * Clicks a dialog button once the dialog is actually up.
+     *
+     * Every dialog in these tests opens after a background step — a connect attempt, key
+     * generation — so Espresso can look before the window exists. How that fails depends on how
+     * early it looks: too early gives NoMatchingViewException, slightly later gives
+     * RootViewWithoutFocusException against a root with has-window-focus=false. Both have been
+     * seen for the same test on the same device across consecutive runs, which is what a race
+     * looks like from the outside.
+     */
+    private fun clickWhenPresent(label: String) {
+        val deadline = System.currentTimeMillis() + DIALOG_TIMEOUT_MS
+        var lastError: RuntimeException? = null
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                onView(withText(label)).perform(click())
+                return
+            } catch (error: RuntimeException) {
+                lastError = error
+                Thread.sleep(250)
+            }
+        }
+        throw AssertionError("Dialog button \"$label\" never became clickable", lastError)
+    }
+
     @Test
     fun terminalLsOutputPreservesExpectedLineBreaks() {
         val credentials = readCredentialsOrSkip()
@@ -376,6 +491,7 @@ class LocalSshIntegrationTest {
         )
         sshSettings.saveHost(host)
         sshSettings.setActiveHostId(host.id)
+        trustHostKeysForUi(host)
 
         ActivityScenario.launch(TerminalActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
@@ -398,7 +514,11 @@ class LocalSshIntegrationTest {
                 sendRawMethod.isAccessible = true
                 sendRawMethod.invoke(
                     activity,
-                    "rm -rf sushi_linecheck && mkdir sushi_linecheck && cd sushi_linecheck && touch file01 file02 file03 file04 file05 file06 file07 file08 file09 file10 && ls -1 && echo $doneMarker\\n"
+                    // "\n", not "\\n": the latter is a literal backslash-n, so the line was typed
+                    // into the shell and never submitted. The shell echoed it back, the echo
+                    // contained the marker, the wait below was satisfied by the echo, and the
+                    // assertion then counted the file lines of a command that had never run.
+                    "rm -rf sushi_linecheck && mkdir sushi_linecheck && cd sushi_linecheck && touch file01 file02 file03 file04 file05 file06 file07 file08 file09 file10 && ls -1 && echo $doneMarker\n"
                 )
             }
 
@@ -414,7 +534,18 @@ class LocalSshIntegrationTest {
             scenario.onActivity { activity ->
                 val output = activity.findViewById<TextView>(R.id.terminal_output_text).text?.toString().orEmpty()
                 val fileLines = output.lineSequence().count { it.matches(Regex(".*file[0-9]{2}\\s*")) }
-                assertTrue("Expected at least 10 file lines from ls -l, got $fileLines", fileLines >= 10)
+                // The count alone cannot tell "the shell printed nothing" apart from "the lines
+                // arrived but the terminal joined them", which is the regression this test is
+                // named for, so the tail of what was actually rendered goes into the message.
+                val tail = if (output.length > TERMINAL_TAIL_CHARS) {
+                    output.substring(output.length - TERMINAL_TAIL_CHARS)
+                } else {
+                    output
+                }
+                assertTrue(
+                    "Expected at least 10 file lines from ls -1, got $fileLines. Terminal tail:\n$tail",
+                    fileLines >= 10
+                )
             }
         }
     }
@@ -465,7 +596,7 @@ class LocalSshIntegrationTest {
                 }
                 // Key generation now prompts for an optional passphrase first; confirm with it
                 // left blank (an explicit, supported "no passphrase" choice) to proceed.
-                onView(withText(R.string.key_passphrase_confirm)).perform(click())
+                clickWhenPresent(context.getString(R.string.key_passphrase_confirm))
 
                 waitForCondition(
                     scenario = keysScenario,
@@ -755,6 +886,7 @@ class LocalSshIntegrationTest {
         )
         sshSettings.saveHost(testHost)
         sshSettings.setActiveHostId(testHost.id)
+        trustHostKeysForUi(testHost)
 
         val logBuilder = StringBuilder()
         fun log(msg: String) {
@@ -1362,6 +1494,12 @@ class LocalSshIntegrationTest {
 
     companion object {
         private const val DEFAULT_SSH_PORT = 22
+
+        /** How much rendered terminal text a failing line-break assertion reports back. */
+        private const val TERMINAL_TAIL_CHARS = 600
+
+        /** How long a dialog opened by a background step gets to appear. */
+        private const val DIALOG_TIMEOUT_MS = 20_000L
 
         private const val ARG_HOST = "sshHost"
         private const val ARG_PORT = "sshPort"
