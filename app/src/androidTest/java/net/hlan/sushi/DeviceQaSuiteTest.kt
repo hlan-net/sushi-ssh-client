@@ -39,6 +39,7 @@ class DeviceQaSuiteTest {
 
     @Before
     fun clearState() {
+        RuntimePermissions.grantAll()
         wakeAndUnlock()
         // Dismiss any crash dialogs or left-over password prompts that would block the next
         // test's ActivityScenario from reaching RESUMED state. BACK first to close the dialog,

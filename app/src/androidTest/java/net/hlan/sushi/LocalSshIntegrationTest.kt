@@ -16,6 +16,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
+import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +29,11 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class LocalSshIntegrationTest {
+
+    @Before
+    fun grantRuntimePermissions() {
+        RuntimePermissions.grantAll()
+    }
 
     /**
      * A [UserInfo] test double that answers prompts programmatically instead of showing a
