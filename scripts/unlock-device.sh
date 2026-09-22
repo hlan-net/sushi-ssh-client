@@ -64,12 +64,11 @@ is_unlocked() { [[ "$(unlock_time)" != "<unknown>" && -n "$(unlock_time)" ]]; }
 # credential-encrypted storage needs. The keyguard can be back in front of it, and
 # that alone denies the test activity window focus, so check both.
 keyguard_showing() {
-  local hits
-  # grep -q would close the pipe on its first match, and under `set -o pipefail`
-  # the resulting SIGPIPE fails the whole pipeline -- inverting the answer.
-  hits="$(adb_sh dumpsys window 2>/dev/null | tr -d '\r' \
-    | grep -c "isKeyguardShowing=true" || true)"
-  [[ "${hits:-0}" -gt 0 ]]
+  local window_dump
+  if ! window_dump="$(adb_sh dumpsys window 2>/dev/null | tr -d '\r')"; then
+    return 0
+  fi
+  [[ "$window_dump" == *"isKeyguardShowing=true"* ]]
 }
 
 ui_dump() {
