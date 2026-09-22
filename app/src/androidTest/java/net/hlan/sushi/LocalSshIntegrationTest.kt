@@ -437,18 +437,32 @@ class LocalSshIntegrationTest {
 
     /** Taps the first-trust dialog's confirm button once it appears, failing if it never does. */
     private fun acceptHostKeyTrustPrompt(context: android.content.Context) {
-        val confirmLabel = context.getString(R.string.host_key_trust_confirm)
-        val deadline = System.currentTimeMillis() + 20_000
+        clickWhenPresent(context.getString(R.string.host_key_trust_confirm))
+    }
+
+    /**
+     * Clicks a dialog button once the dialog is actually up.
+     *
+     * Every dialog in these tests opens after a background step — a connect attempt, key
+     * generation — so Espresso can look before the window exists. How that fails depends on how
+     * early it looks: too early gives NoMatchingViewException, slightly later gives
+     * RootViewWithoutFocusException against a root with has-window-focus=false. Both have been
+     * seen for the same test on the same device across consecutive runs, which is what a race
+     * looks like from the outside.
+     */
+    private fun clickWhenPresent(label: String) {
+        val deadline = System.currentTimeMillis() + DIALOG_TIMEOUT_MS
+        var lastError: RuntimeException? = null
         while (System.currentTimeMillis() < deadline) {
             try {
-                onView(withText(confirmLabel)).perform(click())
+                onView(withText(label)).perform(click())
                 return
-            } catch (ignored: RuntimeException) {
-                // Not on screen yet; the connect runs off the main thread and the dialog follows.
+            } catch (error: RuntimeException) {
+                lastError = error
                 Thread.sleep(250)
             }
         }
-        throw AssertionError("Host-key trust dialog never appeared")
+        throw AssertionError("Dialog button \"$label\" never became clickable", lastError)
     }
 
     @Test
@@ -578,7 +592,7 @@ class LocalSshIntegrationTest {
                 }
                 // Key generation now prompts for an optional passphrase first; confirm with it
                 // left blank (an explicit, supported "no passphrase" choice) to proceed.
-                onView(withText(R.string.key_passphrase_confirm)).perform(click())
+                clickWhenPresent(context.getString(R.string.key_passphrase_confirm))
 
                 waitForCondition(
                     scenario = keysScenario,
@@ -1479,6 +1493,9 @@ class LocalSshIntegrationTest {
 
         /** How much rendered terminal text a failing line-break assertion reports back. */
         private const val TERMINAL_TAIL_CHARS = 600
+
+        /** How long a dialog opened by a background step gets to appear. */
+        private const val DIALOG_TIMEOUT_MS = 20_000L
 
         private const val ARG_HOST = "sshHost"
         private const val ARG_PORT = "sshPort"
