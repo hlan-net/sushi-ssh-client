@@ -474,25 +474,27 @@ class ConversationViewModel(
 
     /**
      * Append streamed output to the turn [turnId], creating its row the first time a chunk
-     * arrives. Safe to call from any thread. [generation] is [sessionGeneration] as it was when
-     * the run that owns [turnId] started; a chunk arriving for a session that has since
-     * disconnected or been replaced (see [sessionGeneration]'s kdoc) is dropped rather than
-     * spliced into the current transcript.
+     * arrives. Safe to call from any thread.
      *
-     * The generation is re-checked *inside* the [MutableStateFlow.update] lambda, not just once
-     * before calling it: `update`'s CAS loop can re-invoke this lambda, and re-reads
-     * [sessionGeneration] on every invocation, so a disconnect landing in the gap between an
-     * outer check and the state write — vanishingly unlikely, but not provably impossible on a
-     * platform with no ordering guarantee across two independent atomics — still can't slip a
-     * chunk through: the last thing evaluated before any write actually lands is this check.
+     * Guarded by [connectionLock] — the same lock [onDisconnected] holds for its own generation
+     * bump and state write. [generation] (a snapshot of [sessionGeneration] from when the run
+     * that owns [turnId] started) and [sessionGeneration] itself are two independent atomics:
+     * moving the check inside the [MutableStateFlow.update] lambda (an earlier version of this
+     * function did that) narrows the gap but cannot close it, since [MutableStateFlow.update]'s
+     * retry loop only re-checks whatever the lambda reads — the `it` value it was invoked with —
+     * and has no way to make that atomic with a *second*, independently-mutated atomic like
+     * [sessionGeneration]. A chunk callback that reads a still-matching generation immediately
+     * before a concurrent disconnect bumps it can still finish its CAS write before that
+     * disconnect gets to its own. Taking [connectionLock] for both closes that: whichever side
+     * gets there first now finishes its entire check-and-write before the other can start, so a
+     * chunk belonging to a session that has since disconnected or been replaced (see
+     * [sessionGeneration]'s kdoc) is dropped instead of being spliced into a transcript that has
+     * moved on.
      */
     private fun appendChunk(turnId: Long, prompt: String, chunk: String, isRaw: Boolean, generation: Long) {
-        _state.update {
-            if (generation != sessionGeneration.get()) {
-                it
-            } else {
-                it.copy(transcript = it.transcript.upsertTurn(turnId, prompt, isRaw) { it + chunk })
-            }
+        synchronized(connectionLock) {
+            if (generation != sessionGeneration.get()) return
+            _state.update { it.copy(transcript = it.transcript.upsertTurn(turnId, prompt, isRaw) { it + chunk }) }
         }
     }
 
