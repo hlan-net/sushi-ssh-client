@@ -4,8 +4,11 @@ import android.content.Intent
 import android.graphics.Rect
 import android.util.Base64
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.ScrollView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.NestedScrollView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
@@ -19,6 +22,7 @@ import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.viewpager2.widget.ViewPager2
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.KeyPair
 import org.hamcrest.Matchers.containsString
@@ -88,7 +92,12 @@ class DeviceQaSuiteTest {
         launchActivity(SettingsActivity::class.java).use { scenario ->
             onView(withId(R.id.settings_title))
                 .check(matches(withText(not(isEmptyOrNullString()))))
-            onView(withText("SSH")).perform(click())
+            // Select the page directly rather than tapping the "SSH" tab. The tap starts a pager
+            // animation the test did not wait for, so on the Nokia T10 the assertion ran while the
+            // SSH page was still a full page to the right: the button reported VISIBLE at 740x60
+            // with a visible rect of x=740..1480 on an 800 px wide screen. setCurrentItem without
+            // smooth scrolling lands the page before the next assertion.
+            selectSettingsPage(scenario, SETTINGS_PAGE_SSH)
             scrollIntoView(scenario, R.id.quick_generate_key_button)
             onView(withId(R.id.quick_generate_key_button)).check(matches(isDisplayed()))
         }
@@ -123,7 +132,7 @@ class DeviceQaSuiteTest {
 
         // SettingsActivity — verify quick-generate-key button on SSH tab
         launchActivity(SettingsActivity::class.java).use { scenario ->
-            onView(withText("SSH")).perform(click())
+            selectSettingsPage(scenario, SETTINGS_PAGE_SSH)
             scrollIntoView(scenario, R.id.quick_generate_key_button)
             onView(withId(R.id.quick_generate_key_button)).check(matches(isDisplayed()))
         }
@@ -416,18 +425,74 @@ class DeviceQaSuiteTest {
     ) {
         scenario.onActivity { activity ->
             val view = activity.findViewById<View>(viewId) ?: return@onActivity
+            // requestRectangleOnScreen is a request the parent chain may decline, and an
+            // unmeasured view asks for an empty rectangle, which every parent declines. Driving
+            // the ScrollView itself is what actually moves the content.
+            val scrollView = findScrollAncestor(view)
+            if (scrollView != null) {
+                scrollView.scrollTo(0, topRelativeTo(view, scrollView))
+            }
             view.requestRectangleOnScreen(Rect(0, 0, view.width, view.height), true)
         }
-        waitForCondition(scenario) { activity ->
+        waitForCondition(scenario, timeoutMessage = { activity ->
+            val view = activity.findViewById<View>(viewId)
+            val visible = Rect()
+            val onScreen = view != null && view.getGlobalVisibleRect(visible)
+            "View $viewId never became visible. size=${view?.width}x${view?.height} " +
+                "visibleRect=$visible onScreen=$onScreen " +
+                "scrollAncestor=${view?.let { findScrollAncestor(it) }?.javaClass?.simpleName} " +
+                "scrollY=${view?.let { findScrollAncestor(it) }?.scrollY}"
+        }) { activity ->
             val view = activity.findViewById<View>(viewId) ?: return@waitForCondition false
             val visible = Rect()
             view.getGlobalVisibleRect(visible) && !visible.isEmpty
         }
     }
 
+    /** Moves the settings carousel to [pageIndex] without an animation to wait out. */
+    private fun <T : AppCompatActivity> selectSettingsPage(
+        scenario: ActivityScenario<T>,
+        pageIndex: Int
+    ) {
+        scenario.onActivity { activity ->
+            activity.findViewById<ViewPager2>(R.id.settings_view_pager)
+                ?.setCurrentItem(pageIndex, false)
+        }
+        waitForCondition(scenario, timeoutMessage = { activity ->
+            val pager = activity.findViewById<ViewPager2>(R.id.settings_view_pager)
+            "Settings pager never settled on page $pageIndex, currentItem=${pager?.currentItem}"
+        }) { activity ->
+            activity.findViewById<ViewPager2>(R.id.settings_view_pager)?.currentItem == pageIndex
+        }
+    }
+
+    /** Nearest ancestor that can scroll vertically, or null when nothing in the chain can. */
+    private fun findScrollAncestor(view: View): ViewGroup? {
+        var parent = view.parent
+        while (parent is ViewGroup) {
+            if (parent is ScrollView || parent is NestedScrollView) {
+                return parent
+            }
+            parent = parent.parent
+        }
+        return null
+    }
+
+    /** Vertical offset of [view] inside [ancestor], summed across the intermediate containers. */
+    private fun topRelativeTo(view: View, ancestor: ViewGroup): Int {
+        var offset = 0
+        var current: View = view
+        while (current !== ancestor) {
+            offset += current.top
+            current = current.parent as? View ?: break
+        }
+        return offset
+    }
+
     private fun <T : AppCompatActivity> waitForCondition(
         scenario: ActivityScenario<T>,
         timeoutMs: Long = 10_000,
+        timeoutMessage: ((T) -> String)? = null,
         condition: (T) -> Boolean
     ) {
         val deadline = System.currentTimeMillis() + timeoutMs
@@ -441,7 +506,15 @@ class DeviceQaSuiteTest {
             }
             Thread.sleep(250)
         }
-        throw AssertionError("Timed out waiting for condition")
+        // "Timed out waiting for condition" names nothing a reader can act on; when the caller
+        // can describe the state it was waiting for, that description goes in instead.
+        var message = "Timed out waiting for condition"
+        if (timeoutMessage != null) {
+            scenario.onActivity { activity ->
+                message = timeoutMessage(activity)
+            }
+        }
+        throw AssertionError(message)
     }
 
     private fun waitUntil(
@@ -466,6 +539,9 @@ class DeviceQaSuiteTest {
     }
 
     companion object {
+        /** SettingsActivity's carousel order: General, SSH, Gemini, Drive. */
+        private const val SETTINGS_PAGE_SSH = 1
+
         private const val PHRASE_INSTALL_KEY = "Install SSH Key"
         private const val PHRASE_REMOVE_SUSHI_KEYS = "Remove Sushi SSH Keys"
 
