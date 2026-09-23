@@ -50,85 +50,11 @@
 # breaking e.g. LayoutInflationTest with NoClassDefFoundError: R$style.
 -keep class net.hlan.sushi.R$* { *; }
 
-# The app APK's own code only calls a fraction of kotlin-stdlib's, kotlinx.coroutines' and
-# androidx.compose's public API, so R8 drops interface default-method implementations
-# ($DefaultImpls classes), bare top-level utility files (e.g. kotlin.ExceptionsKt) and internal
-# helper classes it sees no direct reference to (first surfaced by ConversationScreenTest, the
-# first createComposeRule() instrumented test: its compose-ui-test dependency — specifically
-# kotlinx-coroutines-test's runTest, which it uses internally — both virtual-dispatches into and
-# Class.forName()-probes the compile-time shape at the app APK's runtime copy; androidTest APKs
-# don't duplicate classes already shipped in the tested app APK, so compose-ui-test's calls
-# resolve against this module's own shrunk copies of these libraries). Chasing each stripped
-# member one at a time just surfaced the next one, each unlocked by fixing the last and letting
-# the test run further before crashing: CompletableJob.complete(),
-# kotlinx.coroutines.DelayWithTimeoutDiagnostics, kotlin.time.AbstractLongTimeSource,
-# androidx.compose.ui.platform.InfiniteAnimationPolicy$DefaultImpls,
-# kotlin.coroutines.intrinsics.IntrinsicsKt once runTest() itself started executing, then
-# kotlin.ExceptionsKt once setContent() itself started executing — narrowing to individual
-# kotlin.* subpackages wasn't converging, so keep the whole kotlin.** stdlib (this also
-# subsumes the narrower kotlin.LazyKt/StringsKt/CollectionsKt rules this replaces), plus
-# kotlinx.coroutines.** and androidx.compose.** (a printusage report, `-printusage`,
-# temporarily, showed 83 more androidx.compose $DefaultImpls classes across the
-# animation/foundation/runtime/ui artifacts in the same situation). The same trade CLAUDE.md
-# documents for JSch in proguard-rules.pro. Verified via `dexdump` on app-minifiedDebug.apk
-# that all six previously-stripped classes come back with full definitions, and via a
-# follow-up printusage report that kotlin., kotlinx.coroutines. and androidx.compose. have
-# nothing left fully removed.
--keep class kotlin.** { *; }
--dontwarn kotlin.**
--keep class kotlinx.coroutines.** { *; }
--dontwarn kotlinx.coroutines.**
--keep class androidx.compose.** { *; }
--dontwarn androidx.compose.**
-
-# createComposeRule()'s environment (AndroidComposeUiTestEnvironment.setContent) also hosts a
-# full Activity+ViewModel+SavedState+back-handling integration, so it further needs the
-# "*.compose" bridge subpackage each of those libraries ships — androidx.activity.compose
-# (ComponentActivityKt.setContent, LocalActivity, BackHandler), androidx.lifecycle.compose /
-# androidx.lifecycle.runtime.compose (collectAsStateWithLifecycle), androidx.lifecycle.viewmodel.compose
-# (viewModel()), androidx.savedstate.compose (rememberSaveable's Saver serializers) and
-# androidx.navigationevent.compose (predictive back, which androidx.activity's BackHandler now
-# delegates to). The app's own code uses these libraries' non-"*.compose" surface directly
-# (ComponentActivity, ViewModel, SavedStateHandle), so only the bridge packages needed keeping —
-# first surfaced as NoClassDefFoundError on androidx.activity.compose.ComponentActivityKt.
-# Verified via dexdump and a follow-up -printusage report (not committed) that none of these
-# six bridge packages have anything left fully removed.
--keep class androidx.activity.compose.** { *; }
--dontwarn androidx.activity.compose.**
--keep class androidx.lifecycle.compose.** { *; }
--dontwarn androidx.lifecycle.compose.**
--keep class androidx.lifecycle.runtime.compose.** { *; }
--dontwarn androidx.lifecycle.runtime.compose.**
--keep class androidx.lifecycle.viewmodel.compose.** { *; }
--dontwarn androidx.lifecycle.viewmodel.compose.**
--keep class androidx.savedstate.compose.** { *; }
--dontwarn androidx.savedstate.compose.**
--keep class androidx.navigationevent.compose.** { *; }
--dontwarn androidx.navigationevent.compose.**
-
-# The Compose compiler generates a synthetic $stable static field on every class it processes
-# for stability inference — including this app's own classes used as @Composable parameters
-# (ConversationScreenActions, ConversationUiState, TranscriptItem, PendingConfirmation).
-# Nothing in the app's own code reads $stable directly, so R8 drops it as apparently unused,
-# but Compose's runtime composer does read it to decide whether to skip recomposition. First
-# surfaced as NoSuchFieldError: No field $stable of type I in class
-# Lnet/hlan/sushi/conversation/ConversationScreenActions once ConversationScreenTest actually
-# composed ConversationScreen — the eighth stripped-class round in this same class of issue,
-# and the first in the app's own code rather than a library's.
--keepclassmembers class ** {
-    public static final int $stable;
-}
-
-# androidx.collection (IntSet, ScatterMap etc.) is Compose's own specialized-collection
-# library, used by its input-dispatch machinery (AndroidInputDispatcher, which every
-# performClick()/performTouchInput() call constructs) to track active pointer IDs. The app's
-# own code doesn't reference it, so R8 drops the methods that dispatch actually needs — first
-# surfaced as NoSuchMethodError: No static method intSetOf([I)Landroidx/collection/IntSet; once
-# ConversationScreenTest's click-driving tests actually got far enough to simulate a click
-# (composition itself started succeeding once the $stable fix above landed). Same trade as the
-# rest of this file.
--keep class androidx.collection.** { *; }
--dontwarn androidx.collection.**
-
-
+# The Compose/coroutines/kotlin-stdlib keep rules ConversationScreenTest's instrumented run
+# needed now live in proguard-rules.pro instead of here: what they fixed (interface
+# default-method implementations, the Compose compiler's synthetic $stable field, etc.) turned
+# out to be production surface ConversationScreen itself depends on at runtime, in any build
+# type — not something specific to CI's compose-ui-test dependency. A release build without
+# them would risk the exact same crashes for a real user opening the conversation screen. See
+# proguard-rules.pro for the full history.
 
