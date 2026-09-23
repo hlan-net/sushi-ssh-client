@@ -50,38 +50,33 @@
 # breaking e.g. LayoutInflationTest with NoClassDefFoundError: R$style.
 -keep class net.hlan.sushi.R$* { *; }
 
-# Keep Kotlin helpers required by AndroidX instrumentation startup in minifiedDebug.
--keep class kotlin.LazyKt { *; }
--keep class kotlin.LazyKt__* { *; }
--keep class kotlin.text.StringsKt { *; }
--keep class kotlin.text.StringsKt__* { *; }
--keep class kotlin.collections.CollectionsKt { *; }
--keep class kotlin.collections.CollectionsKt__* { *; }
-
-# The app APK's own code only calls a fraction of kotlinx.coroutines', kotlin.coroutines',
-# kotlin.time's, and androidx.compose's public API, so R8 drops interface default-method
-# implementations ($DefaultImpls classes) and internal helper classes it sees no direct
-# reference to (first surfaced by ConversationScreenTest, the first createComposeRule()
-# instrumented test: its compose-ui-test dependency — specifically kotlinx-coroutines-test's
-# runTest, which it uses internally — both virtual-dispatches into and Class.forName()-probes
-# the compile-time shape at the app APK's runtime copy; androidTest APKs don't duplicate
-# classes already shipped in the tested app APK, so compose-ui-test's calls resolve against
-# this module's own shrunk copies of these libraries). Chasing each stripped member one at a
-# time just surfaced the next one, each unlocked by fixing the last and letting the test run
-# further before crashing: CompletableJob.complete(), kotlinx.coroutines.DelayWithTimeoutDiagnostics,
-# kotlin.time.AbstractLongTimeSource, androidx.compose.ui.platform.InfiniteAnimationPolicy$DefaultImpls,
-# then kotlin.coroutines.intrinsics.IntrinsicsKt once runTest() itself started executing — and a
-# printusage report (`-printusage`, temporarily) showed 83 more androidx.compose $DefaultImpls
-# classes across the animation/foundation/runtime/ui artifacts in the same situation. Keep all
-# four packages whole rather than keep discovering this one CI run at a time, the same trade
-# CLAUDE.md documents for JSch in proguard-rules.pro. Verified via `dexdump` on
-# app-minifiedDebug.apk that all five previously-stripped classes come back with full
-# definitions.
+# The app APK's own code only calls a fraction of kotlin-stdlib's, kotlinx.coroutines' and
+# androidx.compose's public API, so R8 drops interface default-method implementations
+# ($DefaultImpls classes), bare top-level utility files (e.g. kotlin.ExceptionsKt) and internal
+# helper classes it sees no direct reference to (first surfaced by ConversationScreenTest, the
+# first createComposeRule() instrumented test: its compose-ui-test dependency — specifically
+# kotlinx-coroutines-test's runTest, which it uses internally — both virtual-dispatches into and
+# Class.forName()-probes the compile-time shape at the app APK's runtime copy; androidTest APKs
+# don't duplicate classes already shipped in the tested app APK, so compose-ui-test's calls
+# resolve against this module's own shrunk copies of these libraries). Chasing each stripped
+# member one at a time just surfaced the next one, each unlocked by fixing the last and letting
+# the test run further before crashing: CompletableJob.complete(),
+# kotlinx.coroutines.DelayWithTimeoutDiagnostics, kotlin.time.AbstractLongTimeSource,
+# androidx.compose.ui.platform.InfiniteAnimationPolicy$DefaultImpls,
+# kotlin.coroutines.intrinsics.IntrinsicsKt once runTest() itself started executing, then
+# kotlin.ExceptionsKt once setContent() itself started executing — narrowing to individual
+# kotlin.* subpackages wasn't converging, so keep the whole kotlin.** stdlib (this also
+# subsumes the narrower kotlin.LazyKt/StringsKt/CollectionsKt rules this replaces), plus
+# kotlinx.coroutines.** and androidx.compose.** (a printusage report, `-printusage`,
+# temporarily, showed 83 more androidx.compose $DefaultImpls classes across the
+# animation/foundation/runtime/ui artifacts in the same situation). The same trade CLAUDE.md
+# documents for JSch in proguard-rules.pro. Verified via `dexdump` on app-minifiedDebug.apk
+# that all six previously-stripped classes come back with full definitions, and via a
+# follow-up printusage report that kotlin., kotlinx.coroutines. and androidx.compose. have
+# nothing left fully removed.
+-keep class kotlin.** { *; }
+-dontwarn kotlin.**
 -keep class kotlinx.coroutines.** { *; }
 -dontwarn kotlinx.coroutines.**
--keep class kotlin.coroutines.** { *; }
--dontwarn kotlin.coroutines.**
--keep class kotlin.time.** { *; }
--dontwarn kotlin.time.**
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
