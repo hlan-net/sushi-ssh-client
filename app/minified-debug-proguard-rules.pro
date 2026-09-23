@@ -80,3 +80,29 @@
 -dontwarn kotlinx.coroutines.**
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
+
+# createComposeRule()'s environment (AndroidComposeUiTestEnvironment.setContent) also hosts a
+# full Activity+ViewModel+SavedState+back-handling integration, so it further needs the
+# "*.compose" bridge subpackage each of those libraries ships — androidx.activity.compose
+# (ComponentActivityKt.setContent, LocalActivity, BackHandler), androidx.lifecycle.compose /
+# androidx.lifecycle.runtime.compose (collectAsStateWithLifecycle), androidx.lifecycle.viewmodel.compose
+# (viewModel()), androidx.savedstate.compose (rememberSaveable's Saver serializers) and
+# androidx.navigationevent.compose (predictive back, which androidx.activity's BackHandler now
+# delegates to). The app's own code uses these libraries' non-"*.compose" surface directly
+# (ComponentActivity, ViewModel, SavedStateHandle), so only the bridge packages needed keeping —
+# first surfaced as NoClassDefFoundError on androidx.activity.compose.ComponentActivityKt.
+# Verified via dexdump and a follow-up -printusage report (not committed) that none of these
+# six bridge packages have anything left fully removed.
+-keep class androidx.activity.compose.** { *; }
+-dontwarn androidx.activity.compose.**
+-keep class androidx.lifecycle.compose.** { *; }
+-dontwarn androidx.lifecycle.compose.**
+-keep class androidx.lifecycle.runtime.compose.** { *; }
+-dontwarn androidx.lifecycle.runtime.compose.**
+-keep class androidx.lifecycle.viewmodel.compose.** { *; }
+-dontwarn androidx.lifecycle.viewmodel.compose.**
+-keep class androidx.savedstate.compose.** { *; }
+-dontwarn androidx.savedstate.compose.**
+-keep class androidx.navigationevent.compose.** { *; }
+-dontwarn androidx.navigationevent.compose.**
+
