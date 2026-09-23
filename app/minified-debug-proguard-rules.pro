@@ -119,4 +119,16 @@
     public static final int $stable;
 }
 
+# androidx.collection (IntSet, ScatterMap etc.) is Compose's own specialized-collection
+# library, used by its input-dispatch machinery (AndroidInputDispatcher, which every
+# performClick()/performTouchInput() call constructs) to track active pointer IDs. The app's
+# own code doesn't reference it, so R8 drops the methods that dispatch actually needs — first
+# surfaced as NoSuchMethodError: No static method intSetOf([I)Landroidx/collection/IntSet; once
+# ConversationScreenTest's click-driving tests actually got far enough to simulate a click
+# (composition itself started succeeding once the $stable fix above landed). Same trade as the
+# rest of this file.
+-keep class androidx.collection.** { *; }
+-dontwarn androidx.collection.**
+
+
 
