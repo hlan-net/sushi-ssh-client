@@ -426,7 +426,6 @@
     <string name="download_share">Compartir</string>
     <string name="download_done">Listo</string>
     <string name="download_no_viewer">Ninguna aplicación puede abrir este tipo de archivo.</string>
-    <string name="gemini_transcript_label">Historial de conversación</string>
     <string name="gemini_transcript_you_label">Tú</string>
     <string name="gemini_transcript_gemini_label">Gemini</string>
     <string name="gemini_transcript_command_label">Comando ejecutado</string>
@@ -477,16 +476,16 @@
     <string name="troubleshoot_mode_caption">La IA sigue ejecutando comprobaciones seguras hasta llegar a una conclusión. Los comandos que requieren confirmación siguen deteniéndose para preguntar.</string>
     <string name="action_send_message">Enviar mensaje</string>
     <string name="conversation_confirm_command_title">Confirmar comando</string>
-    <string name="conversation_confirm_command_message">¿Ejecutar este comando?\n\n%1$s</string>
-    <string name="conversation_command_blocked">Comando bloqueado por seguridad</string>
-    <string name="conversation_executing">Ejecutando...</string>
     <string name="conversation_initializing">Conectando al sistema...</string>
     <string name="conversation_init_failed">No se pudo iniciar la conversación: %1$s</string>
     <string name="conversation_connected_to">Conectado a: %1$s</string>
-    <string name="conversation_active_host">Hablando con %1$s</string>
-    <string name="conversation_no_active_host">Sin conexión a ningún host</string>
     <string name="conversation_host_switch_title">Host cambiado</string>
     <string name="conversation_host_switch_detail">Ahora hablas con %2$s. Los mensajes anteriores de esta transcripción fueron con %1$s; el contexto del sistema se ha recargado.</string>
+    <string name="conversation_input_hint_with_host">Pregunta sobre %1$s…</string>
+    <string name="conversation_screen_back">Atrás</string>
+    <string name="conversation_screen_more_actions">Más acciones</string>
+    <string name="action_confirm_run">Ejecutar</string>
+    <string name="action_confirm_skip">Omitir</string>
 
     <!-- Connection error banner -->
     <string name="action_dismiss">Descartar</string>

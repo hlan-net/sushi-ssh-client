@@ -425,7 +425,6 @@
     <string name="download_share">Teilen</string>
     <string name="download_done">Fertig</string>
     <string name="download_no_viewer">Keine App kann diesen Dateityp öffnen.</string>
-    <string name="gemini_transcript_label">Gesprächsverlauf</string>
     <string name="gemini_transcript_you_label">Du</string>
     <string name="gemini_transcript_gemini_label">Gemini</string>
     <string name="gemini_transcript_command_label">Ausgeführter Befehl</string>
@@ -476,16 +475,16 @@
     <string name="troubleshoot_mode_caption">Die KI führt weiter sichere Prüfungen aus, bis sie zu einem Ergebnis kommt. Befehle, die eine Bestätigung brauchen, halten weiterhin an und fragen nach.</string>
     <string name="action_send_message">Nachricht senden</string>
     <string name="conversation_confirm_command_title">Befehl bestätigen</string>
-    <string name="conversation_confirm_command_message">Diesen Befehl ausführen?\n\n%1$s</string>
-    <string name="conversation_command_blocked">Befehl aus Sicherheitsgründen blockiert</string>
-    <string name="conversation_executing">Wird ausgeführt...</string>
     <string name="conversation_initializing">Verbinde mit System...</string>
     <string name="conversation_init_failed">Konversation konnte nicht initialisiert werden: %1$s</string>
     <string name="conversation_connected_to">Verbunden mit: %1$s</string>
-    <string name="conversation_active_host">Verbunden mit %1$s</string>
-    <string name="conversation_no_active_host">Mit keinem Host verbunden</string>
     <string name="conversation_host_switch_title">Host gewechselt</string>
     <string name="conversation_host_switch_detail">Du sprichst jetzt mit %2$s. Frühere Nachrichten in diesem Protokoll waren mit %1$s; der Systemkontext wurde neu geladen.</string>
+    <string name="conversation_input_hint_with_host">Frag %1$s…</string>
+    <string name="conversation_screen_back">Zurück</string>
+    <string name="conversation_screen_more_actions">Weitere Aktionen</string>
+    <string name="action_confirm_run">Ausführen</string>
+    <string name="action_confirm_skip">Überspringen</string>
 
     <!-- Connection error banner -->
     <string name="action_dismiss">Schließen</string>

@@ -425,7 +425,6 @@
     <string name="download_share">Dela</string>
     <string name="download_done">Klar</string>
     <string name="download_no_viewer">Ingen app kan öppna den här filtypen.</string>
-    <string name="gemini_transcript_label">Konversationshistorik</string>
     <string name="gemini_transcript_you_label">Du</string>
     <string name="gemini_transcript_gemini_label">Gemini</string>
     <string name="gemini_transcript_command_label">Kört kommando</string>
@@ -476,16 +475,16 @@
     <string name="troubleshoot_mode_caption">AI:n fortsätter köra säkra kontroller tills den når en slutsats. Kommandon som kräver bekräftelse stannar fortfarande och frågar.</string>
     <string name="action_send_message">Skicka meddelande</string>
     <string name="conversation_confirm_command_title">Bekräfta kommando</string>
-    <string name="conversation_confirm_command_message">Kör det här kommandot?\n\n%1$s</string>
-    <string name="conversation_command_blocked">Kommando blockerat av säkerhetsskäl</string>
-    <string name="conversation_executing">Kör...</string>
     <string name="conversation_initializing">Ansluter till systemet...</string>
     <string name="conversation_init_failed">Kunde inte initiera konversation: %1$s</string>
     <string name="conversation_connected_to">Ansluten till: %1$s</string>
-    <string name="conversation_active_host">Pratar med %1$s</string>
-    <string name="conversation_no_active_host">Inte ansluten till någon host</string>
     <string name="conversation_host_switch_title">Host bytt</string>
     <string name="conversation_host_switch_detail">Du pratar nu med %2$s. Tidigare meddelanden i den här utskriften var med %1$s; systemkontexten har laddats om.</string>
+    <string name="conversation_input_hint_with_host">Fråga om %1$s…</string>
+    <string name="conversation_screen_back">Tillbaka</string>
+    <string name="conversation_screen_more_actions">Fler åtgärder</string>
+    <string name="action_confirm_run">Kör</string>
+    <string name="action_confirm_skip">Hoppa över</string>
 
     <!-- Connection error banner -->
     <string name="action_dismiss">Stäng</string>

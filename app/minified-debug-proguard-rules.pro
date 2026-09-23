@@ -50,10 +50,11 @@
 # breaking e.g. LayoutInflationTest with NoClassDefFoundError: R$style.
 -keep class net.hlan.sushi.R$* { *; }
 
-# Keep Kotlin helpers required by AndroidX instrumentation startup in minifiedDebug.
--keep class kotlin.LazyKt { *; }
--keep class kotlin.LazyKt__* { *; }
--keep class kotlin.text.StringsKt { *; }
--keep class kotlin.text.StringsKt__* { *; }
--keep class kotlin.collections.CollectionsKt { *; }
--keep class kotlin.collections.CollectionsKt__* { *; }
+# The Compose/coroutines/kotlin-stdlib keep rules ConversationScreenTest's instrumented run
+# needed now live in proguard-rules.pro instead of here: what they fixed (interface
+# default-method implementations, the Compose compiler's synthetic $stable field, etc.) turned
+# out to be production surface ConversationScreen itself depends on at runtime, in any build
+# type — not something specific to CI's compose-ui-test dependency. A release build without
+# them would risk the exact same crashes for a real user opening the conversation screen. See
+# proguard-rules.pro for the full history.
+

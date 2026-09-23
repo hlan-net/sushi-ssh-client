@@ -445,7 +445,6 @@
     <string name="download_done">Done</string>
     <string name="download_no_viewer">No app can open this file type.</string>
 
-    <string name="gemini_transcript_label">Conversation history</string>
     <string name="gemini_transcript_you_label">You</string>
     <string name="gemini_transcript_gemini_label">Gemini</string>
     <string name="gemini_transcript_command_label">Command run</string>
@@ -497,16 +496,16 @@
     <string name="troubleshoot_mode_caption">The AI keeps running safe checks until it reaches a conclusion. Commands that need confirmation still stop and ask.</string>
     <string name="action_send_message">Send message</string>
     <string name="conversation_confirm_command_title">Confirm Command</string>
-    <string name="conversation_confirm_command_message">Execute this command?\n\n%1$s</string>
-    <string name="conversation_command_blocked">Command blocked for safety</string>
-    <string name="conversation_executing">Executing...</string>
     <string name="conversation_initializing">Connecting to system...</string>
     <string name="conversation_init_failed">Failed to initialize conversation: %1$s</string>
     <string name="conversation_connected_to">Connected to: %1$s</string>
-    <string name="conversation_active_host">Talking to %1$s</string>
-    <string name="conversation_no_active_host">Not connected to a host</string>
     <string name="conversation_host_switch_title">Host switched</string>
     <string name="conversation_host_switch_detail">Now talking to %2$s. Earlier messages in this transcript were with %1$s; the system context has been reloaded.</string>
+    <string name="conversation_input_hint_with_host">Ask about %1$s…</string>
+    <string name="conversation_screen_back">Back</string>
+    <string name="conversation_screen_more_actions">More actions</string>
+    <string name="action_confirm_run">Run</string>
+    <string name="action_confirm_skip">Skip</string>
     <!-- Connection error banner -->
     <string name="action_dismiss">Dismiss</string>
     <string name="action_retry">Retry</string>
