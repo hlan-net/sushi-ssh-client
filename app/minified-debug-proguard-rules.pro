@@ -57,3 +57,15 @@
 -keep class kotlin.text.StringsKt__* { *; }
 -keep class kotlin.collections.CollectionsKt { *; }
 -keep class kotlin.collections.CollectionsKt__* { *; }
+
+# kotlinx.coroutines.Job/CompletableJob ships as an interface with default method bodies.
+# The app APK's own code never calls Job.complete() directly, so R8 drops it as an
+# interface method here; the test APK's compose-ui-test (ConversationScreenTest, the first
+# createComposeRule() instrumented test) still virtual-dispatches into it against the
+# compile-time shape, and fails at the app APK's runtime copy with
+# "NoSuchMethodError: No interface method complete()Z in class Lkotlinx/coroutines/CompletableJob".
+# Keep the Job hierarchy's interface shape whole rather than chase which member trips this.
+-keep interface kotlinx.coroutines.Job { *; }
+-keep interface kotlinx.coroutines.CompletableJob { *; }
+-keep interface kotlinx.coroutines.ChildJob { *; }
+-keep interface kotlinx.coroutines.ParentJob { *; }

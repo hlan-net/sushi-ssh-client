@@ -21,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
+import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -230,6 +231,9 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         setUpConversationScreen()
         onBackPressedDispatcher.addCallback(this, conversationBackCallback)
+        if (savedInstanceState?.getBoolean(KEY_CONVERSATION_SCREEN_VISIBLE) == true) {
+            showConversationScreen()
+        }
 
         binding.startSessionButton.setOnClickListener {
             startActivity(TerminalActivity.createIntent(this, autoConnect = true))
@@ -277,6 +281,11 @@ class MainActivity : AppCompatActivity() {
         refreshPlaysPageState()
         warmUpNanoIfAvailable()
         updateSetupChecklist()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_CONVERSATION_SCREEN_VISIBLE, conversationComposeView.isVisible)
     }
 
     override fun onDestroy() {
@@ -1159,5 +1168,6 @@ class MainActivity : AppCompatActivity() {
         private const val PAGE_PLAYS = 1
         private const val PREFS_MAIN_UI = "main_ui"
         private const val PREF_MAIN_TAB = "pref_main_tab"
+        private const val KEY_CONVERSATION_SCREEN_VISIBLE = "conversation_screen_visible"
     }
 }

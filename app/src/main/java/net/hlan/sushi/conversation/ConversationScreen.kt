@@ -132,6 +132,7 @@ fun ConversationScreen(
                     hostLabel = state.hostLabel,
                     isRawMode = state.isRawMode,
                     isBusy = state.isBusy,
+                    hasPendingConfirmation = state.pendingConfirmation != null,
                     onSend = actions.onSend,
                     onVoice = actions.onVoice
                 )
@@ -265,7 +266,8 @@ private fun ConversationTranscript(
 ) {
     val listState = rememberLazyListState()
     val itemCount = transcript.size + if (pendingConfirmation != null) 1 else 0
-    LaunchedEffect(itemCount) {
+    val streamingResponse = (transcript.lastOrNull() as? TranscriptItem.Turn)?.response
+    LaunchedEffect(itemCount, streamingResponse, pendingConfirmation) {
         if (itemCount > 0) listState.scrollToItem(itemCount - 1)
     }
     LazyColumn(
@@ -410,10 +412,12 @@ private fun ConversationInputBar(
     hostLabel: String?,
     isRawMode: Boolean,
     isBusy: Boolean,
+    hasPendingConfirmation: Boolean,
     onSend: (String) -> Unit,
     onVoice: () -> Unit
 ) {
     var text by remember { mutableStateOf("") }
+    val inputEnabled = !isBusy && !hasPendingConfirmation
     val hint = when {
         isRawMode -> stringResource(R.string.raw_terminal_mode_hint)
         !hostLabel.isNullOrBlank() -> stringResource(R.string.conversation_input_hint_with_host, hostLabel)
@@ -440,15 +444,16 @@ private fun ConversationInputBar(
             modifier = Modifier
                 .weight(1f)
                 .testTag(ConversationScreenTestTags.INPUT_FIELD),
-            enabled = !isBusy,
+            enabled = inputEnabled,
             placeholder = { Text(hint) },
             shape = RoundedCornerShape(20.dp),
+            maxLines = 3,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { submit() })
         )
         IconButton(
             onClick = onVoice,
-            enabled = !isBusy,
+            enabled = inputEnabled,
             modifier = Modifier.testTag(ConversationScreenTestTags.VOICE_BUTTON)
         ) {
             Icon(
@@ -458,7 +463,7 @@ private fun ConversationInputBar(
         }
         IconButton(
             onClick = ::submit,
-            enabled = !isBusy && text.isNotBlank(),
+            enabled = inputEnabled && text.isNotBlank(),
             modifier = Modifier.testTag(ConversationScreenTestTags.SEND_BUTTON)
         ) {
             Icon(
