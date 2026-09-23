@@ -39,6 +39,7 @@ import kotlinx.coroutines.withContext
 import net.hlan.sushi.conversation.AppConversationEnvironment
 import net.hlan.sushi.conversation.ConversationEvent
 import net.hlan.sushi.conversation.ConversationScreen
+import net.hlan.sushi.conversation.ConversationScreenActions
 import net.hlan.sushi.conversation.ConversationStatus
 import net.hlan.sushi.conversation.ConversationViewModel
 import net.hlan.sushi.databinding.ActivityMainBinding
@@ -513,16 +514,18 @@ class MainActivity : AppCompatActivity() {
             ConversationScreen(
                 state = state,
                 availabilityStatus = availabilityStatus,
-                onBack = ::hideConversationScreen,
-                onSend = conversationViewModel::send,
-                onVoice = ::handleGeminiVoice,
-                onSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
-                onHistory = { startActivity(GeminiHistoryActivity.createIntent(this)) },
-                onCopy = ::copyGeminiCommand,
-                onRawModeChange = conversationViewModel::setRawMode,
-                onAutoTroubleshootChange = conversationViewModel::setAutoTroubleshoot,
-                onConfirmPending = conversationViewModel::confirmPending,
-                onDeclinePending = conversationViewModel::declinePending
+                actions = ConversationScreenActions(
+                    onBack = ::hideConversationScreen,
+                    onSend = conversationViewModel::send,
+                    onVoice = ::handleGeminiVoice,
+                    onSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
+                    onHistory = { startActivity(GeminiHistoryActivity.createIntent(this)) },
+                    onCopy = ::copyGeminiCommand,
+                    onRawModeChange = conversationViewModel::setRawMode,
+                    onAutoTroubleshootChange = conversationViewModel::setAutoTroubleshoot,
+                    onConfirmPending = conversationViewModel::confirmPending,
+                    onDeclinePending = conversationViewModel::declinePending
+                )
             )
         }
     }

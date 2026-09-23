@@ -44,16 +44,18 @@ class ConversationScreenTest {
             ConversationScreen(
                 state = state,
                 availabilityStatus = availabilityStatus,
-                onBack = onBack,
-                onSend = onSend,
-                onVoice = onVoice,
-                onSettings = onSettings,
-                onHistory = onHistory,
-                onCopy = onCopy,
-                onRawModeChange = onRawModeChange,
-                onAutoTroubleshootChange = onAutoTroubleshootChange,
-                onConfirmPending = onConfirmPending,
-                onDeclinePending = onDeclinePending
+                actions = ConversationScreenActions(
+                    onBack = onBack,
+                    onSend = onSend,
+                    onVoice = onVoice,
+                    onSettings = onSettings,
+                    onHistory = onHistory,
+                    onCopy = onCopy,
+                    onRawModeChange = onRawModeChange,
+                    onAutoTroubleshootChange = onAutoTroubleshootChange,
+                    onConfirmPending = onConfirmPending,
+                    onDeclinePending = onDeclinePending
+                )
             )
         }
     }

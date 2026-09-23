@@ -64,10 +64,28 @@ object ConversationScreenTestTags {
 }
 
 /**
+ * The callbacks [ConversationScreen] reports user intent through, grouped into one type so the
+ * screen's own parameter list stays small (SonarCloud `kotlin:S107`) while each callback keeps its
+ * own name at the call site.
+ */
+data class ConversationScreenActions(
+    val onBack: () -> Unit,
+    val onSend: (String) -> Unit,
+    val onVoice: () -> Unit,
+    val onSettings: () -> Unit,
+    val onHistory: () -> Unit,
+    val onCopy: () -> Unit,
+    val onRawModeChange: (Boolean) -> Unit,
+    val onAutoTroubleshootChange: (Boolean) -> Unit,
+    val onConfirmPending: () -> Unit,
+    val onDeclinePending: () -> Unit
+)
+
+/**
  * The AI conversation as a full-screen destination (ROADMAP.md v0.9.0; Figma card
  * `node-id=103-2`), replacing the `AlertDialog` `MainActivity` used to show. A pure function of
- * [state] plus the callbacks below, so [MainActivity][net.hlan.sushi.MainActivity] mounts it
- * through a `ComposeView` without owning any of the conversation's own logic.
+ * [state] plus [actions], so [MainActivity][net.hlan.sushi.MainActivity] mounts it through a
+ * `ComposeView` without owning any of the conversation's own logic.
  *
  * [availabilityStatus] is the Gemini on/off/ready text [state]'s [ConversationStatus.Disconnected]
  * falls back to — computed from `GeminiSettings`/`GeminiClient`/Nano's status the same way the
@@ -77,16 +95,7 @@ object ConversationScreenTestTags {
 fun ConversationScreen(
     state: ConversationUiState,
     availabilityStatus: String,
-    onBack: () -> Unit,
-    onSend: (String) -> Unit,
-    onVoice: () -> Unit,
-    onSettings: () -> Unit,
-    onHistory: () -> Unit,
-    onCopy: () -> Unit,
-    onRawModeChange: (Boolean) -> Unit,
-    onAutoTroubleshootChange: (Boolean) -> Unit,
-    onConfirmPending: () -> Unit,
-    onDeclinePending: () -> Unit,
+    actions: ConversationScreenActions,
     modifier: Modifier = Modifier
 ) {
     SushiComposeTheme {
@@ -96,17 +105,17 @@ fun ConversationScreen(
                     hostLabel = state.hostLabel,
                     statusSubtitle = statusSubtitle(state.status, availabilityStatus),
                     hasOutput = state.hasOutput,
-                    onBack = onBack,
-                    onSettings = onSettings,
-                    onHistory = onHistory,
-                    onCopy = onCopy
+                    onBack = actions.onBack,
+                    onSettings = actions.onSettings,
+                    onHistory = actions.onHistory,
+                    onCopy = actions.onCopy
                 )
                 ConversationToggleRow(
                     isRawMode = state.isRawMode,
                     autoTroubleshoot = state.autoTroubleshoot,
                     troubleshootEnabled = !state.isBusy && !state.isRawMode,
-                    onRawModeChange = onRawModeChange,
-                    onAutoTroubleshootChange = onAutoTroubleshootChange
+                    onRawModeChange = actions.onRawModeChange,
+                    onAutoTroubleshootChange = actions.onAutoTroubleshootChange
                 )
                 if (state.isBusy) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -115,16 +124,16 @@ fun ConversationScreen(
                     transcript = state.transcript,
                     isBusy = state.isBusy,
                     pendingConfirmation = state.pendingConfirmation,
-                    onConfirmPending = onConfirmPending,
-                    onDeclinePending = onDeclinePending,
+                    onConfirmPending = actions.onConfirmPending,
+                    onDeclinePending = actions.onDeclinePending,
                     modifier = Modifier.weight(1f)
                 )
                 ConversationInputBar(
                     hostLabel = state.hostLabel,
                     isRawMode = state.isRawMode,
                     isBusy = state.isBusy,
-                    onSend = onSend,
-                    onVoice = onVoice
+                    onSend = actions.onSend,
+                    onVoice = actions.onVoice
                 )
             }
         }
