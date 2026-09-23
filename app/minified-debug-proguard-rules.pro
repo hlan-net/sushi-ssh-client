@@ -58,14 +58,13 @@
 -keep class kotlin.collections.CollectionsKt { *; }
 -keep class kotlin.collections.CollectionsKt__* { *; }
 
-# kotlinx.coroutines.Job/CompletableJob ships as an interface with default method bodies.
-# The app APK's own code never calls Job.complete() directly, so R8 drops it as an
-# interface method here; the test APK's compose-ui-test (ConversationScreenTest, the first
-# createComposeRule() instrumented test) still virtual-dispatches into it against the
-# compile-time shape, and fails at the app APK's runtime copy with
-# "NoSuchMethodError: No interface method complete()Z in class Lkotlinx/coroutines/CompletableJob".
-# Keep the Job hierarchy's interface shape whole rather than chase which member trips this.
--keep interface kotlinx.coroutines.Job { *; }
--keep interface kotlinx.coroutines.CompletableJob { *; }
--keep interface kotlinx.coroutines.ChildJob { *; }
--keep interface kotlinx.coroutines.ParentJob { *; }
+# The app APK's own code only calls a fraction of kotlinx.coroutines' public API, so R8 drops
+# interface methods and internal helper classes it sees no reference to (first surfaced by
+# ConversationScreenTest, the first createComposeRule() instrumented test: its compose-ui-test
+# dependency still virtual-dispatches into the compile-time shape at the app APK's runtime
+# copy). Chasing each stripped member one at a time just surfaces the next one —
+# "NoSuchMethodError: No interface method complete()Z in class Lkotlinx/coroutines/CompletableJob",
+# then "ClassNotFoundException: kotlinx.coroutines.DelayWithTimeoutDiagnostics" — so keep the
+# whole package whole, the same trade CLAUDE.md documents for JSch in proguard-rules.pro.
+-keep class kotlinx.coroutines.** { *; }
+-dontwarn kotlinx.coroutines.**
