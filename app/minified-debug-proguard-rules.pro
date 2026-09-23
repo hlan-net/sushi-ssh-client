@@ -58,20 +58,26 @@
 -keep class kotlin.collections.CollectionsKt { *; }
 -keep class kotlin.collections.CollectionsKt__* { *; }
 
-# The app APK's own code only calls a fraction of kotlinx.coroutines' (and, transitively,
-# kotlin.time's) public API, so R8 drops interface methods and internal helper classes it sees
-# no direct reference to (first surfaced by ConversationScreenTest, the first
-# createComposeRule() instrumented test: its compose-ui-test dependency both virtual-dispatches
-# into and Class.forName()-probes the compile-time shape at the app APK's runtime copy).
-# Chasing each stripped member one at a time just surfaced the next one —
-# "NoSuchMethodError: No interface method complete()Z in class Lkotlinx/coroutines/CompletableJob",
-# then "ClassNotFoundException: kotlinx.coroutines.DelayWithTimeoutDiagnostics", then
-# "ClassNotFoundException: kotlin.time.AbstractLongTimeSource" (kotlinx-coroutines' own
-# reflective feature-detection for the newer kotlin.time.TimeSource/Clock API) — so keep both
-# packages whole, the same trade CLAUDE.md documents for JSch in proguard-rules.pro. Verified
-# via `dexdump` on app-minifiedDebug.apk that all three previously-stripped classes come back
-# with full class definitions.
+# The app APK's own code only calls a fraction of kotlinx.coroutines', kotlin.time's, and
+# androidx.compose's public API, so R8 drops interface default-method implementations
+# ($DefaultImpls classes) and internal helper classes it sees no direct reference to (first
+# surfaced by ConversationScreenTest, the first createComposeRule() instrumented test: its
+# compose-ui-test dependency both virtual-dispatches into and Class.forName()-probes the
+# compile-time shape at the app APK's runtime copy — androidTest APKs don't duplicate classes
+# already shipped in the tested app APK, so compose-ui-test's calls resolve against this
+# module's own shrunk copies of these three libraries). Chasing each stripped member one at a
+# time just surfaced the next one across three separate libraries — CompletableJob.complete(),
+# then kotlinx.coroutines.DelayWithTimeoutDiagnostics, then kotlin.time.AbstractLongTimeSource,
+# then androidx.compose.ui.platform.InfiniteAnimationPolicy$DefaultImpls — and a printusage
+# report (`-printusage`, temporarily) showed 83 more androidx.compose $DefaultImpls classes
+# across the animation/foundation/runtime/ui artifacts in the same situation. Keep all three
+# packages whole rather than keep discovering this one CI run at a time, the same trade
+# CLAUDE.md documents for JSch in proguard-rules.pro. Verified via `dexdump` on
+# app-minifiedDebug.apk that all four previously-stripped classes come back with full
+# definitions.
 -keep class kotlinx.coroutines.** { *; }
 -dontwarn kotlinx.coroutines.**
 -keep class kotlin.time.** { *; }
 -dontwarn kotlin.time.**
+-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
