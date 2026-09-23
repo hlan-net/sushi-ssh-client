@@ -5,12 +5,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -36,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -45,6 +51,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import net.hlan.sushi.R
+
+/** Below this window height the toggle row gives way to the keyboard; see [ConversationScreen]. */
+private const val COMPACT_HEIGHT_DP = 480
 
 /** Compose test tags for [ConversationScreen]'s interactive elements. */
 object ConversationScreenTestTags {
@@ -91,6 +100,7 @@ data class ConversationScreenActions(
  * falls back to — computed from `GeminiSettings`/`GeminiClient`/Nano's status the same way the
  * legacy dialog's did, which is Activity-level environment info the ViewModel does not own.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ConversationScreen(
     state: ConversationUiState,
@@ -100,7 +110,14 @@ fun ConversationScreen(
 ) {
     SushiComposeTheme {
         Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Column(Modifier.fillMaxSize()) {
+            // targetSdk 36 draws edge-to-edge and adjustResize no longer shrinks the window, so
+            // keep the top bar out from under the status bar and the input bar above the
+            // gesture bar and the keyboard (safeDrawing includes the IME inset).
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+            ) {
                 ConversationTopBar(
                     hostLabel = state.hostLabel,
                     statusSubtitle = statusSubtitle(state.status, availabilityStatus),
@@ -110,13 +127,19 @@ fun ConversationScreen(
                     onHistory = actions.onHistory,
                     onCopy = actions.onCopy
                 )
-                ConversationToggleRow(
-                    isRawMode = state.isRawMode,
-                    autoTroubleshoot = state.autoTroubleshoot,
-                    troubleshootEnabled = !state.isBusy && !state.isRawMode,
-                    onRawModeChange = actions.onRawModeChange,
-                    onAutoTroubleshootChange = actions.onAutoTroubleshootChange
-                )
+                // On a short window (a phone in landscape) the keyboard leaves too little height
+                // for the top bar, the toggles and the input bar together, and the text field
+                // gets squashed until the typed text is invisible; drop the toggles while typing.
+                val compactHeight = LocalConfiguration.current.screenHeightDp < COMPACT_HEIGHT_DP
+                if (!(compactHeight && WindowInsets.isImeVisible)) {
+                    ConversationToggleRow(
+                        isRawMode = state.isRawMode,
+                        autoTroubleshoot = state.autoTroubleshoot,
+                        troubleshootEnabled = !state.isBusy && !state.isRawMode,
+                        onRawModeChange = actions.onRawModeChange,
+                        onAutoTroubleshootChange = actions.onAutoTroubleshootChange
+                    )
+                }
                 if (state.isBusy) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
