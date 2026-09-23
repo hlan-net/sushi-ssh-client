@@ -168,6 +168,28 @@ class ConversationScreenTest {
     }
 
     @Test
+    fun pendingConfirmation_disablesInputFieldMicAndSendButton() {
+        val pending = PendingConfirmation(
+            command = "sudo systemctl restart nginx",
+            userMessage = "restart nginx",
+            kind = PendingConfirmation.Kind.AI,
+            turnId = 1,
+            result = ConversationResult(
+                success = true,
+                systemResponse = "Restarting.",
+                userMessage = "restart nginx",
+                needsConfirmation = true,
+                commandToConfirm = "sudo systemctl restart nginx"
+            )
+        )
+        setScreen(state = ConversationUiState(pendingConfirmation = pending))
+
+        composeRule.onNodeWithTag(ConversationScreenTestTags.INPUT_FIELD).assertIsNotEnabled()
+        composeRule.onNodeWithTag(ConversationScreenTestTags.VOICE_BUTTON).assertIsNotEnabled()
+        composeRule.onNodeWithTag(ConversationScreenTestTags.SEND_BUTTON).assertIsNotEnabled()
+    }
+
+    @Test
     fun moreActionsMenu_copyItemHiddenWithoutOutput() {
         setScreen(state = ConversationUiState(lastOutput = ""))
 
