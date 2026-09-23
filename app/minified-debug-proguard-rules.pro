@@ -106,3 +106,17 @@
 -keep class androidx.navigationevent.compose.** { *; }
 -dontwarn androidx.navigationevent.compose.**
 
+# The Compose compiler generates a synthetic $stable static field on every class it processes
+# for stability inference — including this app's own classes used as @Composable parameters
+# (ConversationScreenActions, ConversationUiState, TranscriptItem, PendingConfirmation).
+# Nothing in the app's own code reads $stable directly, so R8 drops it as apparently unused,
+# but Compose's runtime composer does read it to decide whether to skip recomposition. First
+# surfaced as NoSuchFieldError: No field $stable of type I in class
+# Lnet/hlan/sushi/conversation/ConversationScreenActions once ConversationScreenTest actually
+# composed ConversationScreen — the eighth stripped-class round in this same class of issue,
+# and the first in the app's own code rather than a library's.
+-keepclassmembers class ** {
+    public static final int $stable;
+}
+
+
