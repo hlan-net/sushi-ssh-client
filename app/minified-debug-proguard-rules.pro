@@ -58,25 +58,29 @@
 -keep class kotlin.collections.CollectionsKt { *; }
 -keep class kotlin.collections.CollectionsKt__* { *; }
 
-# The app APK's own code only calls a fraction of kotlinx.coroutines', kotlin.time's, and
-# androidx.compose's public API, so R8 drops interface default-method implementations
-# ($DefaultImpls classes) and internal helper classes it sees no direct reference to (first
-# surfaced by ConversationScreenTest, the first createComposeRule() instrumented test: its
-# compose-ui-test dependency both virtual-dispatches into and Class.forName()-probes the
-# compile-time shape at the app APK's runtime copy — androidTest APKs don't duplicate classes
-# already shipped in the tested app APK, so compose-ui-test's calls resolve against this
-# module's own shrunk copies of these three libraries). Chasing each stripped member one at a
-# time just surfaced the next one across three separate libraries — CompletableJob.complete(),
-# then kotlinx.coroutines.DelayWithTimeoutDiagnostics, then kotlin.time.AbstractLongTimeSource,
-# then androidx.compose.ui.platform.InfiniteAnimationPolicy$DefaultImpls — and a printusage
-# report (`-printusage`, temporarily) showed 83 more androidx.compose $DefaultImpls classes
-# across the animation/foundation/runtime/ui artifacts in the same situation. Keep all three
-# packages whole rather than keep discovering this one CI run at a time, the same trade
+# The app APK's own code only calls a fraction of kotlinx.coroutines', kotlin.coroutines',
+# kotlin.time's, and androidx.compose's public API, so R8 drops interface default-method
+# implementations ($DefaultImpls classes) and internal helper classes it sees no direct
+# reference to (first surfaced by ConversationScreenTest, the first createComposeRule()
+# instrumented test: its compose-ui-test dependency — specifically kotlinx-coroutines-test's
+# runTest, which it uses internally — both virtual-dispatches into and Class.forName()-probes
+# the compile-time shape at the app APK's runtime copy; androidTest APKs don't duplicate
+# classes already shipped in the tested app APK, so compose-ui-test's calls resolve against
+# this module's own shrunk copies of these libraries). Chasing each stripped member one at a
+# time just surfaced the next one, each unlocked by fixing the last and letting the test run
+# further before crashing: CompletableJob.complete(), kotlinx.coroutines.DelayWithTimeoutDiagnostics,
+# kotlin.time.AbstractLongTimeSource, androidx.compose.ui.platform.InfiniteAnimationPolicy$DefaultImpls,
+# then kotlin.coroutines.intrinsics.IntrinsicsKt once runTest() itself started executing — and a
+# printusage report (`-printusage`, temporarily) showed 83 more androidx.compose $DefaultImpls
+# classes across the animation/foundation/runtime/ui artifacts in the same situation. Keep all
+# four packages whole rather than keep discovering this one CI run at a time, the same trade
 # CLAUDE.md documents for JSch in proguard-rules.pro. Verified via `dexdump` on
-# app-minifiedDebug.apk that all four previously-stripped classes come back with full
+# app-minifiedDebug.apk that all five previously-stripped classes come back with full
 # definitions.
 -keep class kotlinx.coroutines.** { *; }
 -dontwarn kotlinx.coroutines.**
+-keep class kotlin.coroutines.** { *; }
+-dontwarn kotlin.coroutines.**
 -keep class kotlin.time.** { *; }
 -dontwarn kotlin.time.**
 -keep class androidx.compose.** { *; }
