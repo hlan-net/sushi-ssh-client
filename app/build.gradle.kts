@@ -1,6 +1,6 @@
 plugins {
     id("com.android.application")
-
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 val versionCodeOverride = (project.findProperty("versionCode") as String?)?.toIntOrNull()
@@ -96,6 +96,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        compose = true
     }
 
     testOptions {
@@ -144,10 +145,31 @@ dependencies {
     val coroutines_version = "1.11.0"
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines_version")
 
+    // Compose and ViewModel (ROADMAP.md v0.9.0; rewrite plan §2.3). The BOM pins every
+    // androidx.compose.* artifact, so those carry no version of their own.
+    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // Instrumented tests run on minifiedDebug, which does not inherit debug's dependencies.
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    "minifiedDebugImplementation"("androidx.compose.ui:ui-test-manifest")
+
     implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutines_version")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.test.espresso:espresso-contrib:3.7.0")

@@ -14,11 +14,19 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.ComposeView
+import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.color.MaterialColors
@@ -29,8 +37,13 @@ import com.google.mlkit.genai.common.FeatureStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import net.hlan.sushi.conversation.AppConversationEnvironment
+import net.hlan.sushi.conversation.ConversationEvent
+import net.hlan.sushi.conversation.ConversationScreen
+import net.hlan.sushi.conversation.ConversationScreenActions
+import net.hlan.sushi.conversation.ConversationStatus
+import net.hlan.sushi.conversation.ConversationViewModel
 import net.hlan.sushi.databinding.ActivityMainBinding
-import net.hlan.sushi.databinding.DialogGeminiControlsBinding
 import net.hlan.sushi.databinding.PageMainPlaysBinding
 import net.hlan.sushi.databinding.PageMainTerminalBinding
 
@@ -40,42 +53,65 @@ class MainActivity : AppCompatActivity() {
     private val driveAuthManager by lazy { DriveAuthManager(this) }
     private val driveLogSettings by lazy { DriveLogSettings(this) }
     private val driveLogUploader by lazy { DriveLogUploader(this) }
-    private val geminiClient by lazy { GeminiClient(this, geminiSettings, driveAuthManager) }
-    private val nanoClient by lazy { GeminiNanoClient(this) }
+    // Application context: geminiClient only uses it for getString(), and the copy handed to
+    // AppConversationEnvironment is kept by ConversationViewModel across rotation — an Activity
+    // context there would leak this (destroyed) instance. nanoClient is a process-wide
+    // singleton (GeminiClients.nano) rather than an Activity-scoped one: see its kdoc for why.
+    private val geminiClient by lazy { GeminiClient(applicationContext, geminiSettings, driveAuthManager) }
+    private val nanoClient by lazy { GeminiClients.nano(applicationContext) }
     private val consoleLogRepository by lazy { ConsoleLogRepository(this) }
-    private val sshSettings by lazy { SshSettings(this) }
+    // Application context, for the same reason as geminiClient above: the copy handed to
+    // AppConversationEnvironment is kept by ConversationViewModel across rotation, so an
+    // Activity context here would keep this (destroyed) instance reachable through it.
+    private val sshSettings by lazy { SshSettings(applicationContext) }
     private val playDb by lazy { PlayDatabaseHelper.getInstance(this) }
     private val phraseDb by lazy { PhraseDatabaseHelper.getInstance(this) }
     private val commandHistoryDb by lazy { CommandHistoryDatabaseHelper.getInstance(this) }
 
     private var isPlayRunning = false
-    private var geminiDialog: AlertDialog? = null
-    private var geminiDialogBinding: DialogGeminiControlsBinding? = null
-    private var lastGeminiPrompt = ""
-    private var lastGeminiOutput = ""
-    private var isGeminiRequestRunning = false
-    private val geminiTranscript = mutableListOf<GeminiTranscriptEntry>()
-    private var transcriptAdapter: GeminiTranscriptAdapter? = null
-    /** Raw Terminal Mode — input goes straight to the shell, bypassing Gemini. Persists across dialog re-opens. */
-    private var isRawTerminalMode = false
-    /** Label of the host the live conversation is bound to, or null when not connected. */
-    private var activeHostLabel: String? = null
-    /**
-     * The host the previous conversation ran on. Kept across disconnects — a host switch is a
-     * disconnect followed by a connect, so [activeHostLabel] is already null by the time the new
-     * conversation starts and cannot be used to detect the change.
-     */
-    private var lastConversationHostId: String? = null
-    private var lastConversationHostLabel: String? = null
+    private var lastRenderedStatus: ConversationStatus? = null
     private var playsPageBinding: PageMainPlaysBinding? = null
     private var terminalPageBinding: PageMainTerminalBinding? = null
     private var toolsTabMediator: TabLayoutMediator? = null
     private var toolsPageChangeCallback: ViewPager2.OnPageChangeCallback? = null
     private var playsPageStateRequestId = 0
-    
-    // Conversation management
-    private var conversationManager: ConversationManager? = null
-    private var connectionListener: TerminalSessionHolder.ConnectionListener? = null
+
+    /**
+     * The Gemini availability text [ConversationScreen] falls back to when
+     * [ConversationStatus.Disconnected] — computed from [geminiSettings]/[geminiClient]/
+     * [nanoClient], which is Activity-level environment info the ViewModel does not own.
+     * Written by [updateGeminiState]; a Compose [androidx.compose.runtime.State] so the screen
+     * recomposes when it changes.
+     */
+    private val geminiAvailabilityStatus = mutableStateOf("")
+
+    /**
+     * The AI conversation as a full-screen Compose destination (ROADMAP.md v0.9.0), mounted
+     * over [binding]'s content the same way a `DialogFragment` would sit over it, but as a
+     * plain `ComposeView` per `CLAUDE.md`'s migration pattern — added once in [onCreate] via
+     * [addContentView] and toggled with [View.VISIBLE]/[View.GONE] rather than recreated on
+     * every open, so [ConversationViewModel]'s state survives being shown and hidden.
+     */
+    private val conversationComposeView by lazy { ComposeView(this) }
+
+    private val conversationBackCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() = hideConversationScreen()
+    }
+
+    /**
+     * Owns the AI conversation (ROADMAP.md v0.9.0). Survives rotation; the activity mounts
+     * its state into [conversationComposeView] and the terminal page's status line.
+     */
+    private val conversationViewModel: ConversationViewModel by lazy {
+        val environment = AppConversationEnvironment(
+            context = this,
+            geminiSettings = geminiSettings,
+            geminiClient = geminiClient,
+            nanoClient = nanoClient,
+            sshSettings = sshSettings
+        )
+        ViewModelProvider(this, ConversationViewModel.Factory(environment))[ConversationViewModel::class.java]
+    }
 
     private val voiceResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -94,17 +130,7 @@ class MainActivity : AppCompatActivity() {
             return@registerForActivityResult
         }
 
-        // Use conversation manager if connected, otherwise fall back to old behavior
-        if (isRawTerminalMode && conversationManager != null && conversationManager!!.isInitialized()) {
-            handleRawCommand(voiceText)
-        } else if (conversationManager != null && conversationManager!!.isInitialized()) {
-            handleUserMessage(voiceText)
-        } else {
-            // Fallback to old command generation for backwards compatibility
-            lastGeminiPrompt = voiceText
-            updateGeminiDialogState()
-            requestGeminiCommand(voiceText)
-        }
+        conversationViewModel.send(voiceText)
     }
 
     /**
@@ -125,8 +151,7 @@ class MainActivity : AppCompatActivity() {
             return@registerForActivityResult
         }
 
-        val manager = conversationManager
-        if (manager == null || !manager.isInitialized()) {
+        if (conversationViewModel.state.value.status !is ConversationStatus.Connected) {
             getSystemService(ClipboardManager::class.java)?.setPrimaryClip(
                 ClipData.newPlainText(getString(R.string.command_history_title), command)
             )
@@ -156,8 +181,8 @@ class MainActivity : AppCompatActivity() {
         if (crossesHosts) {
             confirmCrossHostRerun(command, recordedHostLabel)
         } else {
-            showGeminiDialog()
-            handleRawCommand(command)
+            showConversationScreen()
+            conversationViewModel.sendRaw(command)
         }
     }
 
@@ -168,7 +193,8 @@ class MainActivity : AppCompatActivity() {
         val recorded = recordedHostLabel.ifBlank {
             getString(R.string.command_history_unknown_host)
         }
-        val current = activeHostLabel ?: getString(R.string.command_history_unknown_host)
+        val current = conversationViewModel.state.value.hostLabel
+            ?: getString(R.string.command_history_unknown_host)
 
         AlertDialog.Builder(this)
             .setTitle(R.string.command_history_rerun_other_host_title)
@@ -181,8 +207,8 @@ class MainActivity : AppCompatActivity() {
                 )
             )
             .setPositiveButton(R.string.command_history_action_rerun) { _, _ ->
-                showGeminiDialog()
-                handleRawCommand(command)
+                showConversationScreen()
+                conversationViewModel.sendRaw(command)
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -203,6 +229,11 @@ class MainActivity : AppCompatActivity() {
         AppThemeSettings(this).applyAccentOverlay(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setUpConversationScreen()
+        onBackPressedDispatcher.addCallback(this, conversationBackCallback)
+        if (savedInstanceState?.getBoolean(KEY_CONVERSATION_SCREEN_VISIBLE) == true) {
+            showConversationScreen()
+        }
 
         binding.startSessionButton.setOnClickListener {
             startActivity(TerminalActivity.createIntent(this, autoConnect = true))
@@ -236,8 +267,7 @@ class MainActivity : AppCompatActivity() {
         val appVersion = AppUtils.getAppVersionInfo(this)
         binding.footerText.text = getString(R.string.placeholder_footer, appVersion.name)
 
-        // Set up SSH connection listener for conversation
-        setupConnectionListener()
+        observeConversation()
 
         if (!isChangingConfigurations) {
             maybeResumePendingGitHubSignIn()
@@ -253,6 +283,11 @@ class MainActivity : AppCompatActivity() {
         updateSetupChecklist()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_CONVERSATION_SCREEN_VISIBLE, conversationComposeView.isVisible)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         toolsPageChangeCallback?.let { callback ->
@@ -261,14 +296,12 @@ class MainActivity : AppCompatActivity() {
         toolsPageChangeCallback = null
         toolsTabMediator?.detach()
         toolsTabMediator = null
-        geminiDialog?.dismiss()
-        geminiDialog = null
-        geminiDialogBinding = null
-        nanoClient.close()
-        
-        // Clean up connection listener
-        connectionListener?.let { TerminalSessionHolder.removeListener(it) }
-        connectionListener = null
+        // Not nanoClient.close() here: nanoClient is the process-wide GeminiClients singleton
+        // (see its kdoc), so nothing scoped to one Activity or ViewModel — including this
+        // onDestroy() and ConversationViewModel.onCleared() — closes it. Closing it from here
+        // would leave the next MainActivity/ConversationViewModel that resolves the same
+        // singleton (whether after a rotation or after this Activity is simply relaunched) with
+        // an already-closed model, since GeminiClients.nano() would keep returning it.
     }
 
     private fun maybeResumePendingGitHubSignIn() {
@@ -338,7 +371,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupTerminalPage(pageBinding: PageMainTerminalBinding) {
         terminalPageBinding = pageBinding
         pageBinding.geminiVoiceButton.setOnClickListener {
-            showGeminiDialog()
+            showConversationScreen()
         }
         pageBinding.phrasesButton.setOnClickListener {
             showPhraseCopyPicker()
@@ -404,14 +437,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Updates the Gemini status text shown on the terminal page and in the Gemini dialog.
-     * Checks Nano status asynchronously so the check doesn't block the UI thread.
+     * Updates the Gemini status text shown on the terminal page and, via
+     * [geminiAvailabilityStatus], in [ConversationScreen]. Checks Nano status asynchronously so
+     * the check doesn't block the UI thread.
      */
     private fun updateGeminiState() {
         if (!geminiSettings.isEnabled()) {
             val status = getString(R.string.gemini_status_disabled)
             terminalPageBinding?.geminiStatusText?.text = status
-            geminiDialogBinding?.geminiDialogStatusText?.text = status
+            geminiAvailabilityStatus.value = status
+            applyConversationStatus()
             return
         }
 
@@ -425,7 +460,8 @@ class MainActivity : AppCompatActivity() {
 
         // Set cloud status immediately, then refine if Nano is preferred.
         terminalPageBinding?.geminiStatusText?.text = cloudStatus
-        geminiDialogBinding?.geminiDialogStatusText?.text = cloudStatus
+        geminiAvailabilityStatus.value = cloudStatus
+        applyConversationStatus()
 
         if (!geminiSettings.getNanoPreferred()) return
 
@@ -440,7 +476,8 @@ class MainActivity : AppCompatActivity() {
             }
             withContext(Dispatchers.Main) {
                 terminalPageBinding?.geminiStatusText?.text = statusText
-                geminiDialogBinding?.geminiDialogStatusText?.text = statusText
+                geminiAvailabilityStatus.value = statusText
+                applyConversationStatus()
             }
         }
     }
@@ -469,175 +506,61 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Routes the voice command to Gemini Nano (on-device) if available and preferred,
-     * falling back to the cloud GeminiClient otherwise.
+     * Adds [conversationComposeView] over [binding]'s content and gives it its content once;
+     * shown and hidden afterward with [showConversationScreen]/[hideConversationScreen] rather
+     * than recreated, so [ConversationViewModel] keeps one live collector for the screen's
+     * lifetime instead of a new one per open.
      */
-    private fun requestGeminiCommand(voiceText: String) {
-        isGeminiRequestRunning = true
-        lastGeminiOutput = getString(R.string.gemini_output_waiting)
-        updateGeminiDialogState()
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            val useNano = geminiSettings.getNanoPreferred()
-                && nanoClient.checkStatus() == FeatureStatus.AVAILABLE
-
-            val result = if (useNano) {
-                Log.d(TAG, "Routing voice command to Gemini Nano (on-device)")
-                nanoClient.generateCommand(voiceText)
-            } else {
-                Log.d(TAG, "Routing voice command to cloud Gemini (${geminiSettings.getCloudModel()})")
-                geminiClient.generateCommand(voiceText)
-            }
-
-            withContext(Dispatchers.Main) {
-                isGeminiRequestRunning = false
-                lastGeminiOutput = result.message
-                updateGeminiDialogState()
-                appendSessionLog(getString(R.string.gemini_log_entry, voiceText, result.message))
-
-                geminiTranscript.add(GeminiTranscriptEntry(prompt = voiceText, response = result.message))
-                transcriptAdapter?.let { adapter ->
-                    adapter.notifyItemInserted(geminiTranscript.size - 1)
-                    geminiDialogBinding?.geminiTranscriptLabel?.visibility = View.VISIBLE
-                    geminiDialogBinding?.geminiTranscriptRecycler?.apply {
-                        visibility = View.VISIBLE
-                        scrollToPosition(geminiTranscript.size - 1)
-                    }
-                }
-            }
-        }
-    }
-
-    private fun showGeminiDialog() {
-        if (geminiDialog?.isShowing == true) {
-            return
-        }
-
-        val dialogBinding = DialogGeminiControlsBinding.inflate(layoutInflater)
-        geminiDialogBinding = dialogBinding
-
-        dialogBinding.geminiDialogVoiceButton.setOnClickListener {
-            handleGeminiVoice()
-        }
-        dialogBinding.geminiDialogSettingsButton.setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        }
-        dialogBinding.geminiDialogHistoryButton.setOnClickListener {
-            startActivity(GeminiHistoryActivity.createIntent(this))
-        }
-        dialogBinding.geminiDialogCopyButton.setOnClickListener {
-            copyGeminiCommand()
-        }
-
-        dialogBinding.geminiDialogRawModeSwitch.isChecked = isRawTerminalMode
-        dialogBinding.geminiDialogRawModeSwitch.setOnCheckedChangeListener { _, checked ->
-            isRawTerminalMode = checked
-            updateGeminiDialogState()
-        }
-
-        dialogBinding.geminiDialogTroubleshootSwitch.isChecked =
-            geminiSettings.getAutoTroubleshootEnabled()
-        dialogBinding.geminiDialogTroubleshootSwitch.setOnCheckedChangeListener { _, checked ->
-            geminiSettings.setAutoTroubleshootEnabled(checked)
-            conversationManager?.autoTroubleshootEnabled = checked
-            updateGeminiDialogState()
-        }
-
-        // NEW: Send button for text input
-        dialogBinding.geminiDialogSendButton.setOnClickListener {
-            val text = dialogBinding.geminiDialogTextInput.text?.toString()?.trim()
-            if (!text.isNullOrEmpty()) {
-                dialogBinding.geminiDialogTextInput.text?.clear()
-                if (isRawTerminalMode) {
-                    handleRawCommand(text)
-                } else if (conversationManager != null && conversationManager!!.isInitialized()) {
-                    handleUserMessage(text)
-                } else {
-                    // Fallback to old behavior
-                    lastGeminiPrompt = text
-                    updateGeminiDialogState()
-                    requestGeminiCommand(text)
-                }
-            }
-        }
-        
-        // NEW: IME action (keyboard Enter key)
-        dialogBinding.geminiDialogTextInput.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND) {
-                dialogBinding.geminiDialogSendButton.performClick()
-                true
-            } else {
-                false
-            }
-        }
-
-        val adapter = GeminiTranscriptAdapter(geminiTranscript)
-        transcriptAdapter = adapter
-        dialogBinding.geminiTranscriptRecycler.layoutManager =
-            LinearLayoutManager(this).also { it.stackFromEnd = true }
-        dialogBinding.geminiTranscriptRecycler.adapter = adapter
-        if (geminiTranscript.isNotEmpty()) {
-            dialogBinding.geminiTranscriptLabel.visibility = View.VISIBLE
-            dialogBinding.geminiTranscriptRecycler.visibility = View.VISIBLE
-        }
-
-        val dialog = AlertDialog.Builder(this)
-            .setView(dialogBinding.root)
-            .setNegativeButton(R.string.phrase_cancel, null)
-            .create()
-        dialog.setOnDismissListener {
-            geminiDialog = null
-            geminiDialogBinding = null
-            transcriptAdapter = null
-        }
-        geminiDialog = dialog
-        updateGeminiState()
-        updateGeminiDialogHost()
-        updateGeminiDialogState()
-        dialog.show()
-    }
-
-    private fun updateGeminiDialogState() {
-        val dialogBinding = geminiDialogBinding ?: return
-        
-        val isBusy = isGeminiRequestRunning
-        
-        // Disable inputs when busy
-        dialogBinding.geminiDialogTextInput.isEnabled = !isBusy
-        dialogBinding.geminiDialogSendButton.isEnabled = !isBusy
-        dialogBinding.geminiDialogVoiceButton.isEnabled = !isBusy
-        
-        dialogBinding.geminiDialogProgressBar.visibility = if (isBusy) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
-
-        dialogBinding.geminiDialogTextInputLayout.hint = getString(
-            if (isRawTerminalMode) R.string.raw_terminal_mode_hint else R.string.conversation_input_hint
+    private fun setUpConversationScreen() {
+        conversationComposeView.visibility = View.GONE
+        addContentView(
+            conversationComposeView,
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         )
+        conversationComposeView.setContent {
+            val state by conversationViewModel.state.collectAsStateWithLifecycle()
+            val availabilityStatus by geminiAvailabilityStatus
+            ConversationScreen(
+                state = state,
+                availabilityStatus = availabilityStatus,
+                actions = ConversationScreenActions(
+                    onBack = ::hideConversationScreen,
+                    onSend = conversationViewModel::send,
+                    onVoice = ::handleGeminiVoice,
+                    onSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
+                    onHistory = { startActivity(GeminiHistoryActivity.createIntent(this)) },
+                    onCopy = ::copyGeminiCommand,
+                    onRawModeChange = conversationViewModel::setRawMode,
+                    onAutoTroubleshootChange = conversationViewModel::setAutoTroubleshoot,
+                    onConfirmPending = conversationViewModel::confirmPending,
+                    onDeclinePending = conversationViewModel::declinePending
+                )
+            )
+        }
+    }
 
-        // Raw mode bypasses the AI entirely, so there is nothing for it to chain.
-        dialogBinding.geminiDialogTroubleshootSwitch.isEnabled = !isBusy && !isRawTerminalMode
-        dialogBinding.geminiDialogTroubleshootCaption.isEnabled = !isRawTerminalMode
+    private fun showConversationScreen() {
+        conversationComposeView.visibility = View.VISIBLE
+        conversationBackCallback.isEnabled = true
+    }
 
-        val hasCommand = !isBusy
-            && lastGeminiOutput.isNotBlank()
-            && lastGeminiOutput != getString(R.string.gemini_output_placeholder)
-            && lastGeminiOutput != getString(R.string.gemini_output_waiting)
-        dialogBinding.geminiDialogCopyButton.visibility = if (hasCommand) View.VISIBLE else View.GONE
+    private fun hideConversationScreen() {
+        conversationComposeView.visibility = View.GONE
+        conversationBackCallback.isEnabled = false
     }
 
     private fun copyGeminiCommand() {
-        if (lastGeminiOutput.isBlank()) {
+        val output = conversationViewModel.state.value.lastOutput
+        if (output.isBlank()) {
             return
         }
         val clipboard = getSystemService(ClipboardManager::class.java)
         clipboard?.setPrimaryClip(
-            ClipData.newPlainText(getString(R.string.gemini_output_label), lastGeminiOutput)
+            ClipData.newPlainText(getString(R.string.gemini_output_label), output)
         )
         Toast.makeText(this, getString(R.string.gemini_command_copied), Toast.LENGTH_SHORT).show()
     }
+
 
     private fun showPhraseCopyPicker() {
         PhrasePickerHelper.showPicker(this, phraseDb) { phrase ->
@@ -1180,501 +1103,69 @@ class MainActivity : AppCompatActivity() {
 
     // ========== Conversation Management ==========
 
-    private fun setupConnectionListener() {
-        connectionListener = object : TerminalSessionHolder.ConnectionListener {
-            override fun onConnected() {
-                lifecycleScope.launch {
-                    initializeConversation()
-                }
-            }
-
-            override fun onDisconnected() {
-                lifecycleScope.launch(Dispatchers.Main) {
-                    conversationManager?.clearHistory()
-                    conversationManager = null
-                    activeHostLabel = null
-                    updateConversationStatus(null)
-                    updateGeminiDialogHost()
-                }
-            }
-        }
-        TerminalSessionHolder.addListener(connectionListener!!)
-
-        // Check if already connected
-        if (TerminalSessionHolder.isConnected()) {
-            lifecycleScope.launch {
-                initializeConversation()
-            }
-        }
-    }
-
-    private suspend fun initializeConversation() {
-        val backend = TerminalSessionHolder.getActiveBackend() ?: return
-
-        withContext(Dispatchers.Main) {
-            updateConversationStatus(getString(R.string.conversation_initializing))
-        }
-
-        val useNano = geminiSettings.getNanoPreferred() && isNanoAvailable()
-        val activeConfig = sshSettings.getConfigOrNull()
-        val hostLabel = activeConfig?.let { HostLabels.shortLabel(this, it) }
-        val infrastructure = ConversationContextBuilder.infrastructureSection(
-            hosts = sshSettings.getHosts(),
-            activeHostId = activeConfig?.id
-        )
-
-        withContext(Dispatchers.Main) {
-            val previousHostId = lastConversationHostId
-            val newHostId = activeConfig?.id
-            if (previousHostId != null && newHostId != null && previousHostId != newHostId) {
-                appendHostSwitchMarker(
-                    previousHost = lastConversationHostLabel
-                        ?: getString(R.string.command_history_unknown_host),
-                    newHost = hostLabel ?: getString(R.string.command_history_unknown_host)
-                )
-            }
-            lastConversationHostId = newHostId
-            lastConversationHostLabel = hostLabel
-            activeHostLabel = hostLabel
-            updateGeminiDialogHost()
-        }
-
-        conversationManager = ConversationManager(
-            backend = backend,
-            geminiClient = geminiClient,
-            geminiNanoClient = nanoClient,
-            useNano = useNano,
-            transcriptStore = GeminiTranscriptDatabaseHelper.getInstance(this),
-            commandHistoryStore = commandHistoryDb,
-            sessionId = java.util.UUID.randomUUID().toString(),
-            hostId = activeConfig?.id,
-            hostLabel = hostLabel,
-            infrastructureContext = infrastructure
-        ).apply {
-            autoTroubleshootEnabled = geminiSettings.getAutoTroubleshootEnabled()
-        }
-
-        val initResult = withContext(Dispatchers.IO) {
-            conversationManager?.initialize()
-        }
-
-        withContext(Dispatchers.Main) {
-            if (initResult?.success == true) {
-                val identity = initResult.systemIdentity ?: "Unknown System"
-                updateConversationStatus(
-                    getString(R.string.conversation_connected_to, identity)
-                )
-
-                if (initResult.isDefaultPersona) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Tip: Run 'Initialize AI Persona' Play for better experience",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            } else {
-                updateConversationStatus(
-                    getString(R.string.conversation_init_failed, initResult?.message ?: "Unknown error")
-                )
+    /**
+     * Mirror [ConversationViewModel]'s status into the terminal page's status line, and act on
+     * its one-off events. [ConversationScreen] collects the rest of the state itself, directly
+     * from the ViewModel, so it isn't mirrored here.
+     */
+    private fun observeConversation() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { conversationViewModel.state.collect { renderConversationStatus(it.status) } }
+                launch { conversationViewModel.events.collect { handleConversationEvent(it) } }
             }
         }
     }
 
     /**
-     * Show which system the conversation is talking to, so the active host is never ambiguous
-     * (roadmap v0.8.0 — multi-system awareness).
+     * The terminal page's status line: the conversation's state while a session exists,
+     * otherwise the Gemini availability text from [updateGeminiState].
      */
-    private fun updateGeminiDialogHost() {
-        val binding = geminiDialogBinding ?: return
-        val label = activeHostLabel
-        binding.geminiDialogHostText.text = if (label.isNullOrBlank()) {
-            getString(R.string.conversation_no_active_host)
+    private fun renderConversationStatus(status: ConversationStatus) {
+        if (status == lastRenderedStatus) return
+        lastRenderedStatus = status
+        if (status is ConversationStatus.Disconnected) {
+            updateGeminiState()
         } else {
-            getString(R.string.conversation_active_host, label)
+            applyConversationStatus()
         }
     }
 
-    /**
-     * Mark a mid-conversation host switch in the transcript. The persona context is rebuilt for
-     * the new host anyway; this makes the boundary visible so earlier bubbles are not mistaken
-     * for the new system's answers.
-     */
-    private fun appendHostSwitchMarker(previousHost: String, newHost: String) {
-        if (geminiTranscript.isEmpty()) {
-            return
+    private fun applyConversationStatus() {
+        val text = when (val status = conversationViewModel.state.value.status) {
+            ConversationStatus.Disconnected -> return
+            ConversationStatus.Initializing -> getString(R.string.conversation_initializing)
+            is ConversationStatus.Connected -> getString(R.string.conversation_connected_to, status.identity)
+            is ConversationStatus.Failed -> getString(R.string.conversation_init_failed, status.message)
         }
-        replaceOrAppendTranscriptEntry(
-            entryIndex = -1,
-            prompt = getString(R.string.conversation_host_switch_title),
-            response = getString(R.string.conversation_host_switch_detail, previousHost, newHost)
-        )
+        terminalPageBinding?.geminiStatusText?.text = text
     }
 
-    private fun updateConversationStatus(status: String?) {
-        terminalPageBinding?.geminiStatusText?.text = status
-            ?: getString(R.string.gemini_status_disabled)
-    }
-
-    private fun handleUserMessage(message: String) {
-        if (isGeminiRequestRunning) return
-        val manager = conversationManager
-        if (manager == null || !manager.isInitialized()) {
-            Toast.makeText(
+    private fun handleConversationEvent(event: ConversationEvent) {
+        when (event) {
+            is ConversationEvent.LogLine -> appendSessionLog(event.text)
+            is ConversationEvent.CommandGenerated ->
+                appendSessionLog(getString(R.string.gemini_log_entry, event.prompt, event.command))
+            is ConversationEvent.Error ->
+                Toast.makeText(this, "Error: ${event.message}", Toast.LENGTH_LONG).show()
+            ConversationEvent.NotConnected -> Toast.makeText(
                 this,
                 getString(R.string.conversation_init_failed, "Not connected"),
                 Toast.LENGTH_SHORT
             ).show()
-            return
-        }
-
-        lastGeminiPrompt = message
-        isGeminiRequestRunning = true
-        updateGeminiDialogState()
-
-        lifecycleScope.launch {
-            var streamEntryIndex = -1
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    manager.processUserMessage(message) { chunk ->
-                        lifecycleScope.launch(Dispatchers.Main) {
-                            streamEntryIndex = appendStreamingChunk(streamEntryIndex, message, chunk)
-                        }
-                    }
-                }
-
-                withContext(Dispatchers.Main) {
-                    isGeminiRequestRunning = false
-
-                    if (!result.success) {
-                        lastGeminiOutput = result.systemResponse
-                        appendSessionLog("Error: ${result.systemResponse}")
-                    } else {
-                        lastGeminiOutput = result.systemResponse
-
-                        when {
-                            result.needsConfirmation -> {
-                                showCommandConfirmationDialog(message, result)
-                            }
-
-                            result.commandBlocked -> {
-                                appendSessionLog("Blocked: ${result.commandAttempted}")
-                            }
-
-                            result.commandExecuted != null -> {
-                                appendSessionLog(
-                                    "Executed: ${result.commandExecuted}\n" +
-                                    "Result: ${if (result.commandSuccess) "success" else "failed"}"
-                                )
-                            }
-                        }
-                    }
-
-                    // If output streamed in while the command ran, replace it with the final
-                    // (LLM-interpreted) response in place; otherwise this is a plain
-                    // conversational turn with no command, so append a fresh entry.
-                    replaceOrAppendTranscriptEntry(streamEntryIndex, message, result.systemResponse)
-
-                    updateGeminiDialogState()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error processing message", e)
-                withContext(Dispatchers.Main) {
-                    isGeminiRequestRunning = false
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Error: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    updateGeminiDialogState()
-                }
-            }
-        }
-    }
-
-    /**
-     * Appends [chunk] to the transcript entry at [entryIndex], creating a new entry
-     * (prompt=[prompt]) the first time a chunk arrives for a turn. Must run on the Main thread.
-     * Returns the entry's index so the caller can track it across subsequent chunks.
-     */
-    private fun appendStreamingChunk(entryIndex: Int, prompt: String, chunk: String): Int {
-        if (entryIndex >= 0 && entryIndex < geminiTranscript.size) {
-            val current = geminiTranscript[entryIndex]
-            geminiTranscript[entryIndex] = current.copy(response = current.response + chunk)
-            transcriptAdapter?.notifyItemChanged(entryIndex)
-            return entryIndex
-        }
-
-        geminiTranscript.add(GeminiTranscriptEntry(prompt = prompt, response = chunk))
-        val idx = geminiTranscript.size - 1
-        transcriptAdapter?.let { adapter ->
-            adapter.notifyItemInserted(idx)
-            geminiDialogBinding?.geminiTranscriptLabel?.visibility = View.VISIBLE
-            geminiDialogBinding?.geminiTranscriptRecycler?.apply {
-                visibility = View.VISIBLE
-                scrollToPosition(idx)
-            }
-        }
-        return idx
-    }
-
-    /**
-     * Replaces the transcript entry at [entryIndex] with the final (prompt, response) pair,
-     * or appends a new entry if [entryIndex] is out of range (no streaming happened for this turn).
-     * Returns the entry's index.
-     */
-    private fun replaceOrAppendTranscriptEntry(entryIndex: Int, prompt: String, response: String): Int {
-        val entry = GeminiTranscriptEntry(prompt = prompt, response = response)
-        if (entryIndex >= 0 && entryIndex < geminiTranscript.size) {
-            geminiTranscript[entryIndex] = entry
-            transcriptAdapter?.notifyItemChanged(entryIndex)
-            return entryIndex
-        }
-
-        geminiTranscript.add(entry)
-        val idx = geminiTranscript.size - 1
-        transcriptAdapter?.let { adapter ->
-            adapter.notifyItemInserted(idx)
-            geminiDialogBinding?.geminiTranscriptLabel?.visibility = View.VISIBLE
-            geminiDialogBinding?.geminiTranscriptRecycler?.apply {
-                visibility = View.VISIBLE
-                scrollToPosition(idx)
-            }
-        }
-        return idx
-    }
-
-    /**
-     * Ask before running a CONFIRM-tier command.
-     *
-     * [pending] carries the run so far: the narrative to resume from, and — when the pause
-     * happened mid-chain — the steps that already executed. Declining persists those steps, so
-     * work the AI already did is not lost from the transcript and the target-side log.
-     */
-    private fun showCommandConfirmationDialog(
-        userMessage: String,
-        pending: ConversationResult
-    ) {
-        val command = pending.commandToConfirm ?: return
-
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.conversation_confirm_command_title))
-            .setMessage(getString(R.string.conversation_confirm_command_message, command))
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                executeConfirmedCommand(userMessage, pending.systemResponse, command)
-            }
-            .setNegativeButton(android.R.string.cancel) { _, _ ->
-                persistDeclinedRun(pending)
-            }
-            .setOnCancelListener { persistDeclinedRun(pending) }
-            .show()
-    }
-
-    /**
-     * Write a declined run's already-executed steps to the transcript and target-side log.
-     */
-    private fun persistDeclinedRun(pending: ConversationResult) {
-        val manager = conversationManager ?: return
-        if (pending.commandExecuted == null) {
-            return
-        }
-        lifecycleScope.launch {
-            runCatching { manager.persistDeclinedRun(pending) }
-                .onFailure { e -> Log.w(TAG, "Failed to persist declined run", e) }
-        }
-    }
-
-    private fun executeConfirmedCommand(
-        userMessage: String,
-        initialResponse: String,
-        command: String
-    ) {
-        val manager = conversationManager ?: return
-        isGeminiRequestRunning = true
-        updateGeminiDialogState()
-
-        lifecycleScope.launch {
-            // Falls back to the last transcript entry (added by handleUserMessage's
-            // needsConfirmation branch) when no output has streamed in yet.
-            var streamEntryIndex = if (geminiTranscript.isNotEmpty()) geminiTranscript.size - 1 else -1
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    manager.executeConfirmedCommand(
-                        userMessage,
-                        initialResponse,
-                        command
-                    ) { chunk ->
-                        lifecycleScope.launch(Dispatchers.Main) {
-                            streamEntryIndex = appendStreamingChunk(streamEntryIndex, userMessage, chunk)
-                        }
-                    }
-                }
-
-                withContext(Dispatchers.Main) {
-                    isGeminiRequestRunning = false
-                    lastGeminiOutput = result.systemResponse
-
-                    if (result.commandExecuted != null) {
-                        appendSessionLog(
-                            "Executed (confirmed): ${result.commandExecuted}\n" +
-                            "Result: ${if (result.commandSuccess) "success" else "failed"}"
-                        )
-                    }
-
-                    replaceOrAppendTranscriptEntry(streamEntryIndex, userMessage, result.systemResponse)
-
-                    // A troubleshooting chain can hit a second CONFIRM step after this one was
-                    // approved; without this the run would stop silently at that step.
-                    if (result.needsConfirmation) {
-                        showCommandConfirmationDialog(userMessage, result)
-                    }
-
-                    updateGeminiDialogState()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error executing confirmed command", e)
-                withContext(Dispatchers.Main) {
-                    isGeminiRequestRunning = false
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Error: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    updateGeminiDialogState()
-                }
-            }
-        }
-    }
-
-    private fun handleRawCommand(command: String) {
-        if (isGeminiRequestRunning) return
-        val manager = conversationManager
-        if (manager == null || !manager.isInitialized()) {
-            Toast.makeText(
+            ConversationEvent.DefaultPersonaUsed -> Toast.makeText(
                 this,
-                getString(R.string.conversation_init_failed, "Not connected"),
+                "Tip: Run 'Initialize AI Persona' Play for better experience",
+                Toast.LENGTH_LONG
+            ).show()
+            ConversationEvent.PendingConfirmationBlocksRerun -> Toast.makeText(
+                this,
+                getString(R.string.conversation_pending_confirmation_blocks_rerun),
                 Toast.LENGTH_SHORT
             ).show()
-            return
-        }
-
-        isGeminiRequestRunning = true
-        updateGeminiDialogState()
-
-        lifecycleScope.launch {
-            var streamEntryIndex = -1
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    manager.executeRawCommand(command) { chunk ->
-                        lifecycleScope.launch(Dispatchers.Main) {
-                            streamEntryIndex = appendStreamingChunk(streamEntryIndex, "$ $command", chunk)
-                        }
-                    }
-                }
-
-                withContext(Dispatchers.Main) {
-                    isGeminiRequestRunning = false
-
-                    if (result.needsConfirmation) {
-                        showRawCommandConfirmationDialog(command)
-                        updateGeminiDialogState()
-                        return@withContext
-                    }
-
-                    lastGeminiOutput = result.systemResponse
-
-                    if (result.commandBlocked) {
-                        appendSessionLog("Blocked (raw): $command")
-                    } else if (result.commandExecuted != null) {
-                        appendSessionLog(
-                            "Executed (raw): ${result.commandExecuted}\n" +
-                            "Result: ${if (result.commandSuccess) "success" else "failed"}"
-                        )
-                    }
-
-                    replaceOrAppendTranscriptEntry(streamEntryIndex, "$ $command", result.systemResponse)
-
-                    updateGeminiDialogState()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error executing raw command", e)
-                withContext(Dispatchers.Main) {
-                    isGeminiRequestRunning = false
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Error: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    updateGeminiDialogState()
-                }
-            }
         }
     }
 
-    private fun showRawCommandConfirmationDialog(command: String) {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.conversation_confirm_command_title))
-            .setMessage(getString(R.string.conversation_confirm_command_message, command))
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                executeConfirmedRawCommand(command)
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun executeConfirmedRawCommand(command: String) {
-        val manager = conversationManager ?: return
-        isGeminiRequestRunning = true
-        updateGeminiDialogState()
-
-        lifecycleScope.launch {
-            var streamEntryIndex = -1
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    manager.executeConfirmedRawCommand(command) { chunk ->
-                        lifecycleScope.launch(Dispatchers.Main) {
-                            streamEntryIndex = appendStreamingChunk(streamEntryIndex, "$ $command", chunk)
-                        }
-                    }
-                }
-
-                withContext(Dispatchers.Main) {
-                    isGeminiRequestRunning = false
-                    lastGeminiOutput = result.systemResponse
-
-                    if (result.commandExecuted != null) {
-                        appendSessionLog(
-                            "Executed (raw, confirmed): ${result.commandExecuted}\n" +
-                            "Result: ${if (result.commandSuccess) "success" else "failed"}"
-                        )
-                    }
-
-                    replaceOrAppendTranscriptEntry(streamEntryIndex, "$ $command", result.systemResponse)
-
-                    updateGeminiDialogState()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error executing confirmed raw command", e)
-                withContext(Dispatchers.Main) {
-                    isGeminiRequestRunning = false
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Error: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    updateGeminiDialogState()
-                }
-            }
-        }
-    }
-
-    private suspend fun isNanoAvailable(): Boolean {
-        return withContext(Dispatchers.IO) {
-            runCatching {
-                val status = nanoClient.checkStatus()
-                status == FeatureStatus.AVAILABLE
-            }.getOrDefault(false)
-        }
-    }
 
     companion object {
         private const val TAG = "MainActivity"
@@ -1682,5 +1173,6 @@ class MainActivity : AppCompatActivity() {
         private const val PAGE_PLAYS = 1
         private const val PREFS_MAIN_UI = "main_ui"
         private const val PREF_MAIN_TAB = "pref_main_tab"
+        private const val KEY_CONVERSATION_SCREEN_VISIBLE = "conversation_screen_visible"
     }
 }

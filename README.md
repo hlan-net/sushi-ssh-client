@@ -151,7 +151,27 @@ This writes secrets to `.local/local-ssh-test.env` (chmod 600, git-ignored).
 ./scripts/run-local-ssh-test.sh
 ```
 
-You can still bypass the file and pass values as environment variables when needed.
+You can still bypass the file and pass values as environment variables when needed. Exported
+values win over both the file and Vault, so CI secrets are never overridden by a stale local
+config.
+
+### Reading the credentials from Vault (optional)
+
+If you keep the credentials in HashiCorp Vault instead of a local file, opt in explicitly:
+
+```bash
+export SSH_TEST_SECRET_SOURCE=vault
+export SSH_TEST_VAULT_PATH=secret/your/path      # the secret holding the credentials
+./scripts/run-local-ssh-test.sh
+```
+
+The secret's fields use the same names as the environment variables (`SSH_HOST`, `SSH_USERNAME`,
+`SSH_PASSWORD`, and so on); absent fields are treated as unconfigured, exactly as in the file.
+`VAULT_ADDR` and authentication are left to the `vault` CLI's own configuration.
+
+This is off unless `SSH_TEST_SECRET_SOURCE=vault` is set. It deliberately does not key off
+`VAULT_ADDR`, which is commonly exported for unrelated reasons — a clone or fork with no
+configuration behaves exactly as before and never reaches for anyone's secret store.
 
 Run the comprehensive non-external device QA tap-through suite:
 ```bash

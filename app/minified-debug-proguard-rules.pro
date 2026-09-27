@@ -50,10 +50,25 @@
 # breaking e.g. LayoutInflationTest with NoClassDefFoundError: R$style.
 -keep class net.hlan.sushi.R$* { *; }
 
-# Keep Kotlin helpers required by AndroidX instrumentation startup in minifiedDebug.
--keep class kotlin.LazyKt { *; }
--keep class kotlin.LazyKt__* { *; }
--keep class kotlin.text.StringsKt { *; }
--keep class kotlin.text.StringsKt__* { *; }
--keep class kotlin.collections.CollectionsKt { *; }
--keep class kotlin.collections.CollectionsKt__* { *; }
+# The specific Compose/coroutines/kotlin-stdlib symbols ConversationScreenTest's instrumented
+# run needed (interface default-method implementations, the Compose compiler's synthetic
+# $stable field, etc.) turned out to be production surface ConversationScreen itself depends on
+# at runtime, in any build type, so the targeted keeps for those now live in proguard-rules.pro
+# instead of here. See proguard-rules.pro for the full history.
+#
+# What stays here, test-only: compose-ui-test's AndroidComposeUiTestEnvironment both
+# virtual-dispatches into and Class.forName()-probes the compile-time shape of kotlin-stdlib,
+# kotlinx.coroutines and androidx.compose more broadly than the narrow, by-name keeps in
+# proguard-rules.pro cover — e.g. reflective probing that doesn't go through a $DefaultImpls
+# class or one of the specific classes listed there. Shipping this blanket keep in a release
+# build would undo the whole point of narrowing proguard-rules.pro (Copilot review, PR #197:
+# it prevents R8 from shrinking these libraries at all), so it lives only in the variant that
+# never ships. If a future dexdump/printusage pass on app-release-unsigned.apk shows the narrow
+# rules are sufficient without this, remove it here too.
+-keep class kotlin.** { *; }
+-dontwarn kotlin.**
+-keep class kotlinx.coroutines.** { *; }
+-dontwarn kotlinx.coroutines.**
+-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
+
