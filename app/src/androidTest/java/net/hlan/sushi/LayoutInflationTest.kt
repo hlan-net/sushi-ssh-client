@@ -49,9 +49,4 @@ class LayoutInflationTest {
     fun itemCommandHistoryInflates() {
         assertNotNull(themedInflater().inflate(R.layout.item_command_history, null))
     }
-
-    @Test
-    fun dialogGeminiControlsInflates() {
-        assertNotNull(themedInflater().inflate(R.layout.dialog_gemini_controls, null))
-    }
 }

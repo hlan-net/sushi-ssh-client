@@ -342,7 +342,11 @@ class LocalSshIntegrationTest {
         sshSettings.saveHost(testHost)
         sshSettings.setActiveHostId(testHost.id)
         sshSettings.setPrivateKey(credentials.privateKey)
-        trustHostKeysForUi(testHost)
+        // SshClient resolves authentication from the config it is handed, and the key
+        // is stored globally rather than on the host. Copy it in the way
+        // SshSettings.getConfigOrNull() does, or key-only credentials reach the
+        // throwaway connect with neither a key nor a password.
+        trustHostKeysForUi(testHost.copy(privateKey = credentials.privateKey))
 
         val marker = "SUSHI_UI_TEST_OK_${System.currentTimeMillis()}"
 
