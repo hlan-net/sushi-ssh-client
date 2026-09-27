@@ -485,6 +485,7 @@
     <string name="conversation_screen_more_actions">Lisää toimintoja</string>
     <string name="action_confirm_run">Suorita</string>
     <string name="action_confirm_skip">Ohita</string>
+    <string name="conversation_pending_confirmation_blocks_rerun">Ratkaise odottava vahvistus ennen toisen komennon suorittamista.</string>
 
     <!-- Connection error banner -->
     <string name="action_dismiss">Hylkää</string>

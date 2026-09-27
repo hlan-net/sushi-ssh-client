@@ -485,6 +485,7 @@
     <string name="conversation_screen_more_actions">Weitere Aktionen</string>
     <string name="action_confirm_run">Ausführen</string>
     <string name="action_confirm_skip">Überspringen</string>
+    <string name="conversation_pending_confirmation_blocks_rerun">Löse die ausstehende Bestätigung, bevor du einen weiteren Befehl ausführst.</string>
 
     <!-- Connection error banner -->
     <string name="action_dismiss">Schließen</string>

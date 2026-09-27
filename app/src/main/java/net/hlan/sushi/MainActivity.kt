@@ -1158,6 +1158,11 @@ class MainActivity : AppCompatActivity() {
                 "Tip: Run 'Initialize AI Persona' Play for better experience",
                 Toast.LENGTH_LONG
             ).show()
+            ConversationEvent.PendingConfirmationBlocksRerun -> Toast.makeText(
+                this,
+                getString(R.string.conversation_pending_confirmation_blocks_rerun),
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 

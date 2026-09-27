@@ -486,6 +486,7 @@
     <string name="conversation_screen_more_actions">Más acciones</string>
     <string name="action_confirm_run">Ejecutar</string>
     <string name="action_confirm_skip">Omitir</string>
+    <string name="conversation_pending_confirmation_blocks_rerun">Resuelve la confirmación pendiente antes de ejecutar otro comando.</string>
 
     <!-- Connection error banner -->
     <string name="action_dismiss">Descartar</string>

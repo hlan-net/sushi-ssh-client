@@ -169,6 +169,10 @@ class ConversationViewModel(
     fun send(text: String) {
         val message = text.trim()
         if (message.isEmpty() || _state.value.isBusy) return
+        if (_state.value.pendingConfirmation != null) {
+            _events.trySend(ConversationEvent.PendingConfirmationBlocksRerun)
+            return
+        }
         val current = manager
         when {
             _state.value.isRawMode -> sendRaw(message)
@@ -178,10 +182,20 @@ class ConversationViewModel(
         }
     }
 
-    /** Run [command] against the shell regardless of the raw-mode toggle (history re-run). */
+    /**
+     * Run [command] against the shell regardless of the raw-mode toggle (history re-run) —
+     * reachable from [net.hlan.sushi.CommandHistoryActivity] even while [ConversationScreen] is
+     * closed or backgrounded, so the confirmation guard has to live here rather than only in the
+     * screen's input controls: those disable while [ConversationUiState.pendingConfirmation] is
+     * set, but that never stops a rerun launched from history.
+     */
     fun sendRaw(command: String) {
         val trimmed = command.trim()
         if (trimmed.isEmpty() || _state.value.isBusy) return
+        if (_state.value.pendingConfirmation != null) {
+            _events.trySend(ConversationEvent.PendingConfirmationBlocksRerun)
+            return
+        }
         val current = manager
         if (current == null || !current.isInitialized()) {
             _events.trySend(ConversationEvent.NotConnected)

@@ -485,6 +485,7 @@
     <string name="conversation_screen_more_actions">Fler åtgärder</string>
     <string name="action_confirm_run">Kör</string>
     <string name="action_confirm_skip">Hoppa över</string>
+    <string name="conversation_pending_confirmation_blocks_rerun">Lös den väntande bekräftelsen innan du kör ett till kommando.</string>
 
     <!-- Connection error banner -->
     <string name="action_dismiss">Stäng</string>
