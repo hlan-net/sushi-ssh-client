@@ -39,9 +39,22 @@ for var in "${SSH_TEST_VARS[@]}"; do
   fi
 done
 
+# The source selectors get the same protection: a stale file naming another source or path must
+# not redirect a run where the caller exported a choice. Unset stays unset, so the file can still
+# supply them when the caller did not.
+PRESET_SECRET_SOURCE="${SSH_TEST_SECRET_SOURCE:-}"
+PRESET_VAULT_PATH="${SSH_TEST_VAULT_PATH:-}"
+
 if [[ -f "${CONFIG_FILE}" ]]; then
   # shellcheck source=/dev/null
   source "${CONFIG_FILE}"
+fi
+
+if [[ -n "${PRESET_SECRET_SOURCE}" ]]; then
+  SSH_TEST_SECRET_SOURCE="${PRESET_SECRET_SOURCE}"
+fi
+if [[ -n "${PRESET_VAULT_PATH}" ]]; then
+  SSH_TEST_VAULT_PATH="${PRESET_VAULT_PATH}"
 fi
 
 # Reads credentials from Vault into the same SSH_* variables the rest of this script uses, so
@@ -98,7 +111,23 @@ case "${SSH_TEST_SECRET_SOURCE:-file}" in
     ;;
 esac
 
+# The private key has two representations, and LocalSshIntegrationTest prefers the base64 one. An
+# exported key in one form therefore also clears the other form a stored source supplied, or a
+# stale base64 key would win over the key the caller exported.
+preset_has() {
+  local name
+  for name in "${PRESET_FROM_ENV[@]}"; do
+    [[ "${name}" == "$1" ]] && return 0
+  done
+  return 1
+}
+
 if [[ ${#PRESET_FROM_ENV[@]} -gt 0 ]]; then
+  if preset_has SSH_PRIVATE_KEY && ! preset_has SSH_PRIVATE_KEY_B64; then
+    unset SSH_PRIVATE_KEY_B64
+  elif preset_has SSH_PRIVATE_KEY_B64 && ! preset_has SSH_PRIVATE_KEY; then
+    unset SSH_PRIVATE_KEY
+  fi
   for var in "${PRESET_FROM_ENV[@]}"; do
     preset_ref="PRESET_VALUE_${var}"
     export "${var}=${!preset_ref}"
