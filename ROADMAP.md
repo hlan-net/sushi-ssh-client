@@ -105,7 +105,7 @@ Taken as a set on 2026-09-21, after checking that none contradicts another or th
 ### Process
 
 - [ ] **`dependabot-auto-merge.yml` must not merge a branch carrying non-Dependabot commits.** `dependabot/gradle/…play-services-auth-22.0.0` had a hand-made roadmap commit on it, which means the two processes have already crossed once. Guard: skip any PR whose commits have an author other than `dependabot[bot]`.
-- [ ] **Refresh `docs/improvements/`** — its P0/P1 summary (2026-07) still lists host-key verification, passphrase keys, keep-alive and `keyboard-interactive` as open; all four have shipped. Marked in the README in this change; the per-document findings should be marked the same way so an agent does not re-fix them.
+- [ ] **Refresh `docs/improvements/`** — its P0/P1 summary (2026-07) still lists host-key verification, passphrase keys, keep-alive and `keyboard-interactive` as open; the first three have shipped and are marked in the README, and the per-document findings should be marked the same way so an agent does not re-fix them. `keyboard-interactive` has **not** shipped — `SshClient` advertises it but no `UserInfo` can answer it — so its finding stays open (#191).
 
 ---
 

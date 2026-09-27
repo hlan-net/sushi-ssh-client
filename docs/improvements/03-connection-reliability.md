@@ -42,6 +42,11 @@ network blip (Wi-Fi ↔ cellular handover is routine on a phone).
 
 ## 3. `keyboard-interactive` authentication is unsupported (P1)
 
+**Status (2026-09): open — #191.** `preferredAuthentications` now lists
+`keyboard-interactive` ahead of `password`, but nothing implements
+`UIKeyboardInteractive`, so the method is offered and then fails, spending an
+authentication attempt. Listing the method is not support.
+
 **Finding.** Auth is password + public key only (`resolveAuthPlan`,
 SshClient.kt:159). Servers configured with `ChallengeResponseAuthentication`/
 PAM (very common, and required for TOTP 2FA setups) will fail even with a
