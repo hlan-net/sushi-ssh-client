@@ -10,6 +10,8 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import net.hlan.sushi.ConversationResult
 import net.hlan.sushi.R
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -86,7 +88,7 @@ class ConversationScreenTest {
 
         composeRule.onNodeWithTag(ConversationScreenTestTags.BACK_BUTTON).performClick()
 
-        assert(backClicked)
+        assertTrue(backClicked)
     }
 
     @Test
@@ -99,7 +101,7 @@ class ConversationScreenTest {
 
         composeRule.onNodeWithTag(ConversationScreenTestTags.RAW_MODE_CHIP).performClick()
 
-        assert(newValue == true)
+        assertEquals(true, newValue)
     }
 
     @Test
@@ -117,7 +119,7 @@ class ConversationScreenTest {
         composeRule.onNodeWithTag(ConversationScreenTestTags.INPUT_FIELD).performTextInput("is nginx up?")
         composeRule.onNodeWithTag(ConversationScreenTestTags.SEND_BUTTON).performClick()
 
-        assert(sent == "is nginx up?")
+        assertEquals("is nginx up?", sent)
         composeRule.onNode(hasText("is nginx up?")).assertDoesNotExist()
     }
 
@@ -164,7 +166,7 @@ class ConversationScreenTest {
         composeRule.onNodeWithText("sudo systemctl restart nginx").assertExists()
         composeRule.onNodeWithTag(ConversationScreenTestTags.CONFIRM_RUN_BUTTON).performClick()
 
-        assert(confirmed)
+        assertTrue(confirmed)
     }
 
     @Test
@@ -206,6 +208,6 @@ class ConversationScreenTest {
         composeRule.onNodeWithTag(ConversationScreenTestTags.MORE_ACTIONS_BUTTON).performClick()
         composeRule.onNodeWithTag(ConversationScreenTestTags.SETTINGS_MENU_ITEM).performClick()
 
-        assert(settingsOpened)
+        assertTrue(settingsOpened)
     }
 }
