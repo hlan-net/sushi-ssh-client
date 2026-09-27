@@ -33,7 +33,7 @@ and a rough effort estimate. They complement — and cross-reference — the exi
 |------|-----|-----|
 | Real terminal emulation (screen buffer, cursor addressing) | [2](02-terminal-emulation.md) | vim/htop/less do not render today |
 | Foreground service keep-alive ✅ shipped (`SshConnectionService`); auto-reconnect still open → `ROADMAP.md` v0.9.x | [3](03-connection-reliability.md) | Already on roadmap (T-8); sessions die on backgrounding |
-| ~~`keyboard-interactive` auth support~~ ✅ shipped (`SshClient` preferred-auth list) | [3](03-connection-reliability.md) | Many servers (esp. with 2FA) require it |
+| `keyboard-interactive` auth support — **open**: `SshClient` advertises the method, but no `UserInfo` implements `UIKeyboardInteractive`, so it cannot be answered (#191) | [3](03-connection-reliability.md) | Many servers (esp. with 2FA) require it |
 | Per-host SSH identities | [1](01-security.md) | Single global key pair today (roadmap A-6) |
 | Break up `MainActivity` (1230 lines) | [4](04-architecture-code-quality.md) | Biggest maintainability risk |
 | Rendering performance: incremental append instead of full re-parse | [2](02-terminal-emulation.md) | O(n²) behaviour on long sessions |
