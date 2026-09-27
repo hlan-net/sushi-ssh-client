@@ -30,8 +30,19 @@ SSH_JUMP_ENABLED="${SSH_JUMP_ENABLED:-false}"
 SSH_JUMP_PORT="${SSH_JUMP_PORT:-22}"
 TEST_CLASS="${TEST_CLASS:-net.hlan.sushi.LocalSshIntegrationTest}"
 
+# TEST_CLASS=ALL runs every instrumented test with the credentials injected. Without it the only
+# way to reach the whole suite is connectedDebugAndroidTest, which passes no credentials, so
+# LocalSshIntegrationTest skips out -- and AGP records those skips as empty <failure/> elements,
+# which reads as 16 broken tests. A comma-separated class list is not an option: only its first
+# entry runs, and the run still exits 0.
+if [[ "${TEST_CLASS}" == "ALL" ]]; then
+  TEST_FILTER="-Pandroid.testInstrumentationRunnerArguments.package=net.hlan.sushi"
+else
+  TEST_FILTER="-Pandroid.testInstrumentationRunnerArguments.class=${TEST_CLASS}"
+fi
+
 args=(
-  "-Pandroid.testInstrumentationRunnerArguments.class=${TEST_CLASS}"
+  "${TEST_FILTER}"
   "-Pandroid.testInstrumentationRunnerArguments.sshHost=${SSH_HOST}"
   "-Pandroid.testInstrumentationRunnerArguments.sshPort=${SSH_PORT}"
   "-Pandroid.testInstrumentationRunnerArguments.sshUsername=${SSH_USERNAME}"
