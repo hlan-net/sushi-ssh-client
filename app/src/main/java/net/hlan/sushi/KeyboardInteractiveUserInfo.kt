@@ -32,7 +32,7 @@ internal class KeyboardInteractiveUserInfo(
         prompt: Array<String>?,
         echo: BooleanArray?
     ): Array<String>? {
-        val response = respond(prompt.orEmpty(), echo ?: BooleanArray(0), password, passwordSent)
+        val response = respond(prompt ?: emptyArray(), echo ?: BooleanArray(0), password, passwordSent)
         if (response != null && response.isNotEmpty()) {
             passwordSent = true
         }
