@@ -539,6 +539,48 @@ class ConversationViewModelTest {
     }
 
     @Test
+    fun sendRaw_whilePendingConfirmation_isBlockedAndReportsIt() = runBlocking {
+        // A history rerun reaches ConversationViewModel.sendRaw directly, bypassing
+        // ConversationScreen's own input controls (which disable while a confirmation is
+        // pending) — the guard has to hold here regardless of what UI reached it.
+        connection.connect(backend)
+        val vm = viewModel()
+        vm.awaitIdle()
+        vm.setRawMode(true)
+        vm.send("rm -f /tmp/x")
+        vm.awaitIdle()
+        assertNotNull(vm.state.value.pendingConfirmation)
+        val events = recordEventsOf(vm)
+
+        vm.sendRaw("uptime")
+        vm.awaitIdle()
+
+        assertTrue(backend.executed.isEmpty())
+        assertNotNull("the original confirmation is still pending", vm.state.value.pendingConfirmation)
+        assertTrue(events.has { it == ConversationEvent.PendingConfirmationBlocksRerun })
+        events.job.cancel()
+    }
+
+    @Test
+    fun send_whilePendingConfirmation_isBlockedAndReportsIt() = runBlocking {
+        connection.connect(backend)
+        environment.replies("Restarting.\nEXECUTE: sudo systemctl restart nginx")
+        val vm = viewModel()
+        vm.awaitIdle()
+        vm.send("restart nginx")
+        vm.awaitIdle()
+        assertNotNull(vm.state.value.pendingConfirmation)
+        val events = recordEventsOf(vm)
+
+        vm.send("something else")
+        vm.awaitIdle()
+
+        assertTrue("no second turn was started", vm.state.value.transcript.filterIsInstance<TranscriptItem.Turn>().size == 1)
+        assertTrue(events.has { it == ConversationEvent.PendingConfirmationBlocksRerun })
+        events.job.cancel()
+    }
+
+    @Test
     fun sendRaw_withoutSession_reportsNotConnected() = runBlocking {
         val vm = viewModel()
         val events = recordEventsOf(vm)

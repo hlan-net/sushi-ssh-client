@@ -24,4 +24,10 @@ sealed interface ConversationEvent {
 
     /** The target had no persona file; the default one was used. */
     data object DefaultPersonaUsed : ConversationEvent
+
+    /**
+     * A message or history rerun was dropped because [ConversationUiState.pendingConfirmation]
+     * was still set — the user needs to run or skip it first.
+     */
+    data object PendingConfirmationBlocksRerun : ConversationEvent
 }
