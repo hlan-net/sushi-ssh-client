@@ -72,26 +72,39 @@
 # helper classes it sees no direct reference to. First surfaced by ConversationScreenTest, the
 # first createComposeRule() instrumented test, whose compose-ui-test dependency (running only
 # in the minifiedDebug variant, never shipped) both virtual-dispatches into and
-# Class.forName()-probes the compile-time shape at the app APK's runtime copy — but the actual
+# Class.forName()-probes the compile-time shape at the app APK's runtime copy — but some of the
 # gaps are in libraries ConversationScreen itself also depends on at runtime, in any variant.
-# Chasing each stripped member one at a time just surfaced the next one, each unlocked by
-# fixing the last and letting the test run further before crashing: CompletableJob.complete(),
+# Chasing each stripped member one at a time surfaced these, each unlocked by fixing the last and
+# letting the test run further before crashing: CompletableJob.complete(),
 # kotlinx.coroutines.DelayWithTimeoutDiagnostics, kotlin.time.AbstractLongTimeSource,
 # androidx.compose.ui.platform.InfiniteAnimationPolicy$DefaultImpls,
 # kotlin.coroutines.intrinsics.IntrinsicsKt once runTest() itself started executing, then
-# kotlin.ExceptionsKt once setContent() itself started executing — narrowing to individual
-# kotlin.* subpackages wasn't converging, so keep the whole kotlin.** stdlib, plus
-# kotlinx.coroutines.** and androidx.compose.** (a printusage report, `-printusage`,
-# temporarily, showed 83 more androidx.compose $DefaultImpls classes across the
-# animation/foundation/runtime/ui artifacts in the same situation). The same trade already made
-# above for JSch. Verified via `dexdump` on app-minifiedDebug.apk that all previously-stripped
-# classes come back with full definitions, and via follow-up printusage reports that none of
-# these packages have anything left fully removed.
--keep class kotlin.** { *; }
+# kotlin.ExceptionsKt once setContent() itself started executing, plus a printusage report
+# (`-printusage`) that showed 83 more androidx.compose $DefaultImpls classes across the
+# animation/foundation/runtime/ui artifacts in the same situation — all of them Kotlin interface
+# default-method implementations, which the compiler always names as a nested class literally
+# called DefaultImpls. Keeping every $DefaultImpls class in these three namespaces covers that
+# whole category (current and future) without keeping the namespaces' otherwise-unused code, so
+# release users get the same crash immunity at a fraction of the shrinking cost of keeping the
+# packages whole (Copilot review, PR #197: the previous blanket keep prevented R8 from shrinking
+# kotlin-stdlib, kotlinx.coroutines and androidx.compose in their entirety). The specific
+# non-$DefaultImpls classes/members proven necessary above are kept by name instead. The original
+# blanket keep still guards the minifiedDebug variant only (never shipped) in
+# minified-debug-proguard-rules.pro, as a safety net for whatever compose-ui-test's broader
+# Class.forName() probing needs beyond this — verify with dexdump/printusage against
+# app-release-unsigned.apk before assuming a narrower list here is sufficient on its own.
+-keep class kotlin.**$DefaultImpls { *; }
+-keep class kotlinx.coroutines.**$DefaultImpls { *; }
+-keep class androidx.compose.**$DefaultImpls { *; }
+-keep class kotlin.ExceptionsKt { *; }
+-keep class kotlin.coroutines.intrinsics.IntrinsicsKt { *; }
+-keep class kotlin.time.AbstractLongTimeSource { *; }
+-keep interface kotlinx.coroutines.CompletableJob {
+    boolean complete();
+}
+-keep class kotlinx.coroutines.DelayWithTimeoutDiagnostics { *; }
 -dontwarn kotlin.**
--keep class kotlinx.coroutines.** { *; }
 -dontwarn kotlinx.coroutines.**
--keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
 
 # createComposeRule()'s environment (AndroidComposeUiTestEnvironment.setContent) also hosts a
