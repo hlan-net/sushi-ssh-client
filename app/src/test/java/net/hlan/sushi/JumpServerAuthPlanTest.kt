@@ -168,18 +168,18 @@ class JumpServerAuthPlanTest {
             )
         )
         assertEquals(
-            "keyboard-interactive,password",
+            "password,keyboard-interactive",
             client.preferredAuthentications(client.resolveJumpAuthPlan(config))
         )
     }
 
     @Test
-    fun autoHost_offersBothInJschsDefaultOrder() {
+    fun autoHost_offersKeyThenPasswordThenKeyboardInteractive() {
         val config = config(SshAuthPreference.AUTO, SshAuthPreference.AUTO.value)
         val client = clientFor(config)
 
         assertEquals(
-            "publickey,keyboard-interactive,password",
+            "publickey,password,keyboard-interactive",
             client.preferredAuthentications(client.resolveJumpAuthPlan(config))
         )
     }
@@ -200,7 +200,7 @@ class JumpServerAuthPlanTest {
 
         val jump = client.jumpSessionSetup()!!
         assertEquals("bastion-password", jump.password)
-        assertEquals("keyboard-interactive,password", jump.preferredAuthentications)
+        assertEquals("password,keyboard-interactive", jump.preferredAuthentications)
         assertEquals("bastion:22", jump.hostKeyAlias)
         assertEquals("larry", jump.username)
 
@@ -221,7 +221,7 @@ class JumpServerAuthPlanTest {
 
         val target = client.targetSessionSetup()
         assertEquals("target-password", target.password)
-        assertEquals("keyboard-interactive,password", target.preferredAuthentications)
+        assertEquals("password,keyboard-interactive", target.preferredAuthentications)
     }
 
     /**

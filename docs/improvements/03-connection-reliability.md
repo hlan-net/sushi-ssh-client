@@ -42,10 +42,15 @@ network blip (Wi-Fi ↔ cellular handover is routine on a phone).
 
 ## 3. `keyboard-interactive` authentication is unsupported (P1)
 
-**Status (2026-09): open — #191.** `preferredAuthentications` now lists
-`keyboard-interactive` ahead of `password`, but nothing implements
-`UIKeyboardInteractive`, so the method is offered and then fails, spending an
-authentication attempt. Listing the method is not support.
+**Status (2026-09): password prompts shipped; other challenges open — #191.**
+`KeyboardInteractiveUserInfo` answers a single echo-off password prompt with the
+stored password, once per session, so a server offering only
+`keyboard-interactive` (PAM with `PasswordAuthentication no`) authenticates.
+One-time codes, multi-prompt and echo-on challenges are declined — prompting for
+them needs a dialog, which goes through a Figma proposal first. Before this the
+method was listed but skipped: JSch's `UserAuthKeyboardInteractive` returns
+false before sending a request when the `UserInfo` is not a
+`UIKeyboardInteractive`.
 
 **Finding.** Auth is password + public key only (`resolveAuthPlan`,
 SshClient.kt:159). Servers configured with `ChallengeResponseAuthentication`/
