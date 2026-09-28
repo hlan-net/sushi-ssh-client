@@ -40,7 +40,7 @@ internal class KeyboardInteractiveUserInfo(
             passwordSent = true
         }
         val response = respond(prompts, echo ?: BooleanArray(0), password, passwordSent)
-        if (response != null && response.isNotEmpty()) {
+        if (!response.isNullOrEmpty()) {
             passwordSent = true
         }
         return response
