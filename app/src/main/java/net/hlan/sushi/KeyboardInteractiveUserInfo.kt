@@ -33,13 +33,16 @@ internal class KeyboardInteractiveUserInfo(
         echo: BooleanArray?
     ): Array<String>? {
         val prompts = prompt ?: emptyArray()
-        // JSch's own answers never reach this method, so a `password:` prompt showing up here is
-        // the only sign that JSch already sent the password earlier in this session. Recording
-        // it keeps a later, differently worded password prompt from being answered again.
-        if (prompts.any(::isAnsweredByJsch)) {
+        val echoes = echo ?: BooleanArray(0)
+        // JSch's own answers never reach this method, so a prompt JSch would have answered
+        // showing up here is the only sign that it already sent the password earlier in this
+        // session. Recording it keeps a later, differently worded password prompt from being
+        // answered again. Only JSch's exact case counts: in a multi-prompt or echo-on round it
+        // sends nothing, so nothing has been spent.
+        if (!password.isNullOrEmpty() && isAnsweredByJsch(prompts, echoes)) {
             passwordSent = true
         }
-        val response = respond(prompts, echo ?: BooleanArray(0), password, passwordSent)
+        val response = respond(prompts, echoes, password, passwordSent)
         if (!response.isNullOrEmpty()) {
             passwordSent = true
         }
@@ -76,7 +79,7 @@ internal class KeyboardInteractiveUserInfo(
             val echoOff = echo.singleOrNull() == false
             return when {
                 password.isNullOrEmpty() || passwordAlreadySent || !echoOff -> null
-                isAnsweredByJsch(onlyPrompt) -> null
+                isAnsweredByJsch(prompts, echo) -> null
                 "password" in onlyPrompt.lowercase(Locale.ROOT) -> arrayOf(password)
                 else -> null
             }
@@ -84,9 +87,10 @@ internal class KeyboardInteractiveUserInfo(
 
         /**
          * The test `UserAuthKeyboardInteractive` applies before answering from
-         * `session.password` itself (it also requires a single echo-off prompt).
+         * `session.password` itself: one prompt, echo off, containing `password:`.
          */
-        private fun isAnsweredByJsch(prompt: String): Boolean =
-            "password:" in prompt.lowercase(Locale.ROOT)
+        private fun isAnsweredByJsch(prompts: Array<String>, echo: BooleanArray): Boolean =
+            prompts.size == 1 && echo.size == 1 && !echo[0] &&
+                "password:" in prompts[0].lowercase(Locale.ROOT)
     }
 }

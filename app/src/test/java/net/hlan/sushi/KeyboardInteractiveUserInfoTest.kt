@@ -160,6 +160,27 @@ class KeyboardInteractiveUserInfoTest {
         )
     }
 
+    /**
+     * JSch sends nothing for a multi-prompt or echo-on round, even when one prompt says
+     * `password:`, so such a round must not count as the password having gone out.
+     */
+    @Test
+    fun roundsJschDoesNotAnswer_doNotCountAsSent() {
+        val userInfo = KeyboardInteractiveUserInfo(RecordingUserInfo(), "secret")
+
+        userInfo.promptKeyboardInteractive(
+            "larry@ergo", "", "", arrayOf("Password: ", "Verification code: "), booleanArrayOf(false, false)
+        )
+        userInfo.promptKeyboardInteractive("larry@ergo", "", "", arrayOf("Password: "), booleanArrayOf(true))
+
+        assertArrayEquals(
+            arrayOf("secret"),
+            userInfo.promptKeyboardInteractive(
+                "larry@ergo", "", "", arrayOf("Password for larry@ergo: "), booleanArrayOf(false)
+            )
+        )
+    }
+
     /** An empty round in between must not count as having sent the password. */
     @Test
     fun emptyRoundDoesNotSpendThePassword() {
