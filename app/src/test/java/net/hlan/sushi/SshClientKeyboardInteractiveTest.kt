@@ -3,7 +3,12 @@ package net.hlan.sushi
 import com.jcraft.jsch.UserInfo
 import org.apache.sshd.server.Environment
 import org.apache.sshd.server.ExitCallback
+import org.apache.sshd.common.SshConstants
+import org.apache.sshd.common.util.buffer.Buffer
 import org.apache.sshd.server.SshServer
+import org.apache.sshd.server.auth.AbstractUserAuth
+import org.apache.sshd.server.auth.UserAuth
+import org.apache.sshd.server.auth.UserAuthFactory
 import org.apache.sshd.server.auth.keyboard.InteractiveChallenge
 import org.apache.sshd.server.auth.keyboard.KeyboardInteractiveAuthenticator
 import org.apache.sshd.server.auth.keyboard.UserAuthKeyboardInteractiveFactory
@@ -198,6 +203,54 @@ class SshClientKeyboardInteractiveTest {
         assertTrue(result.message, result.success)
         assertEquals(1, passwordAttempts.get())
         assertEquals(0, challengesIssued.get())
+    }
+
+    /**
+     * A hostile server claiming a hundred million prompts in a packet that holds none. JSch's
+     * own class allocates `String[num]` and `boolean[num]` from that before reading anything —
+     * about half a gigabyte on the JVM, enough to take an Android app down. The bounded copy
+     * rejects the count first, so the connection fails with that reason instead.
+     */
+    @Test
+    fun hostilePromptCount_isRejectedBeforeAllocating() {
+        server.userAuthFactories = listOf(HostilePromptCountFactory(100_000_000))
+        start()
+
+        val result = connect(PASSWORD)
+
+        assertFalse(result.success)
+        assertTrue(result.message, "invalid prompt count 100000000" in result.message)
+    }
+
+    /** A negative count, which JSch's class would turn into NegativeArraySizeException. */
+    @Test
+    fun negativePromptCount_isRejected() {
+        server.userAuthFactories = listOf(HostilePromptCountFactory(-1))
+        start()
+
+        val result = connect(PASSWORD)
+
+        assertFalse(result.success)
+        assertTrue(result.message, "invalid prompt count -1" in result.message)
+    }
+
+    /** Sends one `SSH_MSG_USERAUTH_INFO_REQUEST` whose `num-prompts` is [count], and no prompts. */
+    private class HostilePromptCountFactory(private val count: Int) : UserAuthFactory {
+        override fun getName(): String = "keyboard-interactive"
+
+        override fun createUserAuth(session: ServerSession?): UserAuth =
+            object : AbstractUserAuth(name) {
+                override fun doAuth(buffer: Buffer?, init: Boolean): Boolean? {
+                    if (!init) return false
+                    val request = serverSession.createBuffer(SshConstants.SSH_MSG_USERAUTH_INFO_REQUEST)
+                    request.putString("")
+                    request.putString("")
+                    request.putString("")
+                    request.putInt(count.toLong())
+                    serverSession.writePacket(request)
+                    return null
+                }
+            }
     }
 
     /** Accepts the host key; nothing else here prompts. */

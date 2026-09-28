@@ -517,6 +517,9 @@ class SshClient(
         session.setConfig("PreferredAuthentications", setup.preferredAuthentications)
         session.setHostKeyAlias(setup.hostKeyAlias)
         session.setUserInfo(KeyboardInteractiveUserInfo(userInfo, setup.password))
+        // JSch 2.28.7 allocates keyboard-interactive prompt arrays from the server's count
+        // unchecked; this copy bounds it first. See the class comment.
+        session.setConfig("userauth.keyboard-interactive", BOUNDED_KEYBOARD_INTERACTIVE)
         // Use Bouncy Castle for Ed25519 so ssh-ed25519 host keys work on all Android
         // versions. Android JCE only supports EdDSA from API 33; the BC implementation
         // works from the app's minSdk (26) onward.
@@ -784,6 +787,7 @@ class SshClient(
     }
 
     companion object {
+        internal const val BOUNDED_KEYBOARD_INTERACTIVE = "com.jcraft.jsch.BoundedUserAuthKeyboardInteractive"
         private const val CONNECTION_TIMEOUT_MS = 10000
         private const val SHELL_CONNECT_TIMEOUT_MS = 10000
         private const val SFTP_CONNECT_TIMEOUT_MS = 10000

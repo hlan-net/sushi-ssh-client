@@ -51,6 +51,12 @@ covers it against an in-process server. Before this the method was listed but
 skipped: JSch's `UserAuthKeyboardInteractive` returns false before sending a
 request when the `UserInfo` is not a `UIKeyboardInteractive`.
 
+Answering the method exposed a JSch 2.28.7 bug: `UserAuthKeyboardInteractive`
+allocates its prompt arrays from the server's `num-prompts` unchecked, so a
+server could OOM the app during login. `com.jcraft.jsch.BoundedUserAuthKeyboardInteractive`
+is JSch's class with that count bounded, registered per session; delete it once
+upstream bounds the count.
+
 **Finding.** Every other challenge is declined: one-time codes (TOTP 2FA over
 PAM), multi-prompt rounds, and echo-on prompts. JSch then moves on to the next
 method, so a server that requires a second factor cannot be reached.
