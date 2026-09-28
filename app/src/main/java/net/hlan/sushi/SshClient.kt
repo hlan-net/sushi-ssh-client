@@ -496,8 +496,8 @@ class SshClient(
      * list. A server that accepts `password` is authenticated exactly as before the method could
      * be answered; one that offers only `keyboard-interactive` (PAM with
      * `PasswordAuthentication no`) now gets in. A wrong password costs one attempt per method
-     * either way, since JSch answers a `Password:` prompt itself, so the order only decides
-     * which method is tried first.
+     * either way — the wrapper sends it once per session over `keyboard-interactive`, on top of
+     * the `password` method's own attempt — so the order only decides which is tried first.
      *
      * Every [AuthPlan] permits at least one method — [resolveAuthPlan] has no branch where both
      * are false — so this never produces an empty list.

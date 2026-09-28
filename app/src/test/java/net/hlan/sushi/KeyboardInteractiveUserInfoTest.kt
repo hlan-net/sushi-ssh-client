@@ -41,12 +41,24 @@ class KeyboardInteractiveUserInfoTest {
 
     // --- what is answered ---
 
-    /** PAM's `Password for user@host:` does not contain `password:`, so JSch leaves it to us. */
     @Test
     fun singleEchoOffPasswordPrompt_isAnsweredWithTheStoredPassword() {
         assertArrayEquals(
             arrayOf("secret"),
             respond(arrayOf("Password for larry@ergo: "), booleanArrayOf(false))
+        )
+    }
+
+    /**
+     * OpenSSH/PAM's usual prompts. JSch's own class answers these itself; the bounded copy passes
+     * them here, so the wrapper answers them like any other password prompt.
+     */
+    @Test
+    fun pamPasswordPrompts_areAnsweredWithTheStoredPassword() {
+        assertArrayEquals(arrayOf("secret"), respond(arrayOf("Password: "), booleanArrayOf(false)))
+        assertArrayEquals(
+            arrayOf("secret"),
+            respond(arrayOf("larry@ergo's password: "), booleanArrayOf(false))
         )
     }
 
@@ -91,16 +103,6 @@ class KeyboardInteractiveUserInfoTest {
         assertNull(respond(arrayOf("Verification code: "), booleanArrayOf(false)))
     }
 
-    /**
-     * JSch answers a lone echo-off `password:` prompt from `session.password` before calling
-     * us, so being asked one means that answer was rejected.
-     */
-    @Test
-    fun promptJschAnswersItself_isDeclined() {
-        assertNull(respond(arrayOf("Password: "), booleanArrayOf(false)))
-        assertNull(respond(arrayOf("larry@ergo's password: "), booleanArrayOf(false)))
-    }
-
     @Test
     fun secondPasswordPrompt_isDeclined() {
         assertNull(
@@ -142,15 +144,15 @@ class KeyboardInteractiveUserInfoTest {
     }
 
     /**
-     * JSch answers `Password:` without calling the wrapper, so the wrapper only learns the
-     * password went out when that prompt comes back. A differently worded password prompt
-     * after it must not be answered again.
+     * Once the password has gone out, a later password prompt is not answered again, whatever
+     * its wording. This is the rule JSch's own automatic `Password:` answer could bypass.
      */
     @Test
-    fun passwordPromptJschAnswered_countsAsSent() {
+    fun differentlyWordedSecondPasswordPrompt_isDeclined() {
         val userInfo = KeyboardInteractiveUserInfo(RecordingUserInfo(), "secret")
 
-        assertNull(
+        assertArrayEquals(
+            arrayOf("secret"),
             userInfo.promptKeyboardInteractive("larry@ergo", "", "", arrayOf("Password: "), booleanArrayOf(false))
         )
         assertNull(
@@ -161,11 +163,11 @@ class KeyboardInteractiveUserInfoTest {
     }
 
     /**
-     * JSch sends nothing for a multi-prompt or echo-on round, even when one prompt says
-     * `password:`, so such a round must not count as the password having gone out.
+     * A declined round sends nothing, even when a prompt in it says `password:`, so it must not
+     * count as the password having gone out.
      */
     @Test
-    fun roundsJschDoesNotAnswer_doNotCountAsSent() {
+    fun declinedRounds_doNotCountAsSent() {
         val userInfo = KeyboardInteractiveUserInfo(RecordingUserInfo(), "secret")
 
         userInfo.promptKeyboardInteractive(

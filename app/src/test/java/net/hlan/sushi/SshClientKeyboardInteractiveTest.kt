@@ -32,9 +32,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * [SshClient] against a real SSH server that offers `keyboard-interactive`, so the pieces the
- * unit tests of [KeyboardInteractiveUserInfo.respond] cannot reach are covered: JSch's own
- * answer to a `Password:` prompt, the wrapper actually being installed by `configureSession`,
- * and the order the methods are tried in.
+ * unit tests of [KeyboardInteractiveUserInfo.respond] cannot reach are covered: the wrapper and
+ * `BoundedUserAuthKeyboardInteractive` actually being installed by `configureSession`, the
+ * protocol rounds between them and a server, and the order the methods are tried in.
  */
 class SshClientKeyboardInteractiveTest {
 
@@ -116,7 +116,7 @@ class SshClientKeyboardInteractiveTest {
         }
     }
 
-    /** OpenSSH/PAM's usual prompt. JSch answers it itself once the UserInfo is interactive. */
+    /** OpenSSH/PAM's usual prompt, which JSch's own class would answer behind the wrapper's back. */
     @Test
     fun keyboardInteractiveOnlyServer_withPamPasswordPrompt_connects() {
         offerOnlyKeyboardInteractive("Password: ")
@@ -156,7 +156,7 @@ class SshClientKeyboardInteractiveTest {
         assertEquals(1, responsesReceived.count { it == listOf("wrong") })
     }
 
-    /** The same through JSch's own answer to `Password:`, which the wrapper never sees. */
+    /** The same with PAM's `Password:`, the prompt JSch's own class answers itself. */
     @Test
     fun wrongPassword_withPamPasswordPrompt_isSentOnlyOnce() {
         offerOnlyKeyboardInteractive("Password: ")
@@ -232,6 +232,57 @@ class SshClientKeyboardInteractiveTest {
 
         assertFalse(result.success)
         assertTrue(result.message, "invalid prompt count -1" in result.message)
+    }
+
+    /**
+     * Two password prompts in one exchange, worded differently. JSch's own class would answer the
+     * first from `session.password` without the wrapper knowing, and the wrapper would then answer
+     * the second too; with every round going through the wrapper, the password goes out once.
+     */
+    @Test
+    fun twoPasswordPromptsInOneExchange_sendThePasswordOnce() {
+        server.userAuthFactories = listOf(TwoPasswordRoundsFactory(responsesReceived))
+        start()
+
+        val result = connect(PASSWORD)
+
+        assertFalse(result.success)
+        assertEquals(1, responsesReceived.count { PASSWORD in it })
+    }
+
+    /**
+     * Asks `Password: `, then — in the same exchange — `Password for larry: `, recording each set
+     * of responses, and never lets the client in.
+     */
+    private class TwoPasswordRoundsFactory(
+        private val received: MutableList<List<String>>
+    ) : UserAuthFactory {
+        override fun getName(): String = "keyboard-interactive"
+
+        override fun createUserAuth(session: ServerSession?): UserAuth =
+            object : AbstractUserAuth(name) {
+                private var round = 0
+
+                override fun doAuth(buffer: Buffer?, init: Boolean): Boolean? {
+                    if (!init) {
+                        val reply = buffer ?: return false
+                        if (reply.uByte != SshConstants.SSH_MSG_USERAUTH_INFO_RESPONSE.toInt()) return false
+                        received += List(reply.int) { reply.string }
+                    }
+                    round++
+                    if (round > 2) return false
+                    val prompt = if (round == 1) "Password: " else "Password for $USER: "
+                    val request = serverSession.createBuffer(SshConstants.SSH_MSG_USERAUTH_INFO_REQUEST)
+                    request.putString("")
+                    request.putString("")
+                    request.putString("")
+                    request.putInt(1)
+                    request.putString(prompt)
+                    request.putBoolean(false)
+                    serverSession.writePacket(request)
+                    return null
+                }
+            }
     }
 
     /** Sends one `SSH_MSG_USERAUTH_INFO_REQUEST` whose `num-prompts` is [count], and no prompts. */

@@ -12,11 +12,12 @@ import java.util.Locale
  * [UserInfo] but not a password — binding the password to the shared instance would answer the
  * bastion with the target's.
  *
- * Implementing the interface is what makes the method usable at all: `UserAuthKeyboardInteractive`
- * returns false before sending a request when the session's `UserInfo` is not a
- * [UIKeyboardInteractive]. Once it is, JSch answers a lone echo-off prompt containing
- * `password:` from `session.password` on its own and only calls [promptKeyboardInteractive]
- * for everything else — see [respond] for how that is answered.
+ * Implementing the interface is what makes the method usable at all: JSch's
+ * `UserAuthKeyboardInteractive` returns false before sending a request when the session's
+ * `UserInfo` is not a [UIKeyboardInteractive]. The session runs
+ * `com.jcraft.jsch.BoundedUserAuthKeyboardInteractive` instead, which passes every round here —
+ * JSch's own class would answer a `Password:` prompt itself, behind this class's back — so this is
+ * the one place that decides when the password is sent. See [respond].
  */
 internal class KeyboardInteractiveUserInfo(
     private val delegate: UserInfo,
@@ -32,17 +33,7 @@ internal class KeyboardInteractiveUserInfo(
         prompt: Array<String>?,
         echo: BooleanArray?
     ): Array<String>? {
-        val prompts = prompt ?: emptyArray()
-        val echoes = echo ?: BooleanArray(0)
-        // JSch's own answers never reach this method, so a prompt JSch would have answered
-        // showing up here is the only sign that it already sent the password earlier in this
-        // session. Recording it keeps a later, differently worded password prompt from being
-        // answered again. Only JSch's exact case counts: in a multi-prompt or echo-on round it
-        // sends nothing, so nothing has been spent.
-        if (!password.isNullOrEmpty() && isAnsweredByJsch(prompts, echoes)) {
-            passwordSent = true
-        }
-        val response = respond(prompts, echoes, password, passwordSent)
+        val response = respond(prompt ?: emptyArray(), echo ?: BooleanArray(0), password, passwordSent)
         if (!response.isNullOrEmpty()) {
             passwordSent = true
         }
@@ -58,8 +49,6 @@ internal class KeyboardInteractiveUserInfo(
          * - **One echo-off prompt that asks for a password** — answered with the stored password,
          *   once per session. A second password prompt means the first answer was rejected, and
          *   repeating a known-wrong password only spends the server's `MaxAuthTries`.
-         * - **A prompt containing `password:`** — declined: JSch answers that one itself before
-         *   calling here, so seeing it means JSch's answer was already rejected.
          * - **Anything else** — an echo-on prompt, several prompts, or a one-time code — is
          *   declined, never answered with the password. JSch then moves on to the next method.
          *
@@ -79,18 +68,9 @@ internal class KeyboardInteractiveUserInfo(
             val echoOff = echo.singleOrNull() == false
             return when {
                 password.isNullOrEmpty() || passwordAlreadySent || !echoOff -> null
-                isAnsweredByJsch(prompts, echo) -> null
                 "password" in onlyPrompt.lowercase(Locale.ROOT) -> arrayOf(password)
                 else -> null
             }
         }
-
-        /**
-         * The test `UserAuthKeyboardInteractive` applies before answering from
-         * `session.password` itself: one prompt, echo off, containing `password:`.
-         */
-        private fun isAnsweredByJsch(prompts: Array<String>, echo: BooleanArray): Boolean =
-            prompts.size == 1 && echo.size == 1 && !echo[0] &&
-                "password:" in prompts[0].lowercase(Locale.ROOT)
     }
 }

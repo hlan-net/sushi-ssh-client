@@ -23,23 +23,29 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Modified by the Sushi SSH client authors: bounded num-prompts (see the class comment).
+ * Modified by the Sushi SSH client authors: bounded num-prompts, and no automatic answer from
+ * session.password (see the class comment).
  */
 
 package com.jcraft.jsch;
 
-import java.util.Locale;
-
 /**
- * JSch's {@code UserAuthKeyboardInteractive} from com.github.mwiede:jsch 2.28.7, with one change:
- * the server-supplied {@code num-prompts} is bounded before any array is allocated from it.
+ * JSch's {@code UserAuthKeyboardInteractive} from com.github.mwiede:jsch 2.28.7, with two changes.
  *
- * <p>The original reads {@code int num = buf.getInt()} and allocates {@code new String[num]} and
+ * <p><b>The server-supplied {@code num-prompts} is bounded</b> before any array is allocated from
+ * it. The original reads {@code int num = buf.getInt()} and allocates {@code new String[num]} and
  * {@code new boolean[num]} straight away, so a server could make the client allocate hundreds of
  * megabytes during authentication and take the whole app down with an OutOfMemoryError. Here a
  * count that is negative, above {@link #MAX_PROMPTS}, or larger than the packet could possibly
  * hold (each prompt needs at least a 4-byte length and a 1-byte echo flag) fails the connection
  * with a {@link JSchException} instead.
+ *
+ * <p><b>Every round goes to the {@link UIKeyboardInteractive}.</b> The original answers a lone
+ * echo-off prompt containing {@code password:} from {@code session.password} itself, without the
+ * UserInfo knowing, so the UserInfo cannot keep its own once-per-session rule: a later, differently
+ * worded password prompt would get the password again. With that shortcut removed,
+ * {@code net.hlan.sushi.KeyboardInteractiveUserInfo} answers every prompt and is the one place that
+ * decides when the password is sent.
  *
  * <p>It lives in {@code com.jcraft.jsch} because it needs the package-private members of
  * {@link Session} and {@link Buffer} the original uses. {@code SshClient.configureSession}
@@ -66,8 +72,6 @@ class BoundedUserAuthKeyboardInteractive extends UserAuth {
     if (session.port != 22) {
       dest += (":" + session.port);
     }
-    byte[] password = session.password;
-
     boolean cancel = false;
 
     byte[] _username = null;
@@ -159,12 +163,7 @@ class BoundedUserAuthKeyboardInteractive extends UserAuth {
 
           byte[][] response = null;
 
-          if (password != null && prompt.length == 1 && !echo[0]
-              && prompt[0].toLowerCase(Locale.ROOT).indexOf("password:") >= 0) {
-            response = new byte[1][];
-            response[0] = password;
-            password = null;
-          } else if (num > 0 || (name.length() > 0 || instruction.length() > 0)) {
+          if (num > 0 || (name.length() > 0 || instruction.length() > 0)) {
             if (userinfo != null) {
               UIKeyboardInteractive kbi = (UIKeyboardInteractive) userinfo;
               String[] _response =
