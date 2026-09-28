@@ -1,0 +1,17 @@
+diff --git a/src/main/java/com/jcraft/jsch/UserAuthKeyboardInteractive.java b/src/main/java/com/jcraft/jsch/UserAuthKeyboardInteractive.java
+index 2fbabdb..71a5989 100644
+--- a/src/main/java/com/jcraft/jsch/UserAuthKeyboardInteractive.java
++++ b/src/main/java/com/jcraft/jsch/UserAuthKeyboardInteractive.java
+@@ -121,6 +121,12 @@ class UserAuthKeyboardInteractive extends UserAuth {
+           String instruction = Util.byte2str(buf.getString());
+           String languate_tag = Util.byte2str(buf.getString());
+           int num = buf.getInt();
++          // Each prompt needs at least a 4-byte string length and a 1-byte echo flag, so a count
++          // the remaining packet cannot hold is invalid; checking it here keeps a misbehaving
++          // server from making the client allocate arrays of up to 2^31-1 elements.
++          if (num < 0 || (long) num * 5 > buf.getLength()) {
++            throw new JSchException("USERAUTH INFO_REQUEST: invalid num-prompts " + num);
++          }
+           String[] prompt = new String[num];
+           boolean[] echo = new boolean[num];
+           for (int i = 0; i < num; i++) {
