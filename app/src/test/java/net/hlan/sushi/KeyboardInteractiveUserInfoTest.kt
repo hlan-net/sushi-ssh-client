@@ -141,6 +141,25 @@ class KeyboardInteractiveUserInfoTest {
         assertNull(userInfo.promptKeyboardInteractive("larry@ergo", "", "", prompt, echo))
     }
 
+    /**
+     * JSch answers `Password:` without calling the wrapper, so the wrapper only learns the
+     * password went out when that prompt comes back. A differently worded password prompt
+     * after it must not be answered again.
+     */
+    @Test
+    fun passwordPromptJschAnswered_countsAsSent() {
+        val userInfo = KeyboardInteractiveUserInfo(RecordingUserInfo(), "secret")
+
+        assertNull(
+            userInfo.promptKeyboardInteractive("larry@ergo", "", "", arrayOf("Password: "), booleanArrayOf(false))
+        )
+        assertNull(
+            userInfo.promptKeyboardInteractive(
+                "larry@ergo", "", "", arrayOf("Password for larry@ergo: "), booleanArrayOf(false)
+            )
+        )
+    }
+
     /** An empty round in between must not count as having sent the password. */
     @Test
     fun emptyRoundDoesNotSpendThePassword() {

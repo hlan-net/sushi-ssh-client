@@ -32,7 +32,14 @@ internal class KeyboardInteractiveUserInfo(
         prompt: Array<String>?,
         echo: BooleanArray?
     ): Array<String>? {
-        val response = respond(prompt ?: emptyArray(), echo ?: BooleanArray(0), password, passwordSent)
+        val prompts = prompt ?: emptyArray()
+        // JSch's own answers never reach this method, so a `password:` prompt showing up here is
+        // the only sign that JSch already sent the password earlier in this session. Recording
+        // it keeps a later, differently worded password prompt from being answered again.
+        if (prompts.any(::isAnsweredByJsch)) {
+            passwordSent = true
+        }
+        val response = respond(prompts, echo ?: BooleanArray(0), password, passwordSent)
         if (response != null && response.isNotEmpty()) {
             passwordSent = true
         }
@@ -67,13 +74,19 @@ internal class KeyboardInteractiveUserInfo(
             }
             val onlyPrompt = prompts.singleOrNull() ?: return null
             val echoOff = echo.singleOrNull() == false
-            val text = onlyPrompt.lowercase(Locale.ROOT)
             return when {
                 password.isNullOrEmpty() || passwordAlreadySent || !echoOff -> null
-                "password:" in text -> null
-                "password" in text -> arrayOf(password)
+                isAnsweredByJsch(onlyPrompt) -> null
+                "password" in onlyPrompt.lowercase(Locale.ROOT) -> arrayOf(password)
                 else -> null
             }
         }
+
+        /**
+         * The test `UserAuthKeyboardInteractive` applies before answering from
+         * `session.password` itself (it also requires a single echo-off prompt).
+         */
+        private fun isAnsweredByJsch(prompt: String): Boolean =
+            "password:" in prompt.lowercase(Locale.ROOT)
     }
 }
