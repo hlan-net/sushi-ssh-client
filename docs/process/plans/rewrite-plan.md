@@ -245,11 +245,11 @@ interface SessionPrompts {                       // replaces DialogUserInfo / Ke
 without reporting one, never `-1` (see `docs/improvements/04` §3). The exec
 deadline is the caller's `timeout`, not a fixed 1 s.
 
-Everything `SshClient.kt` does today — password/key auth (it advertises
-`keyboard-interactive` but cannot answer it; #191), `PreferredAuthentications`
-per host, jump host through a forwarded port, `serverAliveInterval`,
-`StrictHostKeyChecking=ask` with `TrackingHostKeyRepository`, PTY `xterm`, the
-exec channel — is preserved.
+Everything `SshClient.kt` does today — password/key auth, `keyboard-interactive`
+answered with the stored password (`KeyboardInteractiveUserInfo`; other
+challenges are declined, #191), `PreferredAuthentications` per host, jump host
+through a forwarded port, `serverAliveInterval`, `StrictHostKeyChecking=ask`
+with `TrackingHostKeyRepository`, PTY `xterm`, the exec channel — is preserved.
 `JumpServerAuthPlanTest` (279 lines) is the specification for the auth
 planning and moves here unchanged.
 

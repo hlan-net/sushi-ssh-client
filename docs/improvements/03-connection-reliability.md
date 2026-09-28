@@ -40,24 +40,34 @@ network blip (Wi-Fi ↔ cellular handover is routine on a phone).
 
 **Effort.** ~2–3 days.
 
-## 3. `keyboard-interactive` authentication is unsupported (P1)
+## 3. `keyboard-interactive`: one-time codes and multi-prompt challenges (P1)
 
-**Status (2026-09): open — #191.** `preferredAuthentications` now lists
-`keyboard-interactive` ahead of `password`, but nothing implements
-`UIKeyboardInteractive`, so the method is offered and then fails, spending an
-authentication attempt. Listing the method is not support.
+**Status (2026-09): the password case shipped; this finding is what remains — #191.**
+`KeyboardInteractiveUserInfo` answers a single echo-off password prompt with the
+stored password, once per session, so a server offering only
+`keyboard-interactive` (PAM with `PasswordAuthentication no`) authenticates. `SshClientKeyboardInteractiveTest`
+covers it against an in-process server. Before this the method was listed but
+skipped: JSch's `UserAuthKeyboardInteractive` returns false before sending a
+request when the `UserInfo` is not a `UIKeyboardInteractive`.
 
-**Finding.** Auth is password + public key only (`resolveAuthPlan`,
-SshClient.kt:159). Servers configured with `ChallengeResponseAuthentication`/
-PAM (very common, and required for TOTP 2FA setups) will fail even with a
-correct password, and the failure will be misclassified as `AUTH_PASSWORD`.
+Answering the method exposed a JSch 2.28.7 bug: `UserAuthKeyboardInteractive`
+allocates its prompt arrays from the server's `num-prompts` unchecked, so a
+server could OOM the app during login. `com.jcraft.jsch.BoundedUserAuthKeyboardInteractive`
+is JSch's class with that count bounded and without its automatic answer to
+`Password:` (which would bypass the wrapper's once-per-session rule), registered
+per session; delete it once upstream bounds the count.
 
-**Proposal.** Implement JSch `UIKeyboardInteractive` on the session `UserInfo`:
-prompts are forwarded to a dialog (or answered with the stored password when
-the prompt is a plain password echo-off prompt, which covers the common PAM
-case non-interactively). This also gives a natural hook for OTP entry.
+**Finding.** Every other challenge is declined: one-time codes (TOTP 2FA over
+PAM), multi-prompt rounds, and echo-on prompts. JSch then moves on to the next
+method, so a server that requires a second factor cannot be reached.
 
-**Effort.** ~2 days including the prompt dialog.
+**Proposal.** Surface the declined challenges in a dialog from
+`KeyboardInteractiveUserInfo.promptKeyboardInteractive` — one field per prompt,
+masked unless the server marks it echo-on — the way `DialogUserInfo` already
+bridges the passphrase and host-key prompts. It is a UI change, so it starts
+from a Figma proposal card (`docs/process/UX_PROPOSALS.md`).
+
+**Effort.** ~1 day for the dialog, after the proposal.
 
 ## 4. Exception classification by message strings is fragile (P2)
 

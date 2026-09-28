@@ -491,9 +491,13 @@ class SshClient(
      * authenticate with the key anyway, and a server with a low `MaxAuthTries` could run out of
      * attempts before password was reached.
      *
-     * `keyboard-interactive` rides along with password as it does in JSch's default list. It is
-     * inert until a `UserInfo` implements `UIKeyboardInteractive`, which [DialogUserInfo] does
-     * not; it is listed so enabling that later needs no change here.
+     * `keyboard-interactive` rides along with password, answered from the same stored password
+     * by [KeyboardInteractiveUserInfo], and comes *after* it — the reverse of JSch's default
+     * list. A server that accepts `password` is authenticated exactly as before the method could
+     * be answered; one that offers only `keyboard-interactive` (PAM with
+     * `PasswordAuthentication no`) now gets in. A wrong password costs one attempt per method
+     * either way — the wrapper sends it once per session over `keyboard-interactive`, on top of
+     * the `password` method's own attempt — so the order only decides which is tried first.
      *
      * Every [AuthPlan] permits at least one method — [resolveAuthPlan] has no branch where both
      * are false — so this never produces an empty list.
@@ -503,8 +507,8 @@ class SshClient(
             add("publickey")
         }
         if (authPlan.shouldUsePassword) {
-            add("keyboard-interactive")
             add("password")
+            add("keyboard-interactive")
         }
     }.joinToString(",")
 
@@ -512,7 +516,10 @@ class SshClient(
         session.setConfig("StrictHostKeyChecking", "ask")
         session.setConfig("PreferredAuthentications", setup.preferredAuthentications)
         session.setHostKeyAlias(setup.hostKeyAlias)
-        session.setUserInfo(userInfo)
+        session.setUserInfo(KeyboardInteractiveUserInfo(userInfo, setup.password))
+        // JSch 2.28.7 allocates keyboard-interactive prompt arrays from the server's count
+        // unchecked; this copy bounds it first. See the class comment.
+        session.setConfig("userauth.keyboard-interactive", BOUNDED_KEYBOARD_INTERACTIVE)
         // Use Bouncy Castle for Ed25519 so ssh-ed25519 host keys work on all Android
         // versions. Android JCE only supports EdDSA from API 33; the BC implementation
         // works from the app's minSdk (26) onward.
@@ -780,6 +787,7 @@ class SshClient(
     }
 
     companion object {
+        internal const val BOUNDED_KEYBOARD_INTERACTIVE = "com.jcraft.jsch.BoundedUserAuthKeyboardInteractive"
         private const val CONNECTION_TIMEOUT_MS = 10000
         private const val SHELL_CONNECT_TIMEOUT_MS = 10000
         private const val SFTP_CONNECT_TIMEOUT_MS = 10000
