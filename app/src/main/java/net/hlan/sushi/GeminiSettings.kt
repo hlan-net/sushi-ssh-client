@@ -25,8 +25,12 @@ class GeminiSettings(context: Context) {
         prefs.edit().putString(KEY_CLOUD_MODEL, capability.storageValue).apply()
     }
 
-    /** [GeminiModelCatalog]'s cache of model ids `GET /v1beta/models` last returned, if any. */
-    fun getCachedModelIds(): List<String>? {
+    /**
+     * [GeminiModelCatalog]'s cache of model ids `GET /v1beta/models` last returned, if any —
+     * null when it was fetched with a credential other than [credentialId].
+     */
+    fun getCachedModelIds(credentialId: String): List<String>? {
+        if (prefs.getString(KEY_MODEL_CACHE_OWNER, null) != credentialId) return null
         val json = prefs.getString(KEY_MODEL_CACHE_IDS, null) ?: return null
         return runCatching {
             val array = JSONArray(json)
@@ -34,9 +38,10 @@ class GeminiSettings(context: Context) {
         }.getOrNull()
     }
 
-    fun setCachedModelIds(ids: List<String>) {
+    fun setCachedModelIds(ids: List<String>, credentialId: String) {
         prefs.edit()
             .putString(KEY_MODEL_CACHE_IDS, JSONArray(ids).toString())
+            .putString(KEY_MODEL_CACHE_OWNER, credentialId)
             .putLong(KEY_MODEL_CACHE_AT, System.currentTimeMillis())
             .apply()
     }
@@ -73,6 +78,7 @@ class GeminiSettings(context: Context) {
         private const val KEY_AUTO_TROUBLESHOOT = "gemini_auto_troubleshoot"
         private const val KEY_MODEL_CACHE_IDS = "gemini_model_cache_ids"
         private const val KEY_MODEL_CACHE_AT = "gemini_model_cache_at"
+        private const val KEY_MODEL_CACHE_OWNER = "gemini_model_cache_owner"
 
         /** A week: model ids don't change often enough to justify fetching more eagerly than this. */
         private const val MODEL_CACHE_TTL_MS = 7L * 24 * 60 * 60 * 1000

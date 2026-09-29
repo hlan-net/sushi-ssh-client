@@ -128,7 +128,10 @@ class GeminiClient(
             return null
         }
 
-        val modelId = GeminiModelResolver.resolve(settings.getModelCapability(), modelCatalog.getModelIds(apiKey, accessToken))
+        val accountEmail = if (accessToken != null) authManager?.getSignedInAccount()?.email else null
+        val credentialId = GeminiModelCatalog.credentialId(accountEmail, apiKey)
+        val modelIds = modelCatalog.getModelIds(apiKey, accessToken, credentialId)
+        val modelId = GeminiModelResolver.resolve(settings.getModelCapability(), modelIds)
         val baseUrl = BASE_URL_TEMPLATE.format(modelId)
 
         return if (accessToken != null) {

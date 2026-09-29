@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URI
+import java.security.MessageDigest
 
 /**
  * What the user picked in Settings, independent of any concrete model id. `GeminiClient.kt`
@@ -66,16 +67,27 @@ object GeminiModelResolver {
         // stable one is wound down (2.5 is access-restricted to prior users as of this writing).
         // "Preview" only breaks a tie at the same version, where the stable release is the
         // sensible default.
-        val bestVersion = candidates.maxOf { versionOf(it) }
-        val atBestVersion = candidates.filter { versionOf(it) == bestVersion }
+        val bestVersion = candidates.map { versionOf(it) }.maxWith(VERSION_ORDER)
+        val atBestVersion = candidates.filter { VERSION_ORDER.compare(versionOf(it), bestVersion) == 0 }
         return atBestVersion.firstOrNull { "preview" !in it } ?: atBestVersion.first()
     }
 
-    /** The leading `gemini-<version>` number, e.g. `3.1` out of `gemini-3.1-pro-preview`. 0 if absent. */
-    private fun versionOf(id: String): Double =
-        VERSION_PATTERN.find(id)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+    /**
+     * The leading `gemini-<version>` as numeric components — `[3, 10]` out of
+     * `gemini-3.10-flash` — so `3.10` sorts above `3.9`; a `Double` would read it as `3.1`.
+     * Empty if absent.
+     */
+    private fun versionOf(id: String): List<Int> =
+        VERSION_PATTERN.find(id)?.groupValues?.get(1)?.split('.')?.map { it.toIntOrNull() ?: 0 }.orEmpty()
 
-    private val VERSION_PATTERN = Regex("gemini-(\\d+(?:\\.\\d+)?)")
+    /** Component by component; a missing component counts as 0, so `3` equals `3.0`. */
+    private val VERSION_ORDER = Comparator<List<Int>> { a, b ->
+        (0 until maxOf(a.size, b.size))
+            .map { (a.getOrElse(it) { 0 }).compareTo(b.getOrElse(it) { 0 }) }
+            .firstOrNull { it != 0 } ?: 0
+    }
+
+    private val VERSION_PATTERN = Regex("gemini-(\\d+(?:\\.\\d+)*)")
 }
 
 /**
@@ -89,15 +101,19 @@ class GeminiModelCatalog(private val settings: GeminiSettings) {
      * Returns cached ids when they're fresh; otherwise fetches, caching the result on success.
      * A failed fetch falls back to whatever cache exists, however stale, rather than an empty
      * list — a network blip must not make model resolution forget every id it ever saw.
+     *
+     * The cache belongs to [credentialId]: which models a caller may use differs by credential
+     * (2.5 is limited to accounts that used it before), so switching API key or Google account
+     * must not reuse the previous one's list — the stale fallback included.
      */
-    fun getModelIds(apiKey: String, accessToken: String?): List<String> {
-        val cached = settings.getCachedModelIds()
+    fun getModelIds(apiKey: String, accessToken: String?, credentialId: String): List<String> {
+        val cached = settings.getCachedModelIds(credentialId)
         if (cached != null && !settings.isModelCacheStale()) {
             return cached
         }
         val fetched = runCatching { fetchModelIds(apiKey, accessToken) }.getOrNull()
         if (!fetched.isNullOrEmpty()) {
-            settings.setCachedModelIds(fetched)
+            settings.setCachedModelIds(fetched, credentialId)
             return fetched
         }
         return cached.orEmpty()
@@ -143,6 +159,19 @@ class GeminiModelCatalog(private val settings: GeminiSettings) {
     }
 
     companion object {
+        /**
+         * Identifies the credential a model list was fetched with, for [getModelIds]'s cache.
+         * A Google account is its email (the OAuth token itself rotates hourly); an API key is
+         * its SHA-256, so the cache owner doesn't hold a second copy of the key.
+         */
+        fun credentialId(accountEmail: String?, apiKey: String): String =
+            if (accountEmail != null) {
+                "account:$accountEmail"
+            } else {
+                val digest = MessageDigest.getInstance("SHA-256").digest(apiKey.toByteArray(Charsets.UTF_8))
+                "key:" + digest.joinToString("") { "%02x".format(it) }
+            }
+
         private const val LIST_MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODEL_NAME_PREFIX = "models/"
         private const val CONNECT_TIMEOUT_MS = 10_000
