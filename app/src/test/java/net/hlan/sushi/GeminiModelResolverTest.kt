@@ -1,6 +1,8 @@
 package net.hlan.sushi
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -40,6 +42,40 @@ class GeminiModelResolverTest {
         val resolved = GeminiModelResolver.resolve(GeminiModelCapability.FAST, currentGenerationModels)
 
         assertEquals("gemini-3.8-flash", resolved)
+    }
+
+    @Test
+    fun versionsCompareByComponent_so3Point10OutranksThreePoint9() {
+        // Parsed as a Double, "3.10" would read as 3.1 and lose to 3.9.
+        val resolved = GeminiModelResolver.resolve(
+            GeminiModelCapability.FAST,
+            listOf("gemini-3.9-flash", "gemini-3.10-flash", "gemini-3.2-flash")
+        )
+
+        assertEquals("gemini-3.10-flash", resolved)
+    }
+
+    @Test
+    fun aVersionWithoutAMinorComponentEqualsItsDotZero() {
+        // "gemini-4" and "gemini-4.0" are the same version, so the stable one wins the tie.
+        val resolved = GeminiModelResolver.resolve(
+            GeminiModelCapability.CAPABLE,
+            listOf("gemini-4.0-pro-preview", "gemini-4-pro")
+        )
+
+        assertEquals("gemini-4-pro", resolved)
+    }
+
+    @Test
+    fun credentialId_differsPerApiKeyAndPerAccount_andNeverHoldsTheKey() {
+        val keyA = GeminiModelCatalog.credentialId(accountEmail = null, apiKey = "AIza-key-a")
+        val keyB = GeminiModelCatalog.credentialId(accountEmail = null, apiKey = "AIza-key-b")
+        val account = GeminiModelCatalog.credentialId(accountEmail = "larry@example.com", apiKey = "AIza-key-a")
+
+        assertNotEquals(keyA, keyB)
+        assertNotEquals(keyA, account)
+        assertEquals(keyA, GeminiModelCatalog.credentialId(accountEmail = null, apiKey = "AIza-key-a"))
+        assertFalse("AIza-key-a" in keyA)
     }
 
     @Test
