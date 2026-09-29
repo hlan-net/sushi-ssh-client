@@ -135,6 +135,10 @@
     <string name="edit_host_title">Edit Host</string>
     <string name="host_alias_hint">Alias (Optional)</string>
     <string name="hosts_empty">No hosts configured.</string>
+    <string name="hosts_corrupt_title">Saved hosts could not be read</string>
+    <string name="hosts_corrupt_message_with_backup">Your saved hosts looked corrupted and had to be treated as empty. A backup from just before that happened is available.</string>
+    <string name="hosts_corrupt_message_no_backup">Your saved hosts looked corrupted and had to be treated as empty. No earlier backup is available — you\'ll need to add your hosts again.</string>
+    <string name="action_restore">Restore</string>
     <string name="host_target_with_jump">%1$s@%2$s:%3$d via jump server</string>
     <string name="action_add_host">Add Host</string>
     <string name="action_save_host">Save Host</string>

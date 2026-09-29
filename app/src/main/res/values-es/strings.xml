@@ -126,6 +126,10 @@
     <string name="edit_host_title">Editar host</string>
     <string name="host_alias_hint">Alias (opcional)</string>
     <string name="hosts_empty">No hay hosts configurados.</string>
+    <string name="hosts_corrupt_title">No se pudieron leer los hosts guardados</string>
+    <string name="hosts_corrupt_message_with_backup">Tus hosts guardados parecían dañados y se trataron como vacíos. Hay disponible una copia de seguridad de justo antes de que ocurriera.</string>
+    <string name="hosts_corrupt_message_no_backup">Tus hosts guardados parecían dañados y se trataron como vacíos. No hay ninguna copia de seguridad anterior disponible: deberás añadir tus hosts de nuevo.</string>
+    <string name="action_restore">Restaurar</string>
     <string name="host_target_with_jump">%1$s@%2$s:%3$d via jump server</string>
     <string name="action_add_host">Añadir host</string>
     <string name="action_save_host">Guardar host</string>

@@ -126,6 +126,10 @@
     <string name="edit_host_title">Redigera host</string>
     <string name="host_alias_hint">Alias (valfritt)</string>
     <string name="hosts_empty">Inga hostar konfigurerade.</string>
+    <string name="hosts_corrupt_title">Sparade hostar kunde inte läsas</string>
+    <string name="hosts_corrupt_message_with_backup">Dina sparade hostar verkade skadade och behandlades som tomma. En säkerhetskopia från precis innan det hände finns tillgänglig.</string>
+    <string name="hosts_corrupt_message_no_backup">Dina sparade hostar verkade skadade och behandlades som tomma. Ingen tidigare säkerhetskopia finns tillgänglig — du måste lägga till dina hostar igen.</string>
+    <string name="action_restore">Återställ</string>
     <string name="host_target_with_jump">%1$s@%2$s:%3$d via jump server</string>
     <string name="action_add_host">Lägg till host</string>
     <string name="action_save_host">Spara host</string>

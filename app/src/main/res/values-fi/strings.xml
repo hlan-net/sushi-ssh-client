@@ -126,6 +126,10 @@
     <string name="edit_host_title">Muokkaa hostia</string>
     <string name="host_alias_hint">Alias (valinnainen)</string>
     <string name="hosts_empty">Ei konfiguroituja hosteja.</string>
+    <string name="hosts_corrupt_title">Tallennettuja hosteja ei voitu lukea</string>
+    <string name="hosts_corrupt_message_with_backup">Tallennetut hostit vaikuttivat vioittuneilta, ja niitä käsiteltiin tyhjänä listana. Varmuuskopio juuri ennen vioittumista on saatavilla.</string>
+    <string name="hosts_corrupt_message_no_backup">Tallennetut hostit vaikuttivat vioittuneilta, ja niitä käsiteltiin tyhjänä listana. Aiempaa varmuuskopiota ei ole saatavilla — hostit täytyy lisätä uudelleen.</string>
+    <string name="action_restore">Palauta</string>
     <string name="host_target_with_jump">%1$s@%2$s:%3$d hyppypalvelimen kautta</string>
     <string name="action_add_host">Lisää host</string>
     <string name="action_save_host">Tallenna host</string>

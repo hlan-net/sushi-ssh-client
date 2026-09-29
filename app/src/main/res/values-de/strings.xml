@@ -126,6 +126,10 @@
     <string name="edit_host_title">Host bearbeiten</string>
     <string name="host_alias_hint">Alias (optional)</string>
     <string name="hosts_empty">Keine Hosts konfiguriert.</string>
+    <string name="hosts_corrupt_title">Gespeicherte Hosts konnten nicht gelesen werden</string>
+    <string name="hosts_corrupt_message_with_backup">Deine gespeicherten Hosts wirkten beschädigt und wurden als leer behandelt. Ein Backup von kurz davor ist verfügbar.</string>
+    <string name="hosts_corrupt_message_no_backup">Deine gespeicherten Hosts wirkten beschädigt und wurden als leer behandelt. Es ist kein früheres Backup verfügbar — du musst deine Hosts erneut hinzufügen.</string>
+    <string name="action_restore">Wiederherstellen</string>
     <string name="host_target_with_jump">%1$s@%2$s:%3$d über Jumpserver</string>
     <string name="action_add_host">Host hinzufügen</string>
     <string name="action_save_host">Host speichern</string>
