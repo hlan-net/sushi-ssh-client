@@ -13,6 +13,8 @@ class GeminiClient(
     private val settings: GeminiSettings,
     private val authManager: DriveAuthManager? = null
 ) {
+    private val modelCatalog = GeminiModelCatalog(settings)
+
     /**
      * Returns the current auth mode that will be used for the next request.
      * Google account takes priority over API key when signed in.
@@ -42,34 +44,8 @@ class GeminiClient(
         sushiMdContext: String,
         conversationHistory: List<ConversationTurn> = emptyList()
     ): GeminiResult {
-        val authMode = getAuthMode()
-        if (authMode == AuthMode.NONE) {
-            return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
-        }
-
-        val modelId = settings.getCloudModel()
-        val baseUrl = BASE_URL_TEMPLATE.format(modelId)
-
-        val connection = when (authMode) {
-            AuthMode.GOOGLE_ACCOUNT -> {
-                val token = authManager?.getGeminiAccessToken()
-                if (token == null) {
-                    val apiKey = settings.getApiKey().trim()
-                    if (apiKey.isEmpty()) {
-                        return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
-                    }
-                    createApiKeyConnection(apiKey, baseUrl)
-                } else {
-                    createOAuthConnection(token, baseUrl)
-                }
-            }
-            AuthMode.API_KEY -> {
-                createApiKeyConnection(settings.getApiKey().trim(), baseUrl)
-            }
-            AuthMode.NONE -> {
-                return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
-            }
-        }
+        val connection = openConnection()
+            ?: return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
 
         val requestBody = JSONObject().apply {
             put("contents", JSONArray().put(buildConversationalContent(userMessage, sushiMdContext, conversationHistory)))
@@ -102,35 +78,8 @@ class GeminiClient(
     }
 
     fun generateCommand(userPrompt: String): GeminiResult {
-        val authMode = getAuthMode()
-        if (authMode == AuthMode.NONE) {
-            return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
-        }
-
-        val modelId = settings.getCloudModel()
-        val baseUrl = BASE_URL_TEMPLATE.format(modelId)
-
-        val connection = when (authMode) {
-            AuthMode.GOOGLE_ACCOUNT -> {
-                val token = authManager?.getGeminiAccessToken()
-                if (token == null) {
-                    // Token retrieval failed — fall back to API key if available
-                    val apiKey = settings.getApiKey().trim()
-                    if (apiKey.isEmpty()) {
-                        return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
-                    }
-                    createApiKeyConnection(apiKey, baseUrl)
-                } else {
-                    createOAuthConnection(token, baseUrl)
-                }
-            }
-            AuthMode.API_KEY -> {
-                createApiKeyConnection(settings.getApiKey().trim(), baseUrl)
-            }
-            AuthMode.NONE -> {
-                return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
-            }
-        }
+        val connection = openConnection()
+            ?: return GeminiResult(false, context.getString(R.string.gemini_missing_key_message))
 
         val requestBody = JSONObject().apply {
             put("contents", JSONArray().put(buildContent(userPrompt)))
@@ -159,6 +108,33 @@ class GeminiClient(
             GeminiResult(false, ex.message ?: context.getString(R.string.gemini_output_error))
         } finally {
             connection.disconnect()
+        }
+    }
+
+    /**
+     * Resolves auth, the model id and the request connection together: which model id is right
+     * depends on which credential is available (an OAuth token can call `/v1beta/models` too,
+     * but needs its own request), so this replaces the auth branching that used to be repeated,
+     * identically, in both [generateCommand] and [generateConversationalResponse]. Null only for
+     * the one failure both callers already handled the same way — no usable credential.
+     */
+    private fun openConnection(): HttpURLConnection? {
+        val authMode = getAuthMode()
+        val apiKey = settings.getApiKey().trim()
+        val accessToken = if (authMode == AuthMode.GOOGLE_ACCOUNT) authManager?.getGeminiAccessToken() else null
+
+        val hasCredential = accessToken != null || apiKey.isNotEmpty()
+        if (authMode == AuthMode.NONE || !hasCredential) {
+            return null
+        }
+
+        val modelId = GeminiModelResolver.resolve(settings.getModelCapability(), modelCatalog.getModelIds(apiKey, accessToken))
+        val baseUrl = BASE_URL_TEMPLATE.format(modelId)
+
+        return if (accessToken != null) {
+            createOAuthConnection(accessToken, baseUrl)
+        } else {
+            createApiKeyConnection(apiKey, baseUrl)
         }
     }
 
@@ -311,9 +287,6 @@ User request: $userPrompt
     }
 
     companion object {
-        const val MODEL_PRO = "gemini-2.5-pro"
-        const val MODEL_FLASH = "gemini-1.5-flash"
-
         private const val BASE_URL_TEMPLATE =
             "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent"
         private const val CONNECT_TIMEOUT_MS = 15_000
