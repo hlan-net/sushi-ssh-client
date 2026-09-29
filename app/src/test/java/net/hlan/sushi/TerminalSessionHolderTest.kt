@@ -84,8 +84,10 @@ class TerminalSessionHolderTest {
     // --- expectDisconnect / consumeExpectedDisconnect (ROADMAP.md v0.9.x: Reboot Host) ---
 
     @Test
-    fun consumeExpectedDisconnect_trueOnceForTheMatchingHost() {
-        TerminalSessionHolder.expectDisconnect(config.id)
+    fun expectDisconnect_armsForTheActiveHost_andIsConsumedOnce() {
+        TerminalSessionHolder.setActiveConnection(backend, config)
+
+        assertTrue(TerminalSessionHolder.expectDisconnect(config.id))
 
         assertTrue(TerminalSessionHolder.consumeExpectedDisconnect(config.id))
         assertFalse(
@@ -95,46 +97,47 @@ class TerminalSessionHolderTest {
     }
 
     @Test
-    fun consumeExpectedDisconnect_falseForADifferentHost_andLeavesItPending() {
-        TerminalSessionHolder.expectDisconnect(config.id)
+    fun expectDisconnect_doesNotArmForAHostWithNoActiveSession() {
+        // Rebooting host B while the terminal is on host A: nothing here will disconnect, and a
+        // pending mark for B would mislabel some later, unrelated disconnect of B.
+        val otherHost = config.copy(id = "other-host-id", host = "other.local")
+        TerminalSessionHolder.setActiveConnection(backend, config)
 
-        assertFalse(TerminalSessionHolder.consumeExpectedDisconnect("some-other-host-id"))
-        assertTrue(
-            "a mismatched check must not consume the expectation for the real host",
-            TerminalSessionHolder.consumeExpectedDisconnect(config.id)
-        )
+        assertFalse(TerminalSessionHolder.expectDisconnect(otherHost.id))
+
+        TerminalSessionHolder.clearActiveConnection()
+        TerminalSessionHolder.setActiveConnection(backend, otherHost)
+        assertFalse(TerminalSessionHolder.consumeExpectedDisconnect(otherHost.id))
     }
 
     @Test
-    fun consumeExpectedDisconnect_falseWithNothingExpected() {
+    fun expectDisconnect_doesNotArmWithNoSessionAtAll() {
+        assertFalse(TerminalSessionHolder.expectDisconnect(config.id))
         assertFalse(TerminalSessionHolder.consumeExpectedDisconnect(config.id))
     }
 
     @Test
-    fun clearActiveConnection_dropsAPendingExpectationForTheSameHost() {
+    fun cancelExpectedDisconnect_withdrawsIt() {
+        // The reboot command never reached the shell, so no disconnect is coming.
+        TerminalSessionHolder.setActiveConnection(backend, config)
+        TerminalSessionHolder.expectDisconnect(config.id)
+
+        TerminalSessionHolder.cancelExpectedDisconnect(config.id)
+
+        assertFalse(TerminalSessionHolder.consumeExpectedDisconnect(config.id))
+    }
+
+    @Test
+    fun clearActiveConnection_dropsAPendingExpectation() {
         TerminalSessionHolder.setActiveConnection(backend, config)
         TerminalSessionHolder.expectDisconnect(config.id)
 
         TerminalSessionHolder.clearActiveConnection()
+        TerminalSessionHolder.setActiveConnection(backend, config)
 
         assertFalse(
-            "a manual disconnect must not leave a stale expectation for a later, unrelated one",
+            "a session that ended for its own reason must not leave the mark for the next one",
             TerminalSessionHolder.consumeExpectedDisconnect(config.id)
-        )
-    }
-
-    @Test
-    fun clearActiveConnection_leavesAPendingExpectationForADifferentHost() {
-        val otherConfig = config.copy(id = "other-host-id", host = "other.local")
-        TerminalSessionHolder.setActiveConnection(backend, config)
-        TerminalSessionHolder.expectDisconnect(otherConfig.id)
-
-        // The active session (config) ends for its own reason, unrelated to otherConfig's Play.
-        TerminalSessionHolder.clearActiveConnection()
-
-        assertTrue(
-            "a reboot pending elsewhere must survive this session's own disconnect",
-            TerminalSessionHolder.consumeExpectedDisconnect(otherConfig.id)
         )
     }
 }

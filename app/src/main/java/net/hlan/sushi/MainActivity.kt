@@ -869,15 +869,13 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            if (play.name == ManagedPlays.PLAY_REBOOT_HOST) {
-                // This Play's own connection (above) disconnects in its `finally` regardless; this
-                // is for a separate Terminal-tab session open on the same host, which the reboot
-                // takes down too. Set only once the command is actually about to be sent, so a
-                // failed connection above (host unreachable, say) never marks a disconnect that
-                // was never coming — TerminalSessionHolder.consumeExpectedDisconnect reads it
-                // from the terminal side.
+            // This Play's own connection (above) disconnects in its `finally` regardless; this is
+            // for a separate Terminal-tab session open on the same host, which the reboot takes
+            // down too. Armed only after this connection succeeded, and withdrawn below unless the
+            // command actually reached the shell.
+            val expectsDisconnect = play.name == ManagedPlays.PLAY_REBOOT_HOST &&
                 TerminalSessionHolder.expectDisconnect(host.id)
-            }
+            var dispatched = false
 
             try {
                 val result = PlayRunner.execute(
@@ -886,6 +884,7 @@ class MainActivity : AppCompatActivity() {
                     values = values,
                     onLine = { line -> appendSessionLog("[Play] ${line.trimEnd()}") }
                 )
+                dispatched = result.dispatched
                 recordPlayInCommandHistory(host, result)
                 withContext(Dispatchers.Main) {
                     isPlayRunning = false
@@ -899,6 +898,9 @@ class MainActivity : AppCompatActivity() {
                     uploadConsoleLogToDriveIfEnabled()
                 }
             } finally {
+                if (expectsDisconnect && !dispatched) {
+                    TerminalSessionHolder.cancelExpectedDisconnect(host.id)
+                }
                 if (!isLocal) backend.disconnect()
             }
         }

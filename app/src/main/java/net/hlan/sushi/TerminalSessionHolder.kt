@@ -11,6 +11,8 @@ object TerminalSessionHolder {
     private var activeSshClient: SshClient? = null
     private var activeHostConfig: SshConnectionConfig? = null
     private var connectionListeners = mutableListOf<ConnectionListener>()
+    // Set from a Play's IO coroutine, read on the main thread by TerminalActivity.
+    @Volatile
     private var expectedDisconnectHostId: String? = null
 
     fun setActiveConnection(backend: TerminalBackend, config: SshConnectionConfig) {
@@ -21,12 +23,9 @@ object TerminalSessionHolder {
     }
 
     fun clearActiveConnection() {
-        // A stale expectation must not survive to misclassify a later, unrelated disconnect of
-        // the same host; one that is still pending for a different host (a reboot elsewhere
-        // while this session ends for its own reason) is left alone.
-        if (activeHostConfig?.id == expectedDisconnectHostId) {
-            expectedDisconnectHostId = null
-        }
+        // An expectation only ever belongs to the active session, so it ends with it — it must not
+        // survive to misclassify a later, unrelated disconnect.
+        expectedDisconnectHostId = null
         activeBackend = null
         activeSshClient = null
         activeHostConfig = null
@@ -43,11 +42,26 @@ object TerminalSessionHolder {
     fun isConnected(): Boolean = activeBackend?.isConnected() == true
 
     /**
-     * Marks the next disconnect of [hostId]'s terminal session as expected — a Play that reboots
-     * the host, for instance — so the terminal shows it as a routine drop rather than an error.
+     * Marks the next disconnect of the terminal session as expected — a Play that reboots the
+     * host, for instance — so the terminal shows it as a routine drop rather than an error.
+     *
+     * Armed only when the active session is on [hostId]: a reboot of any other host has no
+     * disconnect here to explain, and a pending mark for it would mislabel whatever disconnect
+     * of that host came later. Returns whether it was armed.
      */
-    fun expectDisconnect(hostId: String) {
+    fun expectDisconnect(hostId: String): Boolean {
+        if (activeHostConfig?.id != hostId) {
+            return false
+        }
         expectedDisconnectHostId = hostId
+        return true
+    }
+
+    /** Withdraws [expectDisconnect] for [hostId] — the command that would have caused it never ran. */
+    fun cancelExpectedDisconnect(hostId: String) {
+        if (expectedDisconnectHostId == hostId) {
+            expectedDisconnectHostId = null
+        }
     }
 
     /**
