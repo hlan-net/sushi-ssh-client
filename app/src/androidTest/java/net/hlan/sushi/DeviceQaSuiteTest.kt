@@ -216,7 +216,7 @@ class DeviceQaSuiteTest {
 
         val rebootPlay = playDb.getPlayByName("Reboot Host")
         assertTrue("Reboot Host play should exist", rebootPlay != null)
-        assertTrue("Reboot Host play should use logout placeholder", rebootPlay?.scriptTemplate == "logout")
+        assertTrue("Reboot Host play should actually reboot", rebootPlay?.scriptTemplate == "sudo reboot")
 
         launchActivity(PhrasesActivity::class.java).use { phrasesScenario ->
             waitForCondition(phrasesScenario) { activity ->

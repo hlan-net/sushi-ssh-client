@@ -97,6 +97,7 @@
     <string name="terminal_connect_failed_log">[Terminal] Connection failed: %1$s</string>
     <string name="terminal_connection_lost_log">[Terminal] Connection lost unexpectedly.</string>
     <string name="terminal_connection_lost_toast">Connection lost. You can reconnect now.</string>
+    <string name="terminal_connection_lost_reboot_log">[Terminal] Connection lost — the host is rebooting.</string>
     <string name="ssh_notification_channel_name">Active session</string>
     <string name="ssh_notification_title">Session active</string>
     <string name="ssh_notification_action_disconnect">Disconnect</string>
@@ -395,9 +396,12 @@
     <string name="play_param_password">Password</string>
     <string name="play_desc_install_key">Install Sushi public key to authorized_keys without duplicates.</string>
     <string name="play_desc_remove_keys">Remove all Sushi-managed keys from authorized_keys.</string>
-    <string name="play_desc_reboot_host">Reboot placeholder: logs out from selected host.</string>
+    <string name="play_desc_reboot_host">Reboot the selected host. Open sessions will drop.</string>
     <string name="play_desc_change_password">Change one user password on the selected host.</string>
     <string name="play_host_item">%1$s</string>
+    <string name="play_reboot_confirm_title">Reboot %1$s?</string>
+    <string name="play_reboot_confirm_message">Open sessions on this host will drop.</string>
+    <string name="action_reboot">Reboot</string>
     <string name="play_host_item_active">%1$s (active)</string>
     <string name="terminal_font_section_title">Terminal font size</string>
     <string name="terminal_font_section_subtitle">Adjust the text size in the terminal view.</string>
