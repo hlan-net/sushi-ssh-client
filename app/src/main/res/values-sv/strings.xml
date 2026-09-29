@@ -89,6 +89,7 @@
     <string name="terminal_connect_failed_log">[Terminal] Anslutning misslyckades: %1$s</string>
     <string name="terminal_connection_lost_log">[Terminal] Anslutning förlorad oväntat.</string>
     <string name="terminal_connection_lost_toast">Anslutning förlorad. Du kan återansluta nu.</string>
+    <string name="terminal_connection_lost_reboot_log">[Terminal] Anslutningen förlorades — hosten startar om.</string>
     <string name="ssh_notification_channel_name">Aktiv session</string>
     <string name="ssh_notification_title">Sessionen är aktiv</string>
     <string name="ssh_notification_action_disconnect">Koppla från</string>
@@ -379,9 +380,12 @@
     <string name="play_param_password">Lösenord</string>
     <string name="play_desc_install_key">Installera Sushis publika nyckel i authorized_keys utan dubbletter.</string>
     <string name="play_desc_remove_keys">Ta bort alla Sushi-hanterade nycklar från authorized_keys.</string>
-    <string name="play_desc_reboot_host">Omstartsplatshållare: loggar ut från vald host.</string>
+    <string name="play_desc_reboot_host">Startar om den valda hosten. Öppna sessioner kopplas ner.</string>
     <string name="play_desc_change_password">Ändra ett användarlösenord på vald host.</string>
     <string name="play_host_item">%1$s</string>
+    <string name="play_reboot_confirm_title">Starta om %1$s?</string>
+    <string name="play_reboot_confirm_message">Öppna sessioner på den här hosten kopplas ner.</string>
+    <string name="action_reboot">Starta om</string>
     <string name="play_host_item_active">%1$s (aktiv)</string>
     <string name="terminal_font_section_title">Terminalens teckenstorlek</string>
     <string name="terminal_font_section_subtitle">Justera textstorleken i terminalvyn.</string>

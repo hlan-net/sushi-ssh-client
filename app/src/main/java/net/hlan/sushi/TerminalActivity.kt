@@ -300,13 +300,24 @@ class TerminalActivity : AppCompatActivity() {
     }
 
     private fun handleUnexpectedDisconnect() {
+        // The connected host's id, not sshSettings.getConfigOrNull() — the "active" host in
+        // Settings can change while this session is still open. Read before
+        // clearActiveConnection() below, which drops it.
+        val hostId = TerminalSessionHolder.getActiveConfig()?.id
+        val wasExpected = hostId != null && TerminalSessionHolder.consumeExpectedDisconnect(hostId)
+
         saveTerminalLog()
         sshClient?.disconnect()
         sshClient = null
         TerminalSessionHolder.clearActiveConnection()
         didLoseConnection = true
-        binding.terminalOutputText.appendLogLine(getString(R.string.terminal_connection_lost_log))
-        Toast.makeText(this, getString(R.string.terminal_connection_lost_toast), Toast.LENGTH_SHORT).show()
+        if (wasExpected) {
+            // A Play rebooted this host (ROADMAP.md v0.9.x) — this is not a connection error.
+            binding.terminalOutputText.appendLogLine(getString(R.string.terminal_connection_lost_reboot_log))
+        } else {
+            binding.terminalOutputText.appendLogLine(getString(R.string.terminal_connection_lost_log))
+            Toast.makeText(this, getString(R.string.terminal_connection_lost_toast), Toast.LENGTH_SHORT).show()
+        }
         updateUi()
     }
 

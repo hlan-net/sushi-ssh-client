@@ -22,7 +22,7 @@ object ManagedPlays {
         db.upsertByName(
             name = PLAY_REBOOT_HOST,
             description = context.getString(R.string.play_desc_reboot_host),
-            scriptTemplate = "logout",
+            scriptTemplate = "sudo reboot",
             managed = true
         )
 

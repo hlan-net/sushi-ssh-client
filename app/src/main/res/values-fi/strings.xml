@@ -89,6 +89,7 @@
     <string name="terminal_connect_failed_log">[Pääte] Yhteys epäonnistui: %1$s</string>
     <string name="terminal_connection_lost_log">[Pääte] Yhteys katkesi odottamatta.</string>
     <string name="terminal_connection_lost_toast">Yhteys katkesi. Voit yhdistää uudelleen.</string>
+    <string name="terminal_connection_lost_reboot_log">[Pääte] Yhteys katkesi — host käynnistyy uudelleen.</string>
     <string name="ssh_notification_channel_name">Aktiivinen istunto</string>
     <string name="ssh_notification_title">Istunto käynnissä</string>
     <string name="ssh_notification_action_disconnect">Katkaise yhteys</string>
@@ -379,9 +380,12 @@
     <string name="play_param_password">Salasana</string>
     <string name="play_desc_install_key">Asenna Sushin julkinen avain authorized_keys-tiedostoon ilman duplikaatteja.</string>
     <string name="play_desc_remove_keys">Poista kaikki Sushin hallitsemat avaimet authorized_keys-tiedostosta.</string>
-    <string name="play_desc_reboot_host">Uudelleenkäynnistys: kirjautuu ulos valitulta hostilta.</string>
+    <string name="play_desc_reboot_host">Käynnistä valittu host uudelleen. Avoimet istunnot katkeavat.</string>
     <string name="play_desc_change_password">Vaihda yhden käyttäjän salasana valitulla hostilla.</string>
     <string name="play_host_item">%1$s</string>
+    <string name="play_reboot_confirm_title">Käynnistetäänkö %1$s uudelleen?</string>
+    <string name="play_reboot_confirm_message">Avoimet istunnot tällä hostilla katkeavat.</string>
+    <string name="action_reboot">Käynnistä uudelleen</string>
     <string name="play_host_item_active">%1$s (aktiivinen)</string>
     <string name="terminal_font_section_title">Terminaalin fonttikoko</string>
     <string name="terminal_font_section_subtitle">Säädä tekstikokoa terminaalinäkymässä.</string>

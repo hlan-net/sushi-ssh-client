@@ -620,11 +620,29 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.plays_title)
             .setItems(playNames) { _, which ->
                 val play = plays[which]
-                promptPlayParametersAndRun(play, host, onBack = { showPlaySelectionDialog(plays, host) })
+                if (play.name == ManagedPlays.PLAY_REBOOT_HOST) {
+                    confirmRebootThenRun(play, host)
+                } else {
+                    promptPlayParametersAndRun(play, host, onBack = { showPlaySelectionDialog(plays, host) })
+                }
             }
             .setPositiveButton(R.string.action_manage) { _, _ ->
                 startActivity(Intent(this, PlaysActivity::class.java))
             }
+            .setNegativeButton(R.string.phrase_cancel, null)
+            .show()
+    }
+
+    /**
+     * *Reboot Host* runs `sudo reboot` outside `CommandSafety` — that classifier guards the AI
+     * conversation and raw mode, where `reboot` is BLOCKED, and does not see Plays at all — so
+     * this is the only place a confirmation stands between the tap and the command.
+     */
+    private fun confirmRebootThenRun(play: Play, host: SshConnectionConfig) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.play_reboot_confirm_title, HostLabels.shortLabel(this, host)))
+            .setMessage(R.string.play_reboot_confirm_message)
+            .setPositiveButton(R.string.action_reboot) { _, _ -> runPlay(play, host, emptyMap()) }
             .setNegativeButton(R.string.phrase_cancel, null)
             .show()
     }
@@ -849,6 +867,16 @@ class MainActivity : AppCompatActivity() {
                     }
                     return@launch
                 }
+            }
+
+            if (play.name == ManagedPlays.PLAY_REBOOT_HOST) {
+                // This Play's own connection (above) disconnects in its `finally` regardless; this
+                // is for a separate Terminal-tab session open on the same host, which the reboot
+                // takes down too. Set only once the command is actually about to be sent, so a
+                // failed connection above (host unreachable, say) never marks a disconnect that
+                // was never coming — TerminalSessionHolder.consumeExpectedDisconnect reads it
+                // from the terminal side.
+                TerminalSessionHolder.expectDisconnect(host.id)
             }
 
             try {

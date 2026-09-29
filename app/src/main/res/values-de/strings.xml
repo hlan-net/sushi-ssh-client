@@ -89,6 +89,7 @@
     <string name="terminal_connect_failed_log">[Terminal] Verbindung fehlgeschlagen: %1$s</string>
     <string name="terminal_connection_lost_log">[Terminal] Verbindung unerwartet verloren.</string>
     <string name="terminal_connection_lost_toast">Verbindung verloren. Du kannst jetzt erneut verbinden.</string>
+    <string name="terminal_connection_lost_reboot_log">[Terminal] Verbindung verloren – der Host startet neu.</string>
     <string name="ssh_notification_channel_name">Aktive Sitzung</string>
     <string name="ssh_notification_title">Sitzung aktiv</string>
     <string name="ssh_notification_action_disconnect">Trennen</string>
@@ -379,9 +380,12 @@
     <string name="play_param_password">Passwort</string>
     <string name="play_desc_install_key">Sushi-Schlüssel in authorized_keys installieren (ohne Duplikate).</string>
     <string name="play_desc_remove_keys">Alle von Sushi verwalteten Schlüssel aus authorized_keys entfernen.</string>
-    <string name="play_desc_reboot_host">Neustart-Platzhalter: Meldet vom ausgewählten Host ab.</string>
+    <string name="play_desc_reboot_host">Startet den ausgewählten Host neu. Offene Sitzungen werden getrennt.</string>
     <string name="play_desc_change_password">Ein Benutzerpasswort auf dem ausgewählten Host ändern.</string>
     <string name="play_host_item">%1$s</string>
+    <string name="play_reboot_confirm_title">%1$s neu starten?</string>
+    <string name="play_reboot_confirm_message">Offene Sitzungen auf diesem Host werden getrennt.</string>
+    <string name="action_reboot">Neu starten</string>
     <string name="play_host_item_active">%1$s (aktiv)</string>
     <string name="terminal_font_section_title">Terminal-Schriftgröße</string>
     <string name="terminal_font_section_subtitle">Textgröße in der Terminalansicht anpassen.</string>
