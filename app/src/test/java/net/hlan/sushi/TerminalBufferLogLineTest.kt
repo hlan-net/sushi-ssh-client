@@ -1,16 +1,16 @@
 package net.hlan.sushi
 
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
 
 /**
- * Tests for [TerminalView.appendLogLine] — the app's own status lines get a line each.
+ * Tests for [TerminalBuffer.appendLine] — the app's own status lines get a line each.
  *
- * Status strings carry no newline and [TerminalView.appendLog] only breaks a line when it sees a
+ * Moved from the instrumented `TerminalViewLogLineTest` when line trimming and the rest of the
+ * buffer's state moved into [TerminalBuffer] (`ROADMAP.md` v0.9.0).
+ *
+ * Status strings carry no newline and [TerminalBuffer.append] only breaks a line when it sees a
  * real `\n`, so every status used to continue whatever was on screen, and the shell prompt that
  * arrived next continued it in turn:
  *
@@ -19,89 +19,88 @@ import org.junit.runner.RunWith
  * The `ssh.` in the middle of that is the host kind from `displayTarget()` plus the full stop
  * ending "Connected to %1$s.", which together read as a hostname that does not exist.
  */
-@RunWith(AndroidJUnit4::class)
-class TerminalViewLogLineTest {
+class TerminalBufferLogLineTest {
 
-    private lateinit var view: TerminalView
+    private lateinit var buffer: TerminalBuffer
 
     @Before
     fun setUp() {
-        view = TerminalView(InstrumentationRegistry.getInstrumentation().targetContext)
+        buffer = TerminalBuffer()
     }
 
     /** The reported line, end to end. */
     @Test
     fun connectSequence_putsEachStatusAndThePromptOnItsOwnLine() {
-        view.appendLogLine("[Terminal] Connecting...")
-        view.appendLogLine("Connected to ekho (larry@192.168.1.11:22) · ssh.")
-        view.appendLog("larry@ekho:~ $ ")
+        buffer.appendLine("[Terminal] Connecting...")
+        buffer.appendLine("Connected to ekho (larry@192.168.1.11:22) · ssh.")
+        buffer.append("larry@ekho:~ $ ")
 
         assertEquals(
             "[Terminal] Connecting...\n" +
                 "Connected to ekho (larry@192.168.1.11:22) · ssh.\n" +
                 "larry@ekho:~ $ ",
-            view.getRawText()
+            buffer.text
         )
     }
 
     @Test
     fun consecutiveStatusLines_eachGetTheirOwnLine() {
-        view.appendLogLine("[Terminal] Connecting...")
-        view.appendLogLine("[Terminal] Connection failed: Auth cancel for methods 'publickey,password'")
+        buffer.appendLine("[Terminal] Connecting...")
+        buffer.appendLine("[Terminal] Connection failed: Auth cancel for methods 'publickey,password'")
 
         assertEquals(
             "[Terminal] Connecting...\n" +
                 "[Terminal] Connection failed: Auth cancel for methods 'publickey,password'\n",
-            view.getRawText()
+            buffer.text
         )
     }
 
     /** A status arriving mid-line — remote output still on the current row — starts a new one. */
     @Test
     fun statusLine_afterUnterminatedRemoteOutput_startsFresh() {
-        view.appendLog("larry@ekho:~ $ ")
-        view.appendLogLine("[Terminal] Connection lost unexpectedly.")
+        buffer.append("larry@ekho:~ $ ")
+        buffer.appendLine("[Terminal] Connection lost unexpectedly.")
 
         assertEquals(
             "larry@ekho:~ $ \n[Terminal] Connection lost unexpectedly.\n",
-            view.getRawText()
+            buffer.text
         )
     }
 
     /** Remote output that already ends a line must not gain a blank one. */
     @Test
     fun statusLine_afterTerminatedRemoteOutput_addsNoBlankLine() {
-        view.appendLog("total 0\n")
-        view.appendLogLine("[Terminal] Connection lost unexpectedly.")
+        buffer.append("total 0\n")
+        buffer.appendLine("[Terminal] Connection lost unexpectedly.")
 
-        assertEquals("total 0\n[Terminal] Connection lost unexpectedly.\n", view.getRawText())
+        assertEquals("total 0\n[Terminal] Connection lost unexpectedly.\n", buffer.text)
     }
 
     /** Nothing on screen yet: the first status must not be pushed down by a leading break. */
     @Test
     fun firstStatusLine_doesNotOpenWithABlankLine() {
-        view.appendLogLine("[Terminal] Connecting...")
+        buffer.appendLine("[Terminal] Connecting...")
 
-        assertEquals("[Terminal] Connecting...\n", view.getRawText())
+        assertEquals("[Terminal] Connecting...\n", buffer.text)
     }
 
     /**
-     * The remote stream keeps its own line discipline — [TerminalView.appendLog] is unchanged,
-     * or progress bars and prompt redraws would each land on a line of their own.
+     * The remote stream keeps its own line discipline — [TerminalBuffer.append] is unchanged, or
+     * progress bars and prompt redraws would each land on a line of their own.
      */
     @Test
     fun remoteOutput_isStillAppendedWithoutAddedBreaks() {
-        view.appendLog("one")
-        view.appendLog("two")
+        buffer.append("one")
+        buffer.append("two")
 
-        assertEquals("onetwo", view.getRawText())
+        assertEquals("onetwo", buffer.text)
     }
 
     /** A status line carrying its own newline must not end up double-spaced. */
     @Test
     fun statusLineEndingInANewline_isNotTerminatedTwice() {
-        view.appendLogLine("[Terminal] Connecting...\n")
+        buffer.appendLine("[Terminal] Connecting...\n")
 
-        assertEquals("[Terminal] Connecting...\n", view.getRawText())
+        assertEquals("[Terminal] Connecting...\n", buffer.text)
     }
 }

@@ -646,8 +646,8 @@ Build the emulator to §3.3. Not wired into any UI yet.
 
 - One test class per sequence family (cursor, erase, insert/delete, scroll
   region, SGR, modes, OSC, C0) asserting on `snapshot()`.
-- The `TerminalViewEscapeTest`, `TerminalViewCursorKeyTest` and
-  `TerminalViewLogLineTest` cases ported: same inputs, assertions rewritten
+- The `TerminalBufferEscapeTest`, `TerminalViewCursorKeyTest` and
+  `TerminalBufferLogLineTest` cases ported: same inputs, assertions rewritten
   against the screen rather than a `TextView`'s text. Every one of the
   v0.8.3 escape cases (`ESC = ESC ( B` leaves nothing visible; `ESC ] ...
   ESC ESC [ 31 m` re-synchronises) must be present.
@@ -841,7 +841,7 @@ opt-in SSH integration test.
 | `JumpServerAuthPlanTest`, `SshKnownHostsTest`, `TrackingHostKeyRepositoryTest`, `ConnectionFailureClassificationTest` | JVM | `:core:ssh` (Phase 3) |
 | `CommandSafetyTest`, `ConversationManagerTroubleshootingTest`, `ConversationContextBuilderTest`, `ExecuteDirectiveTest`, `PersonaValidatorTest` | JVM | `:core:ai` (Phase 1) |
 | `SushiConfigTest`, `PlayRunnerSecretsTest`, `GitHubDeviceFlowStateTest`, `SetupChecklistTest` | JVM | `:core:model` (Phase 1) |
-| `TerminalViewEscapeTest`, `TerminalViewCursorKeyTest`, `TerminalViewLogLineTest`, `TerminalContrastTest` (ANSI pairs) | instrumented → **JVM** | `:core:terminal` (Phase 2) |
+| `TerminalBufferEscapeTest`, `TerminalViewCursorKeyTest`, `TerminalBufferLogLineTest`, `TerminalContrastTest` (ANSI pairs) | already JVM / instrumented → **JVM** | `:core:terminal` (Phase 2) |
 | `TerminalContrastTest` (surface/theme half) | instrumented | Compose theme test in `:app` (Phase 5.7) |
 | `TerminalKeyRowLayoutTest`, `TerminalViewSelectionTest`, `LayoutInflationTest`, `AiConversationTest`, `DeviceQaSuiteTest` | instrumented | Compose UI tests, per screen (Phase 5) |
 | `CommandHistoryDatabaseHelperTest`, `GeminiTranscriptDatabaseHelperTest` | instrumented | `:data` DAO/repository tests (Phase 4) |
