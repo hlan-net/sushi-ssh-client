@@ -45,7 +45,7 @@ jobs:
           sdkmanager "platforms;android-36"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6.3.0
+        uses: gradle/actions/setup-gradle@v6.4.0
 
       # Unit tests previously ran only in the local pre-push hook, so nothing on CI covered
       # SshClient/known-hosts logic — the emulator job excludes DeviceQaSuiteTest and
