@@ -325,10 +325,9 @@ ls ~/.sushi_logs/
 ```
 
 **Available Test Suites**:
-1. **ExampleInstrumentedTest** - Basic app context test
-2. **JschRuntimeTest** - SSH library sanity check
-3. **DeviceQaSuiteTest** - Comprehensive UI tap-through
-4. **LocalSshIntegrationTest** - Real SSH connection test (requires config)
+1. **JschRuntimeTest** - SSH library sanity check
+2. **DeviceQaSuiteTest** - Comprehensive UI tap-through
+3. **LocalSshIntegrationTest** - Real SSH connection test (requires config)
 
 **For Phase 2 Testing**:
 Focus on manual testing above. Automated UI tests for conversation feature can be added in Phase 3.

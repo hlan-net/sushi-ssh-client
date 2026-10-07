@@ -7,7 +7,6 @@ if ! command -v adb >/dev/null 2>&1; then
 fi
 
 TEST_CLASSES=(
-  net.hlan.sushi.ExampleInstrumentedTest
   net.hlan.sushi.JschRuntimeTest
   net.hlan.sushi.DeviceQaSuiteTest
 )
