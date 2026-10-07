@@ -17,7 +17,6 @@ import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.graphics.ColorUtils
-import java.util.regex.Pattern
 
 class TerminalView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -25,20 +24,9 @@ class TerminalView @JvmOverloads constructor(
 
     private var currentFgColor: Int? = null
     private var currentBgColor: Int? = null
-    private val rawTextBuffer = StringBuilder()
-    private var pendingCarriageReturn = false
-    private var escState = EscState.NONE
-    private var escStringLength = 0
+    private val buffer = TerminalBuffer()
     var onInputText: ((String) -> Unit)? = null
     var renderAnsi: Boolean = true
-
-    /**
-     * Escape sequences can be split across network chunks, so the filter state must persist
-     * between appendLog calls. [IN_STRING] covers the string sequences (OSC, DCS, SOS, PM, APC)
-     * that run until BEL or ST; [ESC_INTERMEDIATE] covers the two-part escapes whose first byte
-     * is an intermediate, such as the charset designator `ESC ( B`.
-     */
-    private enum class EscState { NONE, ESC_SEEN, IN_STRING, IN_STRING_ESC_SEEN, ESC_INTERMEDIATE }
 
     private var ansiPalette: IntArray? = null
     private var ansiBackgroundPalette: IntArray? = null
@@ -82,19 +70,6 @@ class TerminalView @JvmOverloads constructor(
 
         /** Halvings of the blend range — 8 lands within 1/256, finer than a colour channel. */
         private const val BLEND_STEPS = 8
-
-        private const val MAX_LINES = 500
-        private const val MAX_CHARS = 200_000
-        // Unterminated string-sequence guard: a missing BEL/ST must not swallow output forever.
-        private const val MAX_ESC_STRING_LENGTH = 2048
-
-        /**
-         * Bytes that turn an escape into a string sequence running until BEL or ST: OSC (`]`,
-         * xterm window titles), DCS (`P`), SOS (`X`), PM (`^`) and APC (`_`).
-         */
-        private const val STRING_SEQUENCE_STARTERS = "]PX^_"
-        private val ESCAPE_PATTERN = Pattern.compile("\u001B\\[[0-9;?]*[a-ln-zA-LN-Z]")
-        private val SGR_PATTERN = Pattern.compile("\u001B\\[([0-9;]*)m")
     }
 
     init {
@@ -222,13 +197,8 @@ class TerminalView @JvmOverloads constructor(
     }
 
     fun appendLog(text: String) {
-        // Prevent DoS from extremely large input strings by truncating
-        val safeText = if (text.length > 50000) text.substring(text.length - 50000) else text
-        for (ch in safeText) {
-            processChar(ch)
-        }
-        val dropped = trimBuffer()
-        updateText(dropped)
+        val dropped = buffer.append(text)
+        updateText(renderedLength(dropped))
     }
 
     /**
@@ -246,11 +216,13 @@ class TerminalView @JvmOverloads constructor(
      * remote's own.
      */
     fun appendLogLine(text: String) {
-        if (rawTextBuffer.isNotEmpty() && !rawTextBuffer.endsWith("\n")) {
-            appendLog("\n")
-        }
-        appendLog(if (text.endsWith("\n")) text else text + "\n")
+        val dropped = buffer.appendLine(text)
+        updateText(renderedLength(dropped))
     }
+
+    /** The rendered length of a raw prefix trimming dropped, for [updateText]'s selection math. */
+    private fun renderedLength(droppedPrefix: String): Int =
+        if (renderAnsi) parseAnsi(droppedPrefix).length else droppedPrefix.length
 
     /**
      * ANSI colour [index] (0-7 normal, 8-15 bright) in the palette for the current theme.
@@ -314,14 +286,12 @@ class TerminalView @JvmOverloads constructor(
         return if (ColorUtils.calculateContrast(nudged, background) >= MIN_CONTRAST) nudged else target
     }
 
-    fun getRawText(): String = rawTextBuffer.toString()
+    fun getRawText(): String = buffer.text
 
     fun clearLog() {
-        rawTextBuffer.setLength(0)
+        buffer.clear()
         currentFgColor = null
         currentBgColor = null
-        pendingCarriageReturn = false
-        escState = EscState.NONE
         text = ""
         scrollTo(0, 0)
     }
@@ -331,7 +301,7 @@ class TerminalView @JvmOverloads constructor(
         val selEnd = selectionEnd
         val hasSelection = selStart >= 0 && selEnd >= 0 && selStart != selEnd
 
-        val fullText = rawTextBuffer.toString()
+        val fullText = buffer.text
         currentFgColor = null
         currentBgColor = null
         val processedText = runCatching {
@@ -366,195 +336,12 @@ class TerminalView @JvmOverloads constructor(
         }
     }
 
-    private fun trimBuffer(): Int {
-        var cutIndex = 0
-        if (rawTextBuffer.length > MAX_CHARS) {
-            cutIndex = rawTextBuffer.length - MAX_CHARS
-        }
-
-        var newlineCount = 0
-        for (i in 0 until rawTextBuffer.length) {
-            if (rawTextBuffer[i] == '\n') {
-                newlineCount++
-            }
-        }
-
-        if (newlineCount > MAX_LINES) {
-            var linesToDrop = newlineCount - MAX_LINES
-            var i = 0
-            while (linesToDrop > 0 && i < rawTextBuffer.length) {
-                if (rawTextBuffer[i] == '\n') {
-                    linesToDrop--
-                }
-                i++
-            }
-            cutIndex = maxOf(cutIndex, i)
-        }
-
-        if (cutIndex > 0) {
-            val droppedPrefix = rawTextBuffer.substring(0, cutIndex)
-            val renderedDroppedLen = if (renderAnsi) parseAnsi(droppedPrefix).length else droppedPrefix.length
-            rawTextBuffer.delete(0, cutIndex)
-            return renderedDroppedLen
-        }
-        return 0
-    }
-
-    /**
-     * Filters escape sequences out of the stream before buffering, with one exception: CSI
-     * (`ESC [ ...`) passes through, because parseAnsi renders the colours and strips the rest.
-     *
-     * Everything else is consumed here and never reaches the buffer — the string sequences
-     * (OSC, DCS, SOS, PM, APC), the two-byte escapes a shell emits around its prompt
-     * (`ESC =` / `ESC >` keypad mode, `ESC 7` / `ESC 8` cursor save), and the charset
-     * designators (`ESC ( B`). Emitting the withheld ESC for those used to leak their payload
-     * as text: `ESC = ESC ( B` printed a literal `=(B` at the prompt.
-     *
-     * An `ESC` always re-synchronises, in every state: a sequence the remote truncated cannot
-     * swallow the output that follows it.
-     */
-    private fun processChar(ch: Char) {
-        when (escState) {
-            EscState.ESC_SEEN -> {
-                when {
-                    // A second ESC abandons this sequence and starts a new one.
-                    ch == '\u001B' -> return
-                    ch == '[' -> {
-                        // CSI: hand both bytes to the buffer for parseAnsi to deal with.
-                        escState = EscState.NONE
-                        appendChar('\u001B')
-                    }
-                    ch in STRING_SEQUENCE_STARTERS -> {
-                        escState = EscState.IN_STRING
-                        escStringLength = 0
-                        return
-                    }
-                    ch.isEscapeIntermediate() -> {
-                        escState = EscState.ESC_INTERMEDIATE
-                        return
-                    }
-                    // A control character is executed where it stands; the escape is abandoned.
-                    ch < ' ' -> escState = EscState.NONE
-                    // Any other byte is the final one of a two-byte escape: consume both.
-                    else -> {
-                        escState = EscState.NONE
-                        return
-                    }
-                }
-            }
-            EscState.ESC_INTERMEDIATE -> {
-                when {
-                    ch == '\u001B' -> escState = EscState.ESC_SEEN
-                    ch.isEscapeIntermediate() -> Unit
-                    ch < ' ' -> {
-                        escState = EscState.NONE
-                        appendChar(ch)
-                    }
-                    // The final byte, e.g. the `B` of `ESC ( B`.
-                    else -> escState = EscState.NONE
-                }
-                return
-            }
-            EscState.IN_STRING -> {
-                escStringLength++
-                when {
-                    ch == '\u0007' -> escState = EscState.NONE
-                    ch == '\u001B' -> escState = EscState.IN_STRING_ESC_SEEN
-                    escStringLength > MAX_ESC_STRING_LENGTH -> escState = EscState.NONE
-                }
-                return
-            }
-            EscState.IN_STRING_ESC_SEEN -> {
-                if (ch == '\\') {
-                    // ST: the string sequence ends here.
-                    escState = EscState.NONE
-                    return
-                }
-                // Any other byte after that ESC abandons the string and begins a new escape,
-                // as the VT500 parser has it — ESC leaves the string state whatever follows it.
-                // Returning to the string instead let an unterminated OSC swallow the next
-                // sequence and everything after it, up to the length guard. This recurses
-                // exactly once: ESC_SEEN never re-enters.
-                escState = EscState.ESC_SEEN
-                processChar(ch)
-                return
-            }
-            EscState.NONE -> Unit
-        }
-        if (ch == '\u001B') {
-            escState = EscState.ESC_SEEN
-            return
-        }
-        appendChar(ch)
-    }
-
-    /**
-     * Intermediate bytes (0x20-0x2F) — `ESC ( B`, `ESC # 8`, `ESC % G` — each announce that one
-     * more byte belongs to the sequence.
-     */
-    private fun Char.isEscapeIntermediate(): Boolean = this in ' '..'/'
-
-    /**
-     * Appends with carriage-return overwrite semantics: a `\r` not followed by `\n`
-     * restarts the current line, so shell prompt redraws (SIGWINCH) and progress bars
-     * (wget, apt) repaint one line instead of appending duplicates.
-     */
-    private fun appendChar(ch: Char) {
-        when (ch) {
-            '\r' -> pendingCarriageReturn = true
-            '\n' -> {
-                rawTextBuffer.append('\n')
-                pendingCarriageReturn = false
-            }
-            '\b' -> {
-                // Remote echoes "\b \b" to erase a character; apply the erase locally.
-                eraseLastPrintableChar()
-            }
-            else -> {
-                if (pendingCarriageReturn) {
-                    val lastNewline = rawTextBuffer.lastIndexOf("\n")
-                    rawTextBuffer.setLength(if (lastNewline >= 0) lastNewline + 1 else 0)
-                    pendingCarriageReturn = false
-                }
-                rawTextBuffer.append(ch)
-            }
-        }
-    }
-
-    /**
-     * Erases the last printable character on the current line, never crossing a `\n`.
-     * Trailing CSI/SGR escape sequences (`ESC [ [0-9;?]* letter`, e.g. a `ESC[0m`
-     * color reset) are skipped rather than truncated, so a backspace can't corrupt a
-     * still-open escape sequence into raw codes. Every other escape is already stripped
-     * upstream in [processChar], so only CSI sequences and printable text reach the buffer.
-     */
-    private fun eraseLastPrintableChar() {
-        var i = rawTextBuffer.length - 1
-        while (i >= 0) {
-            val c = rawTextBuffer[i]
-            if (c == '\n') return
-            if (c.isLetter()) {
-                // Possible CSI/SGR terminator — walk back over its parameter bytes.
-                var j = i - 1
-                while (j >= 0 && (rawTextBuffer[j].isDigit() || rawTextBuffer[j] == ';' || rawTextBuffer[j] == '?')) {
-                    j--
-                }
-                if (j >= 1 && rawTextBuffer[j] == '[' && rawTextBuffer[j - 1] == '\u001B') {
-                    i = j - 2
-                    continue
-                }
-            }
-            rawTextBuffer.deleteCharAt(i)
-            return
-        }
-    }
-
     private fun parseAnsi(rawText: String): CharSequence {
         // Strip out non-color ANSI escape sequences (e.g. cursor movements)
-        val text = ESCAPE_PATTERN.matcher(rawText).replaceAll("")
+        val text = TerminalBuffer.ESCAPE_PATTERN.matcher(rawText).replaceAll("")
 
         val builder = SpannableStringBuilder()
-        val matcher = SGR_PATTERN.matcher(text)
+        val matcher = TerminalBuffer.SGR_PATTERN.matcher(text)
 
         var lastEnd = 0
 
