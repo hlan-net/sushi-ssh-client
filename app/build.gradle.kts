@@ -172,7 +172,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutines_version")
     // An in-process SSH server, so JVM tests can drive SshClient through JSch's real
     // authentication flow against server configurations no test host has to be set up for.
-    testImplementation("org.apache.sshd:sshd-core:2.19.0")
+    testImplementation("org.apache.sshd:sshd-core:2.20.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.test.espresso:espresso-contrib:3.7.0")
