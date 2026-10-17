@@ -848,7 +848,6 @@ opt-in SSH integration test.
 | `LocalShellBackendTest` | instrumented | `:app`, unchanged (Phase 3) |
 | `JschRuntimeTest` | instrumented | `:app`, pointed at the facade (Phase 3) |
 | `LocalSshIntegrationTest` | instrumented, opt-in | `:app`, ported to the facade (Phase 3) |
-| `ExampleUnitTest`, `ExampleInstrumentedTest` | — | deleted |
 
 ### 6.3 Golden streams for the emulator
 

@@ -2,8 +2,8 @@
 
 ## Where we are
 
-- **JVM unit tests:** 4 files (`CommandSafetyTest`, `SetupChecklistTest`,
-  `ConnectionFailureClassificationTest`, `ExampleUnitTest`). Good targets,
+- **JVM unit tests:** `CommandSafetyTest`, `SetupChecklistTest`,
+  `ConnectionFailureClassificationTest`, and others added since. Good targets,
   tiny surface.
 - **Instrumented tests:** a solid device suite (`DeviceQaSuiteTest`,
   `JschRuntimeTest`, `TerminalViewSelectionTest`, `LocalSshIntegrationTest`,
