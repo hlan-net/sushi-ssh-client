@@ -13,7 +13,7 @@ Sushi is an Android SSH client (package `net.hlan.sushi`, min SDK 26, target SDK
 ./gradlew assembleRelease
 ./gradlew lint                          # or lintDebug
 ./gradlew testDebugUnitTest             # JVM unit tests
-./gradlew testDebugUnitTest --tests "net.hlan.sushi.ExampleUnitTest.testAddition_isCorrect"
+./gradlew testDebugUnitTest --tests "net.hlan.sushi.TerminalSessionHolderTest.initialState_isNotConnected"
 ./gradlew connectedDebugAndroidTest     # requires device/emulator
 ./gradlew connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=net.hlan.sushi.JschRuntimeTest
