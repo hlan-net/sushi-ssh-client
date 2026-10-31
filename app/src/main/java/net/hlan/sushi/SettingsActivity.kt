@@ -470,18 +470,18 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // Cloud model toggle
-        val currentModel = settings.getCloudModel()
+        val currentCapability = settings.getModelCapability()
         pageBinding.geminiModelToggle.check(
-            if (currentModel == GeminiClient.MODEL_PRO) R.id.gemini_model_pro else R.id.gemini_model_flash
+            if (currentCapability == GeminiModelCapability.CAPABLE) R.id.gemini_model_pro else R.id.gemini_model_flash
         )
         pageBinding.geminiModelToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
-            val modelId = if (checkedId == R.id.gemini_model_pro) {
-                GeminiClient.MODEL_PRO
+            val capability = if (checkedId == R.id.gemini_model_pro) {
+                GeminiModelCapability.CAPABLE
             } else {
-                GeminiClient.MODEL_FLASH
+                GeminiModelCapability.FAST
             }
-            settings.setCloudModel(modelId)
+            settings.setModelCapability(capability)
         }
 
         // Nano preference switch
