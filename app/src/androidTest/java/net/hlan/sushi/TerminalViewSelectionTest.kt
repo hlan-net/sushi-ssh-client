@@ -60,4 +60,26 @@ class TerminalViewSelectionTest {
         assertEquals(oldStart - expectedShift, terminalView.selectionStart)
         assertEquals(oldEnd - expectedShift, terminalView.selectionEnd)
     }
+
+    @Test
+    fun selectionIsShiftedByRenderedAnsiPrefixDuringTrim() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val terminalView = TerminalView(context)
+
+        terminalView.appendLog("\u001B[31mRed\u001B[0m\n")
+        repeat(499) {
+            terminalView.appendLog("Line $it\n")
+        }
+
+        val lastLineText = "Line 498\n"
+        val start = terminalView.text.length - lastLineText.length
+        val end = terminalView.text.length - 1
+        Selection.setSelection(terminalView.text as Spannable, start, end)
+
+        terminalView.appendLog("New Line\n")
+
+        val expectedShift = "Red\n".length
+        assertEquals(start - expectedShift, terminalView.selectionStart)
+        assertEquals(end - expectedShift, terminalView.selectionEnd)
+    }
 }

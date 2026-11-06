@@ -103,4 +103,15 @@ class TerminalBufferLogLineTest {
 
         assertEquals("[Terminal] Connecting...\n", buffer.text)
     }
+
+    @Test
+    fun statusLine_returnsCombinedPrefixDroppedByBothAppends() {
+        val initial = "0123456789" + "x".repeat(199_990)
+        buffer.append(initial)
+
+        val dropped = buffer.appendLine("status")
+
+        assertEquals("0123456", dropped)
+        assertEquals("789" + "x".repeat(199_990) + "\nstatus\n", buffer.text)
+    }
 }
