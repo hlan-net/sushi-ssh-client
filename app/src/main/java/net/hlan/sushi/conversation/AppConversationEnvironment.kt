@@ -71,7 +71,7 @@ class AppConversationEnvironment(
                 Log.d(TAG, "Routing voice command to Gemini Nano (on-device)")
                 nanoClient.generateCommand(prompt)
             } else {
-                Log.d(TAG, "Routing voice command to cloud Gemini (${geminiSettings.getCloudModel()})")
+                Log.d(TAG, "Routing voice command to cloud Gemini (${geminiSettings.getModelCapability()})")
                 geminiClient.generateCommand(prompt)
             }
         }
