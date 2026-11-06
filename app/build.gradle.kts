@@ -166,7 +166,7 @@ dependencies {
     "minifiedDebugImplementation"("androidx.compose.ui:ui-test-manifest")
 
     implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
-    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta5")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutines_version")
