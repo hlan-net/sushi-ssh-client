@@ -121,13 +121,13 @@ android {
 
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.19.0")
+    implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.appcompat:appcompat:1.8.0")
     implementation("androidx.viewpager2:viewpager2:1.1.0")
     implementation("com.google.android.material:material:1.14.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.2")
     // Use maintained JSch fork for modern host key/kex support (OpenSSH 9+/10+).
-    implementation("com.github.mwiede:jsch:2.28.7")
+    implementation("com.github.mwiede:jsch:2.28.8")
     implementation("com.jcraft:jzlib:1.1.3")
     // Bouncy Castle provides Ed25519 on Android API < 33 (JCE lacks EdDSA before API 33).
     // bcprov-ext-jdk18on was discontinued after 1.78.1; ML-KEM merged into bcprov since 1.79.
@@ -137,8 +137,8 @@ dependencies {
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.2.1")
-    implementation("com.google.api-client:google-api-client-android:2.9.1")
-    implementation("com.google.api-client:google-api-client-gson:2.9.1")
+    implementation("com.google.api-client:google-api-client-android:2.9.2")
+    implementation("com.google.api-client:google-api-client-gson:2.9.2")
     implementation("com.google.http-client:google-http-client-android:2.2.0")
     implementation("com.google.apis:google-api-services-drive:v3-rev20230815-2.0.0")
 
@@ -166,13 +166,13 @@ dependencies {
     "minifiedDebugImplementation"("androidx.compose.ui:ui-test-manifest")
 
     implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
-    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta5")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutines_version")
     // An in-process SSH server, so JVM tests can drive SshClient through JSch's real
     // authentication flow against server configurations no test host has to be set up for.
-    testImplementation("org.apache.sshd:sshd-core:2.19.0")
+    testImplementation("org.apache.sshd:sshd-core:2.20.1")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.test.espresso:espresso-contrib:3.7.0")
@@ -182,7 +182,7 @@ dependencies {
     androidTestImplementation("androidx.concurrent:concurrent-futures:1.3.0")
     // Pin Guava to the -android flavor on both classpaths. AGP consistent resolution
     // would otherwise pick the -jre flavor for androidTest and break minifiedDebugAndroidTestRuntimeClasspath.
-    implementation("com.google.guava:guava:33.7.1-android")
-    androidTestImplementation("com.google.guava:guava:33.7.1-android")
+    implementation("com.google.guava:guava:33.7.2-android")
+    androidTestImplementation("com.google.guava:guava:33.7.2-android")
 
 }
