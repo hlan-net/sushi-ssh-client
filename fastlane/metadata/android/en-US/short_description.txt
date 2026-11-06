@@ -1,0 +1,1 @@
+SSH client with jump hosts, session logs, and optional Gemini AI help
