@@ -106,12 +106,15 @@ class TerminalBufferLogLineTest {
 
     @Test
     fun statusLine_returnsCombinedPrefixDroppedByBothAppends() {
-        val initial = "0123456789" + "x".repeat(199_990)
-        buffer.append(initial)
+        // append() keeps only the last 50 000 chars of a single chunk, so the buffer has to be
+        // filled to its 200 000-char limit in several: the first carries the prefix trim drops.
+        buffer.append("0123456789" + "x".repeat(49_990))
+        repeat(3) { buffer.append("x".repeat(50_000)) }
 
         val dropped = buffer.appendLine("status")
 
-        assertEquals("0123456", dropped)
-        assertEquals("789" + "x".repeat(199_990) + "\nstatus\n", buffer.text)
+        // One char for the line break appendLine adds, seven for "status\n".
+        assertEquals("01234567", dropped)
+        assertEquals("89" + "x".repeat(199_990) + "\nstatus\n", buffer.text)
     }
 }
