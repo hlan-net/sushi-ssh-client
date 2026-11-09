@@ -103,6 +103,7 @@ class GeminiModelResolverTest {
         // The same shapes, renamed to a fictitious future generation — nothing in this app's
         // code should need to change for that.
         val renamed = listOf(
+            "sushi-9.1-flash",
             "sushi-9.9-flash",
             "sushi-9.9-flash-lite",
             "sushi-9.9-pro-preview",
@@ -113,8 +114,7 @@ class GeminiModelResolverTest {
         val capable = GeminiModelResolver.resolve(GeminiModelCapability.CAPABLE, renamed)
 
         assertEquals("sushi-9.9-flash", fast)
-        // Prefers the stable (non-preview) "pro" match even though it's an older version number.
-        assertEquals("sushi-9.1-pro", capable)
+        assertEquals("sushi-9.9-pro-preview", capable)
     }
 
     @Test

@@ -73,8 +73,9 @@ object GeminiModelResolver {
     }
 
     /**
-     * The leading `gemini-<version>` as numeric components — `[3, 10]` out of
+     * The model's `<version>` segment as numeric components — `[3, 10]` out of
      * `gemini-3.10-flash` — so `3.10` sorts above `3.9`; a `Double` would read it as `3.1`.
+     * Parsed independently of the model-family prefix so a renamed lineup still ranks by version.
      * Empty if absent.
      */
     private fun versionOf(id: String): List<Int> =
@@ -87,7 +88,7 @@ object GeminiModelResolver {
             .firstOrNull { it != 0 } ?: 0
     }
 
-    private val VERSION_PATTERN = Regex("gemini-(\\d+(?:\\.\\d+)*)")
+    private val VERSION_PATTERN = Regex("-(\\d+(?:\\.\\d+)*)(?=-|$)")
 }
 
 /**
@@ -154,8 +155,9 @@ class GeminiModelCatalog(private val settings: GeminiSettings) {
     }
 
     private fun readBody(connection: HttpURLConnection): String {
-        val stream = if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream
-        return stream.bufferedReader().use { it.readText() }
+        val code = connection.responseCode
+        check(code in 200..299) { "GET /v1beta/models failed with HTTP $code" }
+        return connection.inputStream.bufferedReader().use { it.readText() }
     }
 
     companion object {
