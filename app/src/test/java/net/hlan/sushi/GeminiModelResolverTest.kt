@@ -80,7 +80,7 @@ class GeminiModelResolverTest {
 
     @Test
     fun capable_prefersStableOverPreviewOnlyAtTheSameVersion() {
-        val sameVersion = listOf("gemini-4.0-pro-preview", "gemini-4.0-pro")
+        val sameVersion = listOf("gemini-4.0-pro-preview", "gemini-4.0-pro-exp", "gemini-4.0-pro")
 
         val resolved = GeminiModelResolver.resolve(GeminiModelCapability.CAPABLE, sameVersion)
 

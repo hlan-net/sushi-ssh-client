@@ -121,14 +121,20 @@ class GeminiClient(
     private fun openConnection(): HttpURLConnection? {
         val authMode = getAuthMode()
         val apiKey = settings.getApiKey().trim()
-        val accessToken = if (authMode == AuthMode.GOOGLE_ACCOUNT) authManager?.getGeminiAccessToken() else null
+        val signedInEmail = if (authMode == AuthMode.GOOGLE_ACCOUNT) authManager?.getSignedInAccount()?.email else null
+        val rawToken = if (signedInEmail != null) authManager?.getGeminiAccessToken() else null
+        val accessToken = if (rawToken != null && authManager?.getSignedInAccount()?.email == signedInEmail) {
+            rawToken
+        } else {
+            null
+        }
 
         val hasCredential = accessToken != null || apiKey.isNotEmpty()
         if (authMode == AuthMode.NONE || !hasCredential) {
             return null
         }
 
-        val accountEmail = if (accessToken != null) authManager?.getSignedInAccount()?.email else null
+        val accountEmail = if (accessToken != null) signedInEmail else null
         val credentialId = GeminiModelCatalog.credentialId(accountEmail, apiKey)
         val modelIds = modelCatalog.getModelIds(apiKey, accessToken, credentialId)
         val modelId = GeminiModelResolver.resolve(settings.getModelCapability(), modelIds)

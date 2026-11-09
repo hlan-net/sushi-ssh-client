@@ -69,7 +69,7 @@ object GeminiModelResolver {
         // sensible default.
         val bestVersion = candidates.map { versionOf(it) }.maxWith(VERSION_ORDER)
         val atBestVersion = candidates.filter { VERSION_ORDER.compare(versionOf(it), bestVersion) == 0 }
-        return atBestVersion.firstOrNull { "preview" !in it } ?: atBestVersion.first()
+        return atBestVersion.firstOrNull { "preview" !in it && "exp" !in it } ?: atBestVersion.first()
     }
 
     /**
@@ -144,7 +144,9 @@ class GeminiModelCatalog(private val settings: GeminiSettings) {
             val json = JSONObject(body)
             val models = json.optJSONArray("models") ?: JSONArray()
             for (i in 0 until models.length()) {
-                val name = models.optJSONObject(i)?.optString("name").orEmpty()
+                val model = models.optJSONObject(i) ?: continue
+                if (!supportsGenerateContent(model)) continue
+                val name = model.optString("name")
                 if (name.startsWith(MODEL_NAME_PREFIX)) {
                     ids += name.removePrefix(MODEL_NAME_PREFIX)
                 }
@@ -152,6 +154,11 @@ class GeminiModelCatalog(private val settings: GeminiSettings) {
             pageToken = json.optString("nextPageToken").ifBlank { null }
         } while (pageToken != null)
         return ids
+    }
+
+    private fun supportsGenerateContent(model: JSONObject): Boolean {
+        val methods = model.optJSONArray("supportedGenerationMethods") ?: return false
+        return (0 until methods.length()).any { methods.optString(it) == GENERATE_CONTENT_METHOD }
     }
 
     private fun readBody(connection: HttpURLConnection): String {
@@ -176,6 +183,7 @@ class GeminiModelCatalog(private val settings: GeminiSettings) {
 
         private const val LIST_MODELS_URL = "https://generativelanguage.googleapis.com/v1beta/models"
         private const val MODEL_NAME_PREFIX = "models/"
+        private const val GENERATE_CONTENT_METHOD = "generateContent"
         private const val CONNECT_TIMEOUT_MS = 10_000
         private const val READ_TIMEOUT_MS = 15_000
     }
