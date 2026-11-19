@@ -1,0 +1,29 @@
+Sushi is an open source SSH client for connecting to your Linux hosts, including Raspberry Pi OS devices, from your Android phone or tablet.
+
+Core SSH features:
+- Password or key-based authentication
+- Jump host / bastion support - connect through one SSH host to reach another
+- A clean, fast terminal session with proper session logs
+- A foreground "session active" notification keeps your connection alive while Sushi is in the background, with a one-tap disconnect
+- No app account required - Sushi talks directly to the hosts you configure
+
+Plays - scripted actions:
+- Save frequently used commands and multi-step scripts as "Plays"
+- Use {{ PARAM }} placeholders to fill in values before running, e.g. for service restarts or maintenance scripts
+- Great for repeatable tasks like restarting services or running backups
+
+Optional Gemini AI assistance (your own API key):
+- Turn natural-language requests into safe shell commands
+- Get plain-language summaries of command output
+- Optional voice input for hands-free requests
+- Three-tier command safety: safe commands run automatically, risky ones ask for confirmation first, and dangerous ones are always blocked
+
+Optional Google Drive log upload:
+- Back up session logs to your own Google Drive account when you choose to enable it
+
+Privacy:
+- Your SSH credentials and connection details stay on your device
+- Gemini and Drive features are strictly optional and only activate with your explicit sign-in / API key
+- Full privacy policy: https://sushi.hlan.net/privacy-policy.html
+
+Sushi is actively developed, open source, and built for people who manage their own Linux servers and devices.

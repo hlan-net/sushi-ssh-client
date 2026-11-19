@@ -1,0 +1,3 @@
+- Feedback sign-in now uses GitHub's OAuth Device Flow instead of a pasted token: tap "Sign in with GitHub" in Settings and enter the shown code at github.com/login/device.
+- Fixed sign-in network errors and added timeouts so a stalled connection can't hang the sign-in dialog.
+- Fixed account status incorrectly showing "Not signed in" when a token was present.
