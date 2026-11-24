@@ -10,6 +10,7 @@ import com.jcraft.jsch.UserInfo
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import net.hlan.sushi.signin.KeyboardInteractiveDialogHost
 
 /**
  * Bridges JSch's synchronous [UserInfo] callbacks — invoked on the connecting thread, from
@@ -22,7 +23,7 @@ class DialogUserInfo(
     private val activity: AppCompatActivity,
     private val targetLabel: String,
     private val passphraseCache: KeyPassphraseCache
-) : UserInfo, DefaultLifecycleObserver {
+) : UserInfo, KeyboardInteractivePrompter, DefaultLifecycleObserver {
 
     @Volatile
     private var pendingLatch: CountDownLatch? = null
@@ -123,6 +124,20 @@ class DialogUserInfo(
     override fun promptPassword(message: String): Boolean = false
 
     override fun getPassword(): String? = null
+
+    /**
+     * Shows the "Server sign-in" dialog for a keyboard-interactive round the stored password
+     * cannot answer (#191). Null — declining the round — on Cancel, Back, the 120 s timeout or
+     * the activity going away; a dialog left up by the timeout is taken down.
+     */
+    override fun promptKeyboardInteractive(request: KeyboardInteractiveRequest): List<String>? {
+        val dismiss = AtomicReference<(() -> Unit)?>(null)
+        val answers = awaitOnUiThread<List<String>?>(default = null) { deliver ->
+            dismiss.set(KeyboardInteractiveDialogHost.show(activity, request, deliver))
+        }
+        activity.runOnUiThread { dismiss.get()?.invoke() }
+        return answers
+    }
 
     override fun showMessage(message: String) {
         // JSch informational messages (e.g. banner text) — not surfaced to the user today.

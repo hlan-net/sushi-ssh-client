@@ -494,6 +494,11 @@
     <string name="connect_error_timeout">Anslutningen tog för lång tid — hosten kan vara onåbar eller långsam.</string>
     <string name="connect_error_auth_key">Autentisering med publik nyckel misslyckades — hosten godtog inte nyckeln.</string>
     <string name="connect_error_auth_password">Lösenordsautentisering misslyckades — fel uppgifter.</string>
+    <string name="connect_error_keyboard_interactive_rejected">Inloggningen misslyckades — servern godtog inte svaren.</string>
+    <string name="keyboard_interactive_title">Serverinloggning</string>
+    <string name="keyboard_interactive_jump_host">%1$s · hoppserver</string>
+    <string name="keyboard_interactive_continue">Fortsätt</string>
+    <string name="keyboard_interactive_cancel">Avbryt</string>
     <string name="connect_error_auth_key_passphrase">Fel lösenfras — den privata nyckeln kunde inte låsas upp.</string>
     <string name="connect_error_host_key_mismatch">Hostnyckeln stämmer inte — fjärrnyckeln har ändrats. Anslut inte förrän du verifierat den.</string>
     <string name="connect_error_host_key_untrusted">Hostnyckeln är inte betrodd — anslutningen avbröts.</string>

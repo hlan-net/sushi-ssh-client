@@ -494,6 +494,11 @@
     <string name="connect_error_timeout">Zeitüberschreitung — der Host ist womöglich nicht erreichbar oder langsam.</string>
     <string name="connect_error_auth_key">Public-Key-Authentifizierung fehlgeschlagen — der Host hat den Schlüssel nicht akzeptiert.</string>
     <string name="connect_error_auth_password">Passwort-Authentifizierung fehlgeschlagen — falsche Zugangsdaten.</string>
+    <string name="connect_error_keyboard_interactive_rejected">Anmeldung fehlgeschlagen — der Server hat die Antworten nicht akzeptiert.</string>
+    <string name="keyboard_interactive_title">Server-Anmeldung</string>
+    <string name="keyboard_interactive_jump_host">%1$s · Jump-Host</string>
+    <string name="keyboard_interactive_continue">Weiter</string>
+    <string name="keyboard_interactive_cancel">Abbrechen</string>
     <string name="connect_error_auth_key_passphrase">Falsche Passphrase — der private Schlüssel ließ sich nicht entsperren.</string>
     <string name="connect_error_host_key_mismatch">Host-Schlüssel stimmt nicht überein — der Schlüssel der Gegenstelle hat sich geändert. Nicht verbinden, bevor das geklärt ist.</string>
     <string name="connect_error_host_key_untrusted">Host-Schlüssel nicht vertrauenswürdig — Verbindung abgebrochen.</string>

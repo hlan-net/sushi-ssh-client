@@ -495,6 +495,11 @@
     <string name="connect_error_timeout">Se agotó el tiempo de conexión: el host puede estar inaccesible o lento.</string>
     <string name="connect_error_auth_key">Falló la autenticación por clave pública: el host no aceptó la clave.</string>
     <string name="connect_error_auth_password">Falló la autenticación por contraseña: credenciales incorrectas.</string>
+    <string name="connect_error_keyboard_interactive_rejected">Error al iniciar sesión: el servidor no aceptó las respuestas.</string>
+    <string name="keyboard_interactive_title">Inicio de sesión en el servidor</string>
+    <string name="keyboard_interactive_jump_host">%1$s · host de salto</string>
+    <string name="keyboard_interactive_continue">Continuar</string>
+    <string name="keyboard_interactive_cancel">Cancelar</string>
     <string name="connect_error_auth_key_passphrase">Frase de contraseña incorrecta: no se pudo desbloquear la clave privada.</string>
     <string name="connect_error_host_key_mismatch">La clave del host no coincide: la clave remota ha cambiado. No te conectes hasta verificarlo.</string>
     <string name="connect_error_host_key_untrusted">La clave del host no es de confianza: conexión cancelada.</string>

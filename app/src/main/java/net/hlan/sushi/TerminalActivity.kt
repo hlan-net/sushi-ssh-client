@@ -206,8 +206,12 @@ class TerminalActivity : AppCompatActivity() {
                 } else {
                     client.disconnect()
                     lastConnectFailure = result.reason
-                    binding.terminalOutputText.appendLogLine(getString(R.string.terminal_connect_failed_log, result.message))
-                    showErrorBanner(result.reason, result.message, config)
+                    // Cancelling the server's sign-in dialog is the user's choice, not an error:
+                    // the card (#191) shows no message for it.
+                    if (result.reason != ConnectFailure.KEYBOARD_INTERACTIVE_CANCELLED) {
+                        binding.terminalOutputText.appendLogLine(getString(R.string.terminal_connect_failed_log, result.message))
+                        showErrorBanner(result.reason, result.message, config)
+                    }
                 }
                 updateUi()
             }
@@ -228,6 +232,8 @@ class TerminalActivity : AppCompatActivity() {
             ConnectFailure.HOST_KEY_UNTRUSTED -> getString(R.string.connect_error_host_key_untrusted)
             ConnectFailure.JUMP_FAILED -> getString(R.string.connect_error_jump_failed)
             ConnectFailure.CHANNEL_FAILED -> getString(R.string.connect_error_channel_failed)
+            ConnectFailure.KEYBOARD_INTERACTIVE_REJECTED -> getString(R.string.connect_error_keyboard_interactive_rejected)
+            ConnectFailure.KEYBOARD_INTERACTIVE_CANCELLED -> return
             ConnectFailure.UNKNOWN -> getString(R.string.connect_error_unknown, rawMessage)
         }
         binding.terminalErrorBannerText.text = message
@@ -236,7 +242,8 @@ class TerminalActivity : AppCompatActivity() {
         val actionButton = binding.terminalErrorBannerAction
         when (reason) {
             ConnectFailure.NETWORK, ConnectFailure.TIMEOUT, ConnectFailure.UNKNOWN,
-            ConnectFailure.AUTH_KEY_PASSPHRASE, ConnectFailure.HOST_KEY_UNTRUSTED -> {
+            ConnectFailure.AUTH_KEY_PASSPHRASE, ConnectFailure.HOST_KEY_UNTRUSTED,
+            ConnectFailure.KEYBOARD_INTERACTIVE_REJECTED, ConnectFailure.KEYBOARD_INTERACTIVE_CANCELLED -> {
                 actionButton.setText(R.string.action_retry)
                 actionButton.visibility = android.view.View.VISIBLE
                 actionButton.setOnClickListener { hideErrorBanner(); connectTerminal() }
