@@ -16,7 +16,7 @@ Optional Gemini AI assistance (your own API key):
 - Turn natural-language requests into safe shell commands
 - Get plain-language summaries of command output
 - Optional voice input for hands-free requests
-- Three-tier command safety: safe commands run automatically, risky ones ask for confirmation first, and dangerous ones are always blocked
+- Three-tier safety for every command the AI runs: safe commands run automatically, risky ones ask for confirmation first, and dangerous ones are blocked
 
 Optional Google Drive log upload:
 - Back up session logs to your own Google Drive account when you choose to enable it
