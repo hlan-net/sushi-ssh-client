@@ -9,6 +9,7 @@ import com.jcraft.jsch.JSch
 import com.jcraft.jsch.UserInfo
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import net.hlan.sushi.signin.KeyboardInteractiveDialogHost
 
@@ -132,9 +133,21 @@ class DialogUserInfo(
      */
     override fun promptKeyboardInteractive(request: KeyboardInteractiveRequest): List<String>? {
         val dismiss = AtomicReference<(() -> Unit)?>(null)
+        val ended = AtomicBoolean(false)
         val answers = awaitOnUiThread<List<String>?>(default = null) { deliver ->
-            dismiss.set(KeyboardInteractiveDialogHost.show(activity, request, deliver))
+            // The show is queued before the wait starts. If the wait already ended (timeout, or
+            // the activity was destroyed) by the time it runs, mounting the dialog would leave
+            // one nobody is waiting for — on a dead activity, possibly — so it resolves as a
+            // cancel instead.
+            if (ended.get() || activity.isFinishing || activity.isDestroyed) {
+                deliver(null)
+            } else {
+                dismiss.set(KeyboardInteractiveDialogHost.show(activity, request, deliver))
+            }
         }
+        ended.set(true)
+        // Queued after the show above, so it runs after it and takes down a dialog that show
+        // mounted just before the wait ended.
         activity.runOnUiThread { dismiss.get()?.invoke() }
         return answers
     }

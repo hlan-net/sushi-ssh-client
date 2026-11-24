@@ -208,7 +208,10 @@ class TerminalActivity : AppCompatActivity() {
                     lastConnectFailure = result.reason
                     // Cancelling the server's sign-in dialog is the user's choice, not an error:
                     // the card (#191) shows no message for it.
-                    if (result.reason != ConnectFailure.KEYBOARD_INTERACTIVE_CANCELLED) {
+                    if (result.reason == ConnectFailure.KEYBOARD_INTERACTIVE_CANCELLED) {
+                        // An earlier attempt's banner would otherwise stay up and read as this one's.
+                        hideErrorBanner()
+                    } else {
                         binding.terminalOutputText.appendLogLine(getString(R.string.terminal_connect_failed_log, result.message))
                         showErrorBanner(result.reason, result.message, config)
                     }
