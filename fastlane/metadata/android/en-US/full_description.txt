@@ -12,18 +12,18 @@ Plays - scripted actions:
 - Use {{ PARAM }} placeholders to fill in values before running, e.g. for service restarts or maintenance scripts
 - Great for repeatable tasks like restarting services or running backups
 
-Optional Gemini AI assistance (your own API key):
+Optional Gemini AI assistance (on-device Gemini Nano where your phone supports it, or Gemini in the cloud with your own API key or Google sign-in):
 - Turn natural-language requests into safe shell commands
 - Get plain-language summaries of command output
-- Optional voice input for hands-free requests
+- Optional voice input for hands-free requests (with cloud Gemini set up)
 - Three-tier safety for every command the AI runs: safe commands run automatically, risky ones ask for confirmation first, and dangerous ones are blocked
 
 Optional Google Drive log upload:
 - Back up session logs to your own Google Drive account when you choose to enable it
 
 Privacy:
-- Your SSH credentials and connection details stay on your device
-- Gemini and Drive features are strictly optional and only activate with your explicit sign-in / API key
+- Your SSH passwords are stored on your device and sent only to the hosts you configure; your private keys never leave your device
+- Cloud Gemini and Drive are strictly optional and only activate with your explicit sign-in / API key; on-device Gemini Nano sends nothing to Google
 - Full privacy policy: https://sushi.hlan.net/privacy-policy.html
 
 Sushi is actively developed, open source, and built for people who manage their own Linux servers and devices.
