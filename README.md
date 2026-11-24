@@ -37,6 +37,12 @@ An open source Android SSH client focused on fast connections, clean session man
 
 ## Recent Release Highlights
 
+### v0.9.0
+- **Full-Screen AI Conversation**: The Gemini conversation is a screen of its own instead of a fixed-height dialog, and the CONFIRM question sits in the transcript rather than popping a second dialog on top.
+- **Survives Rotation**: Turning the phone mid-command no longer discards the transcript or the question the AI was about to ask.
+- **Keyboard-Interactive Login**: Servers that accept only keyboard-interactive authentication (PAM with `PasswordAuthentication no`) can be reached with the saved password.
+- **Gemini Flash Works Again**: Settings stores *fast* or *capable* instead of a model id, and Sushi picks whichever current model Google offers your key or account — the hard-coded Flash model had been retired.
+
 ### v0.8.3
 - **Light Mode**: The terminal follows the system theme instead of a fixed dark screen. In light mode its key labels had been drawn at 1.04:1 against their own background — present, but invisible. The ANSI palette came with it, since the raw colour constants suit a dark terminal and put yellow and white at about 1.1:1 on a light one.
 - **Readable ANSI Backgrounds**: `ESC[40m`–`ESC[47m` had reused the foreground palette, so a highlight painted text in its own colour — a blank rectangle at exactly 1.00:1. Backgrounds are now their own palette per theme, and a foreground that would fall short against one is shifted toward white or black until it reads.

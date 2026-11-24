@@ -7,16 +7,16 @@ Sushi is an SSH client where the primary interface is talking *to* the connected
 
 ---
 
-## Current state — v0.8.3
+## Current state — v0.9.0
 
 The conversational foundation is complete:
 
 - SSH client with terminal, Plays, jump-server support, key/password auth
 - Target-side AI persona (`~/.config/sushi/SUSHI.md`) auto-generated on first use
 - Three-tier command safety: SAFE (auto-execute) / CONFIRM (ask first) / BLOCKED (never)
-- Dual text + voice input in Gemini dialog
-- Chat-style transcript bubbles in the conversation UI
-- Gemini Cloud (Flash/Pro) and on-device Nano support
+- Dual text + voice input in the conversation
+- Full-screen Compose conversation screen backed by `ConversationViewModel`, surviving rotation
+- Gemini Cloud (fast/capable, model resolved at call time) and on-device Nano support
 - Conversation logs saved to `~/.sushi_logs/` on target
 - Figma UX gate and AI-assisted proposal workflow for the dev process
 
@@ -165,4 +165,4 @@ Interesting directions that depend on the conversational core being solid first.
 
 ---
 
-*Last updated: 2026-09-21*
+*Last updated: 2026-11-24*
