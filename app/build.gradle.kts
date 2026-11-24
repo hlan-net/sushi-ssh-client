@@ -147,7 +147,7 @@ dependencies {
 
     // Compose and ViewModel (ROADMAP.md v0.9.0; rewrite plan §2.3). The BOM pins every
     // androidx.compose.* artifact, so those carry no version of their own.
-    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
+    val composeBom = platform("androidx.compose:compose-bom:2026.11.01")
     implementation(composeBom)
     androidTestImplementation(composeBom)
     implementation("androidx.compose.ui:ui")
