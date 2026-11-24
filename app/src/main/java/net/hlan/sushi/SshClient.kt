@@ -78,6 +78,8 @@ enum class ConnectFailure {
     HOST_KEY_UNTRUSTED, // User declined to trust an unknown host key (or the prompt timed out)
     JUMP_FAILED,        // Jump / bastion server connection failed
     CHANNEL_FAILED,     // Session authenticated but shell channel failed to open
+    KEYBOARD_INTERACTIVE_REJECTED,  // The user answered the server's sign-in prompts; it said no
+    KEYBOARD_INTERACTIVE_CANCELLED, // The user cancelled the server's sign-in prompts, or let them time out
     UNKNOWN;            // Unclassified error
 
     /**
@@ -136,6 +138,14 @@ class SshClient(
     private var shellChannel: ChannelShell? = null
     private var shellInput: OutputStream? = null
     private var shellReaderThread: Thread? = null
+
+    /**
+     * Each hop's keyboard-interactive answerer from the latest connect, kept so a failed connect
+     * can tell "the user cancelled" and "the server rejected what the user typed" apart from an
+     * ordinary password failure. Set in [configureSession].
+     */
+    private var targetKeyboardInteractive: KeyboardInteractiveUserInfo? = null
+    private var jumpKeyboardInteractive: KeyboardInteractiveUserInfo? = null
 
     /** Internal rather than private so [classifyException] can take it as a parameter. */
     internal data class AuthPlan(
@@ -307,7 +317,9 @@ class SshClient(
         val hostKeyAlias: String,
         val preferredAuthentications: String,
         /** Null when the plan permits no password, or the host has none stored. */
-        val password: String?
+        val password: String?,
+        /** True for the bastion's session; names the hop in the keyboard-interactive dialog. */
+        val isJumpHost: Boolean = false
     )
 
     internal fun targetSessionSetup(): SessionSetup {
@@ -337,7 +349,8 @@ class SshClient(
             port = config.jumpPort,
             hostKeyAlias = "${config.jumpHost}:${config.jumpPort}",
             preferredAuthentications = preferredAuthentications(jumpAuthPlan),
-            password = config.jumpPassword.takeIf { jumpAuthPlan.shouldUsePassword && it.isNotBlank() }
+            password = config.jumpPassword.takeIf { jumpAuthPlan.shouldUsePassword && it.isNotBlank() },
+            isJumpHost = true
         )
     }
 
@@ -405,12 +418,16 @@ class SshClient(
             null
         }
         addPrivateKeyIdentity(jsch, authPlan.shouldUseKey || jumpAuthPlan?.shouldUseKey == true)
+        targetKeyboardInteractive = null
+        jumpKeyboardInteractive = null
 
         val jumpResult = if (config.hasJumpServer()) {
             try {
                 establishJumpSession(jsch)
             } catch (e: Exception) {
-                throw ConnectionFailureException(ConnectFailure.JUMP_FAILED, e)
+                val reason = keyboardInteractiveFailure(jumpKeyboardInteractive, e, jumpAuthPlan)
+                    ?: ConnectFailure.JUMP_FAILED
+                throw ConnectionFailureException(reason, e)
             }
         } else null
 
@@ -421,10 +438,34 @@ class SshClient(
             establishTargetSession(jsch, targetHost, targetPort)
         } catch (e: Exception) {
             jumpResult?.session?.disconnect()
-            throw ConnectionFailureException(classifyException(e, authPlan), e)
+            val reason = keyboardInteractiveFailure(targetKeyboardInteractive, e, authPlan)
+                ?: classifyException(e, authPlan)
+            throw ConnectionFailureException(reason, e)
         }
 
         return ConnectedSessionPair(targetSession, jumpResult?.session, jumpResult?.forwardedPort)
+    }
+
+    /**
+     * The failure to report when an authentication failure followed a round the user was asked
+     * to answer, or null to classify [e] as usual. Only an authentication failure qualifies — a
+     * timeout or a dropped connection after the user answered is still that.
+     */
+    private fun keyboardInteractiveFailure(
+        answerer: KeyboardInteractiveUserInfo?,
+        e: Throwable,
+        attempted: AuthPlan?
+    ): ConnectFailure? {
+        val outcome = answerer?.userOutcome ?: return null
+        val isAuthFailure = classifyException(e, attempted).let {
+            it == ConnectFailure.AUTH_PASSWORD || it == ConnectFailure.AUTH_KEY
+        }
+        return when {
+            !isAuthFailure -> null
+            outcome == KeyboardInteractiveUserInfo.UserOutcome.CANCELLED -> ConnectFailure.KEYBOARD_INTERACTIVE_CANCELLED
+            outcome == KeyboardInteractiveUserInfo.UserOutcome.ANSWERED -> ConnectFailure.KEYBOARD_INTERACTIVE_REJECTED
+            else -> null
+        }
     }
 
     internal fun classifyException(
@@ -498,6 +539,10 @@ class SshClient(
      * `PasswordAuthentication no`) now gets in. A wrong password costs one attempt per method
      * either way — the wrapper sends it once per session over `keyboard-interactive`, on top of
      * the `password` method's own attempt — so the order only decides which is tried first.
+     * Rounds the stored password cannot answer (a one-time code, several prompts, an echo-on
+     * prompt, a second password prompt) are put to the user in the "Server sign-in" dialog
+     * (#191). The method is still listed only for plans that permit a password: a key-only host
+     * offering `publickey,keyboard-interactive` two-factor is not reached yet.
      *
      * Every [AuthPlan] permits at least one method — [resolveAuthPlan] has no branch where both
      * are false — so this never produces an empty list.
@@ -516,7 +561,18 @@ class SshClient(
         session.setConfig("StrictHostKeyChecking", "ask")
         session.setConfig("PreferredAuthentications", setup.preferredAuthentications)
         session.setHostKeyAlias(setup.hostKeyAlias)
-        session.setUserInfo(KeyboardInteractiveUserInfo(userInfo, setup.password))
+        val keyboardInteractive = KeyboardInteractiveUserInfo(
+            delegate = userInfo,
+            password = setup.password,
+            hostLabel = setup.hostKeyAlias,
+            isJumpHost = setup.isJumpHost
+        )
+        if (setup.isJumpHost) {
+            jumpKeyboardInteractive = keyboardInteractive
+        } else {
+            targetKeyboardInteractive = keyboardInteractive
+        }
+        session.setUserInfo(keyboardInteractive)
         // JSch 2.28.7 allocates keyboard-interactive prompt arrays from the server's count
         // unchecked; this copy bounds it first. See the class comment.
         session.setConfig("userauth.keyboard-interactive", BOUNDED_KEYBOARD_INTERACTIVE)

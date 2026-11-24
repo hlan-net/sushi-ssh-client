@@ -4,6 +4,7 @@ import com.jcraft.jsch.UIKeyboardInteractive
 import com.jcraft.jsch.UserInfo
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -216,5 +217,190 @@ class KeyboardInteractiveUserInfoTest {
 
         assertEquals(1, delegate.passphrasePrompts)
         assertEquals(listOf("banner"), delegate.messages)
+    }
+
+    // --- rounds put to the user (#191) ---
+
+    /** A UserInfo that also answers keyboard-interactive rounds, like DialogUserInfo. */
+    private class PromptingUserInfo(
+        private val answer: (KeyboardInteractiveRequest) -> List<String>?
+    ) : UserInfo by RecordingUserInfo(), KeyboardInteractivePrompter {
+        val requests = mutableListOf<KeyboardInteractiveRequest>()
+
+        override fun promptKeyboardInteractive(request: KeyboardInteractiveRequest): List<String>? {
+            requests += request
+            return answer(request)
+        }
+    }
+
+    private fun prompting(
+        delegate: PromptingUserInfo,
+        password: String? = "secret",
+        isJumpHost: Boolean = false
+    ) = KeyboardInteractiveUserInfo(delegate, password, hostLabel = "otp.hlan.net:22", isJumpHost = isJumpHost)
+
+    @Test
+    fun oneTimeCodePrompt_isPutToTheUser() {
+        val delegate = PromptingUserInfo { listOf("123456") }
+        val userInfo = prompting(delegate)
+
+        val response = userInfo.promptKeyboardInteractive(
+            "larry@otp", "", "", arrayOf("Verification code: "), booleanArrayOf(false)
+        )
+
+        assertArrayEquals(arrayOf("123456"), response)
+        val request = delegate.requests.single()
+        assertEquals("otp.hlan.net:22", request.hostLabel)
+        assertFalse(request.isJumpHost)
+        assertEquals(listOf(KeyboardInteractiveRequest.Prompt("Verification code:", echo = false)), request.prompts)
+        assertEquals(KeyboardInteractiveUserInfo.UserOutcome.ANSWERED, userInfo.userOutcome)
+    }
+
+    /** Duo-style: the password and a passcode in one round, both asked, the password not prefilled. */
+    @Test
+    fun severalPrompts_arePutToTheUserInTheServersOrder() {
+        val delegate = PromptingUserInfo { listOf("typed-password", "1") }
+        val userInfo = prompting(delegate, isJumpHost = true)
+
+        val response = userInfo.promptKeyboardInteractive(
+            "larry@bastion",
+            "",
+            "Duo two-factor login for larry",
+            arrayOf("Password:", "Passcode or option (1-3):"),
+            booleanArrayOf(false, true)
+        )
+
+        assertArrayEquals(arrayOf("typed-password", "1"), response)
+        val request = delegate.requests.single()
+        assertTrue(request.isJumpHost)
+        assertEquals("Duo two-factor login for larry", request.instruction)
+        assertEquals(
+            listOf(
+                KeyboardInteractiveRequest.Prompt("Password:", echo = false),
+                KeyboardInteractiveRequest.Prompt("Passcode or option (1-3):", echo = true)
+            ),
+            request.prompts
+        )
+    }
+
+    @Test
+    fun echoOnPrompt_isPutToTheUser() {
+        val delegate = PromptingUserInfo { listOf("larry") }
+        val userInfo = prompting(delegate)
+
+        val response = userInfo.promptKeyboardInteractive("larry@otp", "", "", arrayOf("Username:"), booleanArrayOf(true))
+
+        assertArrayEquals(arrayOf("larry"), response)
+        assertTrue(delegate.requests.single().prompts.single().echo)
+    }
+
+    /** The stored password still answers the first password prompt without bothering the user. */
+    @Test
+    fun firstPasswordPrompt_isAnsweredWithoutAskingTheUser() {
+        val delegate = PromptingUserInfo { error("the user should not be asked") }
+        val userInfo = prompting(delegate)
+
+        val response = userInfo.promptKeyboardInteractive("larry@otp", "", "", arrayOf("Password:"), booleanArrayOf(false))
+
+        assertArrayEquals(arrayOf("secret"), response)
+        assertTrue(delegate.requests.isEmpty())
+        assertEquals(KeyboardInteractiveUserInfo.UserOutcome.NONE, userInfo.userOutcome)
+    }
+
+    /**
+     * After the stored password was rejected, the next password prompt is declined rather than put
+     * to the user, so the failure stays "wrong credentials" instead of a dialog a cancel would hide.
+     */
+    @Test
+    fun secondPasswordPrompt_isDeclinedNotPutToTheUser() {
+        val delegate = PromptingUserInfo { error("the user should not be asked") }
+        val userInfo = prompting(delegate)
+
+        userInfo.promptKeyboardInteractive("larry@otp", "", "", arrayOf("Password:"), booleanArrayOf(false))
+        val second = userInfo.promptKeyboardInteractive("larry@otp", "", "", arrayOf("Password:"), booleanArrayOf(false))
+
+        assertNull(second)
+        assertTrue(delegate.requests.isEmpty())
+        assertEquals(KeyboardInteractiveUserInfo.UserOutcome.NONE, userInfo.userOutcome)
+    }
+
+    /** A code asked for after the password was accepted still reaches the user. */
+    @Test
+    fun codeAfterTheStoredPassword_isPutToTheUser() {
+        val delegate = PromptingUserInfo { listOf("123456") }
+        val userInfo = prompting(delegate)
+
+        userInfo.promptKeyboardInteractive("larry@otp", "", "", arrayOf("Password:"), booleanArrayOf(false))
+        val code = userInfo.promptKeyboardInteractive("larry@otp", "", "", arrayOf("Verification code:"), booleanArrayOf(false))
+
+        assertArrayEquals(arrayOf("123456"), code)
+        assertEquals(1, delegate.requests.size)
+    }
+
+    @Test
+    fun passwordPromptWithNoStoredPassword_isPutToTheUser() {
+        val delegate = PromptingUserInfo { listOf("typed") }
+        val userInfo = prompting(delegate, password = null)
+
+        val response = userInfo.promptKeyboardInteractive("larry@otp", "", "", arrayOf("Password:"), booleanArrayOf(false))
+
+        assertArrayEquals(arrayOf("typed"), response)
+    }
+
+    @Test
+    fun emptyRound_isNotPutToTheUser() {
+        val delegate = PromptingUserInfo { error("the user should not be asked") }
+        val userInfo = prompting(delegate)
+
+        val response = userInfo.promptKeyboardInteractive("larry@otp", "name", "instruction", emptyArray(), BooleanArray(0))
+
+        assertEquals(0, response!!.size)
+        assertTrue(delegate.requests.isEmpty())
+    }
+
+    @Test
+    fun cancelledRound_isDeclinedAndRecorded() {
+        val userInfo = prompting(PromptingUserInfo { null })
+
+        val response = userInfo.promptKeyboardInteractive("larry@otp", "", "", arrayOf("Verification code:"), booleanArrayOf(false))
+
+        assertNull(response)
+        assertEquals(KeyboardInteractiveUserInfo.UserOutcome.CANCELLED, userInfo.userOutcome)
+    }
+
+    /** A wrong number of answers would make JSch send a malformed response; it counts as a cancel. */
+    @Test
+    fun wrongNumberOfAnswers_isDeclined() {
+        val userInfo = prompting(PromptingUserInfo { listOf("only-one") })
+
+        val response = userInfo.promptKeyboardInteractive(
+            "larry@otp", "", "", arrayOf("Password:", "Code:"), booleanArrayOf(false, false)
+        )
+
+        assertNull(response)
+        assertEquals(KeyboardInteractiveUserInfo.UserOutcome.CANCELLED, userInfo.userOutcome)
+    }
+
+    /** The outcome follows the last round put to the user: answering after a cancel counts as answered. */
+    @Test
+    fun outcomeFollowsTheLastRoundPutToTheUser() {
+        val answers = ArrayDeque(listOf<List<String>?>(null, listOf("123456")))
+        val userInfo = prompting(PromptingUserInfo { answers.removeFirst() })
+
+        userInfo.promptKeyboardInteractive("larry@otp", "", "", arrayOf("Code:"), booleanArrayOf(false))
+        assertEquals(KeyboardInteractiveUserInfo.UserOutcome.CANCELLED, userInfo.userOutcome)
+        userInfo.promptKeyboardInteractive("larry@otp", "", "", arrayOf("Code:"), booleanArrayOf(false))
+        assertEquals(KeyboardInteractiveUserInfo.UserOutcome.ANSWERED, userInfo.userOutcome)
+    }
+
+    /** Without a prompter (a plain UserInfo) such rounds are still declined, as before the dialog. */
+    @Test
+    fun withoutAPrompter_oneTimeCodeIsDeclined() {
+        val userInfo = KeyboardInteractiveUserInfo(RecordingUserInfo(), "secret", hostLabel = "otp.hlan.net:22")
+
+        val response = userInfo.promptKeyboardInteractive("larry@otp", "", "", arrayOf("Verification code:"), booleanArrayOf(false))
+
+        assertNull(response)
+        assertEquals(KeyboardInteractiveUserInfo.UserOutcome.NONE, userInfo.userOutcome)
     }
 }

@@ -6,6 +6,9 @@ The format is based on Keep a Changelog and follows semantic versioning.
 
 ## [Unreleased]
 
+### Added
+- **One-time codes and other server sign-in prompts can be answered**: A server asking for a one-time code (2FA, Duo, Vault OTP), several answers in one round, or an answer shown as typed was declined silently over `keyboard-interactive`, and the connection failed as if the password were wrong. Those rounds now open a "Server sign-in" dialog (Figma `node-id=131-2`) naming the host that asks — the target or the jump host — with the server's instruction and one field per prompt, in the server's order and labelled with its own text, hidden unless the server asks for echo. Answers are never stored and the saved password is never prefilled. The stored password still answers a lone `Password:` prompt without the dialog, and a second password prompt after it was rejected is still declined, so a wrong saved password keeps its "wrong credentials" banner. Cancel, Back, or 120 s without an answer declines the round and shows no error; answers the server rejects end in "Sign-in failed — the server did not accept the answers." The method is still offered only to hosts whose login allows a password, so a key-only host that adds a one-time code (`publickey,keyboard-interactive`) is not reached yet. Closes the remaining part of #191.
+
 ## [0.9.0] - 2026-11-24
 
 ### Added

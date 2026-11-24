@@ -64,7 +64,11 @@ class SshClientKeyboardInteractiveTest {
         server.stop(true)
     }
 
-    private fun offerOnlyKeyboardInteractive(prompt: String) {
+    private fun offerOnlyKeyboardInteractive(prompt: String) =
+        offerOnlyKeyboardInteractive(listOf(prompt to false), listOf(PASSWORD))
+
+    /** [prompts] are (text, echo) pairs; the server accepts exactly [accepted] as the answers. */
+    private fun offerOnlyKeyboardInteractive(prompts: List<Pair<String, Boolean>>, accepted: List<String>) {
         server.userAuthFactories = listOf(UserAuthKeyboardInteractiveFactory.INSTANCE)
         server.keyboardInteractiveAuthenticator = object : KeyboardInteractiveAuthenticator {
             override fun generateChallenge(
@@ -77,7 +81,7 @@ class SshClientKeyboardInteractiveTest {
                 return InteractiveChallenge().apply {
                     interactionName = ""
                     interactionInstruction = ""
-                    addPrompt(prompt, false)
+                    prompts.forEach { (text, echo) -> addPrompt(text, echo) }
                 }
             }
 
@@ -88,7 +92,7 @@ class SshClientKeyboardInteractiveTest {
             ): Boolean {
                 val answers = responses.orEmpty().toList()
                 responsesReceived += answers
-                return username == USER && answers == listOf(PASSWORD)
+                return username == USER && answers == accepted
             }
         }
     }
@@ -97,7 +101,7 @@ class SshClientKeyboardInteractiveTest {
         server.start()
     }
 
-    private fun connect(password: String): SshConnectResult {
+    private fun connect(password: String, userInfo: UserInfo = TrustingUserInfo()): SshConnectResult {
         val client = SshClient(
             SshConnectionConfig(
                 host = "127.0.0.1",
@@ -106,7 +110,7 @@ class SshClientKeyboardInteractiveTest {
                 password = password,
                 authPreference = SshAuthPreference.PASSWORD.value
             ),
-            TrustingUserInfo(),
+            userInfo,
             tmp.newFile("known_hosts")
         )
         return try {
@@ -302,6 +306,91 @@ class SshClientKeyboardInteractiveTest {
                     return null
                 }
             }
+    }
+
+    // --- rounds put to the user (#191) ---
+
+    @Test
+    fun oneTimeCode_answeredByTheUser_connects() {
+        offerOnlyKeyboardInteractive(listOf("Verification code: " to false), listOf("123456"))
+        start()
+        val user = AnsweringUserInfo { listOf("123456") }
+
+        val result = connect(PASSWORD, user)
+
+        assertTrue(result.message, result.success)
+        assertEquals(listOf("Verification code:"), user.requests.single().prompts.map { it.text })
+        assertEquals("127.0.0.1:${server.port}", user.requests.single().hostLabel)
+        assertTrue("the password reached the code prompt", responsesReceived.none { PASSWORD in it })
+    }
+
+    /** Duo-style password plus passcode in one round; the user types both. */
+    @Test
+    fun severalPrompts_answeredByTheUser_connect() {
+        offerOnlyKeyboardInteractive(
+            listOf("Password: " to false, "Passcode or option (1-3): " to true),
+            listOf(PASSWORD, "1")
+        )
+        start()
+        val user = AnsweringUserInfo { listOf(PASSWORD, "1") }
+
+        val result = connect(PASSWORD, user)
+
+        assertTrue(result.message, result.success)
+        assertEquals(listOf(false, true), user.requests.single().prompts.map { it.echo })
+    }
+
+    @Test
+    fun cancelledPrompt_isReportedAsCancelled() {
+        offerOnlyKeyboardInteractive(listOf("Verification code: " to false), listOf("123456"))
+        start()
+
+        val result = connect(PASSWORD, AnsweringUserInfo { null })
+
+        assertFalse(result.success)
+        assertEquals(ConnectFailure.KEYBOARD_INTERACTIVE_CANCELLED, result.reason)
+    }
+
+    @Test
+    fun rejectedAnswers_areReportedAsRejected() {
+        offerOnlyKeyboardInteractive(listOf("Verification code: " to false), listOf("123456"))
+        start()
+
+        val result = connect(PASSWORD, AnsweringUserInfo { listOf("000000") })
+
+        assertFalse(result.success)
+        assertEquals(ConnectFailure.KEYBOARD_INTERACTIVE_REJECTED, result.reason)
+        assertTrue(responsesReceived.contains(listOf("000000")))
+    }
+
+    /**
+     * A rejected stored password is not followed by a dialog: the user is never asked, and the
+     * failure stays AUTH_PASSWORD, whose banner says the credentials are wrong.
+     */
+    @Test
+    fun rejectedStoredPassword_isNotPutToTheUser() {
+        offerOnlyKeyboardInteractive("Password: ")
+        start()
+        val user = AnsweringUserInfo { error("the user should not be asked") }
+
+        val result = connect("wrong", user)
+
+        assertFalse(result.success)
+        assertTrue(user.requests.isEmpty())
+        assertEquals(1, responsesReceived.count { it == listOf("wrong") })
+        assertEquals(ConnectFailure.AUTH_PASSWORD, result.reason)
+    }
+
+    /** Accepts the host key and answers keyboard-interactive rounds through [answer], like DialogUserInfo. */
+    private class AnsweringUserInfo(
+        private val answer: (KeyboardInteractiveRequest) -> List<String>?
+    ) : UserInfo by TrustingUserInfo(), KeyboardInteractivePrompter {
+        val requests = CopyOnWriteArrayList<KeyboardInteractiveRequest>()
+
+        override fun promptKeyboardInteractive(request: KeyboardInteractiveRequest): List<String>? {
+            requests += request
+            return answer(request)
+        }
     }
 
     /** Accepts the host key; nothing else here prompts. */
