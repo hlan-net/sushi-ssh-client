@@ -153,20 +153,6 @@ class ConversationViewModel(
     // ---------------------------------------------------------------- intents
 
     /**
-     * Send what the user typed or said. Raw mode runs it as a shell command; a live session
-     * hands it to the AI; with no session at all it becomes a command suggestion, as before v0.7.
-     *
-     * A session whose [manager] already exists — initialised or not — goes to [runMessage]:
-     * [ConversationManager.processUserMessage] itself returns a "not initialized"
-     * [ConversationResult] when it isn't ready yet, which the normal turn/log handling below
-     * surfaces. Between [ConversationStatus.Initializing] starting and [manager] being assigned
-     * — session construction is still running, or threw before it could assign one — there is a
-     * live backend but no manager to route to either; the standalone path would be just as
-     * wrong there as it would for a session that failed after initializing, so anything other
-     * than [ConversationStatus.Disconnected] reports "not connected yet" instead of falling
-     * back to it.
-     */
-    /**
      * The microphone was tapped. Asks the environment whether any Gemini backend can answer —
      * on-device Nano counts, not only cloud credentials (#231) — and tells the screen to start
      * speech recognition or to send the user to Settings.
@@ -185,6 +171,20 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * Send what the user typed or said. Raw mode runs it as a shell command; a live session
+     * hands it to the AI; with no session at all it becomes a command suggestion, as before v0.7.
+     *
+     * A session whose [manager] already exists — initialised or not — goes to [runMessage]:
+     * [ConversationManager.processUserMessage] itself returns a "not initialized"
+     * [ConversationResult] when it isn't ready yet, which the normal turn/log handling below
+     * surfaces. Between [ConversationStatus.Initializing] starting and [manager] being assigned
+     * — session construction is still running, or threw before it could assign one — there is a
+     * live backend but no manager to route to either; the standalone path would be just as
+     * wrong there as it would for a session that failed after initializing, so anything other
+     * than [ConversationStatus.Disconnected] reports "not connected yet" instead of falling
+     * back to it.
+     */
     fun send(text: String) {
         val message = text.trim()
         if (message.isEmpty() || _state.value.isBusy) return
