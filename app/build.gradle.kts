@@ -16,7 +16,12 @@ val hasKeystore = !keystorePath.isNullOrBlank() &&
 
 android {
     namespace = "net.hlan.sushi"
-    compileSdk = 37
+    // Minor API level 1: Compose 1.13 (BOM 2026.11.01) checks AAR metadata for 37.1.
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 1
+        }
+    }
     ndkVersion = "27.0.12077973"
 
     testBuildType = "minifiedDebug"
