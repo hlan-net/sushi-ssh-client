@@ -76,6 +76,19 @@ class AppConversationEnvironment(
             }
         }
 
+    override suspend fun geminiAvailability(): GeminiAvailability =
+        withContext(ioDispatcher) {
+            val enabled = geminiSettings.isEnabled()
+            val hasCloudCredentials = geminiClient.getAuthMode() != GeminiClient.AuthMode.NONE
+            GeminiAvailability.resolve(
+                enabled = enabled,
+                hasCloudCredentials = hasCloudCredentials,
+                // Skip the ML Kit call when nothing depends on it.
+                nanoPreferredAndAvailable = enabled && !hasCloudCredentials &&
+                    geminiSettings.getNanoPreferred() && isNanoAvailable()
+            )
+        }
+
     override var autoTroubleshootEnabled: Boolean
         get() = geminiSettings.getAutoTroubleshootEnabled()
         set(value) = geminiSettings.setAutoTroubleshootEnabled(value)

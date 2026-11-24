@@ -59,6 +59,58 @@ class ConversationViewModelTest {
         Dispatchers.resetMain()
     }
 
+    // ---------------------------------------------------------------- voice input (#231)
+
+    @Test
+    fun requestVoiceInput_whenGeminiCanAnswer_startsVoiceInput() = runBlocking {
+        environment.availability = GeminiAvailability.READY
+        val vm = viewModel()
+        val events = recordEventsOf(vm)
+
+        vm.requestVoiceInput()
+
+        assertTrue(events.has { it == ConversationEvent.StartVoiceInput })
+        events.job.cancel()
+    }
+
+    @Test
+    fun requestVoiceInput_withoutCredentials_reportsMissingCredentials() = runBlocking {
+        environment.availability = GeminiAvailability.MISSING_CREDENTIALS
+        val vm = viewModel()
+        val events = recordEventsOf(vm)
+
+        vm.requestVoiceInput()
+
+        assertTrue(events.has { it == ConversationEvent.GeminiUnavailable(GeminiAvailability.MISSING_CREDENTIALS) })
+        assertTrue(events.all.none { it == ConversationEvent.StartVoiceInput })
+        events.job.cancel()
+    }
+
+    @Test
+    fun requestVoiceInput_whenDisabled_reportsDisabled() = runBlocking {
+        environment.availability = GeminiAvailability.DISABLED
+        val vm = viewModel()
+        val events = recordEventsOf(vm)
+
+        vm.requestVoiceInput()
+
+        assertTrue(events.has { it == ConversationEvent.GeminiUnavailable(GeminiAvailability.DISABLED) })
+        events.job.cancel()
+    }
+
+    /** A failing availability check sends the user to Settings rather than crashing or recording. */
+    @Test
+    fun requestVoiceInput_whenTheCheckFails_reportsMissingCredentials() = runBlocking {
+        environment.availabilityFailure = IllegalStateException("ML Kit unavailable")
+        val vm = viewModel()
+        val events = recordEventsOf(vm)
+
+        vm.requestVoiceInput()
+
+        assertTrue(events.has { it == ConversationEvent.GeminiUnavailable(GeminiAvailability.MISSING_CREDENTIALS) })
+        events.job.cancel()
+    }
+
     // ---------------------------------------------------------------- session
 
     @Test
@@ -756,5 +808,14 @@ class ConversationViewModelTest {
         }
 
         override suspend fun generateCommand(prompt: String): GeminiResult = standalone
+
+        var availability = GeminiAvailability.READY
+        /** When set, [geminiAvailability] throws this instead of answering. */
+        var availabilityFailure: Exception? = null
+
+        override suspend fun geminiAvailability(): GeminiAvailability {
+            availabilityFailure?.let { throw it }
+            return availability
+        }
     }
 }

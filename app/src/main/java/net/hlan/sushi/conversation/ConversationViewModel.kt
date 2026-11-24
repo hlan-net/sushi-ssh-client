@@ -153,6 +153,25 @@ class ConversationViewModel(
     // ---------------------------------------------------------------- intents
 
     /**
+     * The microphone was tapped. Asks the environment whether any Gemini backend can answer —
+     * on-device Nano counts, not only cloud credentials (#231) — and tells the screen to start
+     * speech recognition or to send the user to Settings.
+     */
+    fun requestVoiceInput() {
+        viewModelScope.launch {
+            val availability = runCatching { environment.geminiAvailability() }
+                .getOrElse { GeminiAvailability.MISSING_CREDENTIALS }
+            _events.send(
+                if (availability == GeminiAvailability.READY) {
+                    ConversationEvent.StartVoiceInput
+                } else {
+                    ConversationEvent.GeminiUnavailable(availability)
+                }
+            )
+        }
+    }
+
+    /**
      * Send what the user typed or said. Raw mode runs it as a shell command; a live session
      * hands it to the AI; with no session at all it becomes a command suggestion, as before v0.7.
      *

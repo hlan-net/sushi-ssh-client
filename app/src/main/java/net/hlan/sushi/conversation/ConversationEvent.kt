@@ -19,6 +19,15 @@ sealed interface ConversationEvent {
     /** Something failed outside the normal result path; [message] is the exception's. */
     data class Error(val message: String?) : ConversationEvent
 
+    /** Voice input may start: some Gemini backend can answer it. */
+    data object StartVoiceInput : ConversationEvent
+
+    /**
+     * Voice input was asked for but no Gemini backend can answer it; [availability] is
+     * [GeminiAvailability.DISABLED] or [GeminiAvailability.MISSING_CREDENTIALS].
+     */
+    data class GeminiUnavailable(val availability: GeminiAvailability) : ConversationEvent
+
     /** The user tried to talk to a system while no session was initialised. */
     data object NotConnected : ConversationEvent
 

@@ -23,6 +23,12 @@ interface ConversationEnvironment {
      */
     suspend fun generateCommand(prompt: String): GeminiResult
 
+    /**
+     * Whether any Gemini backend can answer a request now; gates voice input. Main-safe, for
+     * the same reason as [createSession] — checking Nano is a call into ML Kit.
+     */
+    suspend fun geminiAvailability(): GeminiAvailability
+
     /** The persisted multi-step troubleshooting preference. */
     var autoTroubleshootEnabled: Boolean
 
