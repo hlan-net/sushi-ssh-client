@@ -166,6 +166,25 @@ class ConversationViewModel(
      * than [ConversationStatus.Disconnected] reports "not connected yet" instead of falling
      * back to it.
      */
+    /**
+     * The microphone was tapped. Asks the environment whether any Gemini backend can answer —
+     * on-device Nano counts, not only cloud credentials (#231) — and tells the screen to start
+     * speech recognition or to send the user to Settings.
+     */
+    fun requestVoiceInput() {
+        viewModelScope.launch {
+            val availability = runCatching { environment.geminiAvailability() }
+                .getOrElse { GeminiAvailability.MISSING_CREDENTIALS }
+            _events.send(
+                if (availability == GeminiAvailability.READY) {
+                    ConversationEvent.StartVoiceInput
+                } else {
+                    ConversationEvent.GeminiUnavailable(availability)
+                }
+            )
+        }
+    }
+
     fun send(text: String) {
         val message = text.trim()
         if (message.isEmpty() || _state.value.isBusy) return

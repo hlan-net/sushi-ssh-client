@@ -43,6 +43,7 @@ import net.hlan.sushi.conversation.ConversationScreen
 import net.hlan.sushi.conversation.ConversationScreenActions
 import net.hlan.sushi.conversation.ConversationStatus
 import net.hlan.sushi.conversation.ConversationViewModel
+import net.hlan.sushi.conversation.GeminiAvailability
 import net.hlan.sushi.databinding.ActivityMainBinding
 import net.hlan.sushi.databinding.PageMainPlaysBinding
 import net.hlan.sushi.databinding.PageMainTerminalBinding
@@ -482,19 +483,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Whether voice input may start is [ConversationViewModel.requestVoiceInput]'s call (#231). */
     private fun handleGeminiVoice() {
-        val missingReason = when {
-            !geminiSettings.isEnabled() -> R.string.gemini_status_disabled
-            geminiClient.getAuthMode() == GeminiClient.AuthMode.NONE -> R.string.gemini_status_missing_key
-            else -> null
-        }
-        if (missingReason != null) {
-            Toast.makeText(this, missingReason, Toast.LENGTH_LONG).show()
-            startActivity(SettingsActivity.createIntent(this, SettingsActivity.TAB_GEMINI))
-            return
-        }
-
-        micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        conversationViewModel.requestVoiceInput()
     }
 
     private fun startVoiceInput() {
@@ -1163,6 +1154,16 @@ class MainActivity : AppCompatActivity() {
                 getString(R.string.conversation_pending_confirmation_blocks_rerun),
                 Toast.LENGTH_SHORT
             ).show()
+            ConversationEvent.StartVoiceInput -> micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            is ConversationEvent.GeminiUnavailable -> {
+                val reason = if (event.availability == GeminiAvailability.DISABLED) {
+                    R.string.gemini_status_disabled
+                } else {
+                    R.string.gemini_status_missing_key
+                }
+                Toast.makeText(this, reason, Toast.LENGTH_LONG).show()
+                startActivity(SettingsActivity.createIntent(this, SettingsActivity.TAB_GEMINI))
+            }
         }
     }
 
