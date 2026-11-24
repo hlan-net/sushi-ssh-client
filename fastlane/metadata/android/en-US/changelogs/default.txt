@@ -1,0 +1,6 @@
+- The AI conversation is now a full screen and keeps its transcript when you rotate the phone
+- The terminal follows your light or dark theme, with readable colours in both
+- Command history: search, copy and re-run past commands per host
+- Multi-step AI troubleshooting, with every step still safety-checked
+- Up/Down keys reach your shell history
+- Fixed jump hosts that log in differently from the target
