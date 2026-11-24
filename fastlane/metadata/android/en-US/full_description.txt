@@ -22,7 +22,7 @@ Optional Google Drive log upload:
 - Back up session logs to your own Google Drive account when you choose to enable it
 
 Privacy:
-- Your SSH passwords and keys are stored on your device and sent only to the hosts you configure
+- Your SSH passwords are stored on your device and sent only to the hosts you configure; your private keys never leave your device
 - Cloud Gemini and Drive are strictly optional and only activate with your explicit sign-in / API key; on-device Gemini Nano sends nothing to Google
 - Full privacy policy: https://sushi.hlan.net/privacy-policy.html
 
