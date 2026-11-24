@@ -108,16 +108,16 @@ class GeminiModelCatalog(private val settings: GeminiSettings) {
      * must not reuse the previous one's list — the stale fallback included.
      */
     fun getModelIds(apiKey: String, accessToken: String?, credentialId: String): List<String> {
-        val cached = settings.getCachedModelIds(credentialId)
-        if (cached != null && !settings.isModelCacheStale()) {
-            return cached
+        val cached = settings.getModelCache(credentialId)
+        if (cached != null && !cached.isStale) {
+            return cached.ids
         }
         val fetched = runCatching { fetchModelIds(apiKey, accessToken) }.getOrNull()
         if (!fetched.isNullOrEmpty()) {
-            settings.setCachedModelIds(fetched, credentialId)
+            settings.setModelCache(fetched, credentialId)
             return fetched
         }
-        return cached.orEmpty()
+        return cached?.ids.orEmpty()
     }
 
     private fun fetchModelIds(apiKey: String, accessToken: String?): List<String> {
