@@ -54,6 +54,9 @@ class GeminiSettings(context: Context) {
             .put(FIELD_IDS, JSONArray(ids))
         prefs.edit()
             .putString(KEY_MODEL_CACHE, record.toString())
+            .remove(LEGACY_KEY_MODEL_CACHE_IDS)
+            .remove(LEGACY_KEY_MODEL_CACHE_AT)
+            .remove(LEGACY_KEY_MODEL_CACHE_OWNER)
             .apply()
     }
 
@@ -85,6 +88,12 @@ class GeminiSettings(context: Context) {
         private const val FIELD_OWNER = "owner"
         private const val FIELD_CACHED_AT = "cachedAt"
         private const val FIELD_IDS = "ids"
+
+        // The three-key layout this record replaced. Never read; removed on the next cache write
+        // so a pre-record build's owner value (which can be `account:<email>`) doesn't linger.
+        private const val LEGACY_KEY_MODEL_CACHE_IDS = "gemini_model_cache_ids"
+        private const val LEGACY_KEY_MODEL_CACHE_AT = "gemini_model_cache_at"
+        private const val LEGACY_KEY_MODEL_CACHE_OWNER = "gemini_model_cache_owner"
 
         /** A week: model ids don't change often enough to justify fetching more eagerly than this. */
         private const val MODEL_CACHE_TTL_MS = 7L * 24 * 60 * 60 * 1000
