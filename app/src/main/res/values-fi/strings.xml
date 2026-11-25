@@ -380,12 +380,14 @@
     <string name="play_param_password">Salasana</string>
     <string name="play_desc_install_key">Asenna Sushin julkinen avain authorized_keys-tiedostoon ilman duplikaatteja.</string>
     <string name="play_desc_remove_keys">Poista kaikki Sushin hallitsemat avaimet authorized_keys-tiedostosta.</string>
-    <string name="play_desc_reboot_host">Käynnistä valittu host uudelleen. Avoimet istunnot katkeavat.</string>
+    <string name="play_desc_reboot_host">Käynnistä valittu host uudelleen. Vaatii salasanattoman sudon reboot-komennolle. Avoimet istunnot katkeavat.</string>
     <string name="play_desc_change_password">Vaihda yhden käyttäjän salasana valitulla hostilla.</string>
     <string name="play_host_item">%1$s</string>
     <string name="play_reboot_confirm_title">Käynnistetäänkö %1$s uudelleen?</string>
     <string name="play_reboot_confirm_message">Avoimet istunnot tällä hostilla katkeavat.</string>
     <string name="action_reboot">Käynnistä uudelleen</string>
+    <string name="play_reboot_sent">Uudelleenkäynnistys lähetetty hostille %1$s.</string>
+    <string name="play_reboot_needs_passwordless_sudo">Uudelleenkäynnistys vaatii salasanattoman sudon hostilla %1$s. Mitään ei muutettu.</string>
     <string name="play_host_item_active">%1$s (aktiivinen)</string>
     <string name="terminal_font_section_title">Terminaalin fonttikoko</string>
     <string name="terminal_font_section_subtitle">Säädä tekstikokoa terminaalinäkymässä.</string>

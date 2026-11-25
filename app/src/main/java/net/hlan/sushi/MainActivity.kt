@@ -552,7 +552,6 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, getString(R.string.gemini_command_copied), Toast.LENGTH_SHORT).show()
     }
 
-
     private fun showPhraseCopyPicker() {
         PhrasePickerHelper.showPicker(this, phraseDb) { phrase ->
             val clipboard = getSystemService(ClipboardManager::class.java)
@@ -611,8 +610,13 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.plays_title)
             .setItems(playNames) { _, which ->
                 val play = plays[which]
-                if (play.name == ManagedPlays.PLAY_REBOOT_HOST) {
-                    confirmRebootThenRun(play, host)
+                if (RebootHostPlay.isRebootPlay(play)) {
+                    showRebootConfirmDialog(
+                        activity = this,
+                        hostLabel = HostLabels.shortLabel(this, host),
+                        onConfirm = { runPlay(play, host, emptyMap()) },
+                        onCancel = { showPlaySelectionDialog(plays, host) }
+                    )
                 } else {
                     promptPlayParametersAndRun(play, host, onBack = { showPlaySelectionDialog(plays, host) })
                 }
@@ -620,20 +624,6 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(R.string.action_manage) { _, _ ->
                 startActivity(Intent(this, PlaysActivity::class.java))
             }
-            .setNegativeButton(R.string.phrase_cancel, null)
-            .show()
-    }
-
-    /**
-     * *Reboot Host* runs `sudo reboot` outside `CommandSafety` — that classifier guards the AI
-     * conversation and raw mode, where `reboot` is BLOCKED, and does not see Plays at all — so
-     * this is the only place a confirmation stands between the tap and the command.
-     */
-    private fun confirmRebootThenRun(play: Play, host: SshConnectionConfig) {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.play_reboot_confirm_title, HostLabels.shortLabel(this, host)))
-            .setMessage(R.string.play_reboot_confirm_message)
-            .setPositiveButton(R.string.action_reboot) { _, _ -> runPlay(play, host, emptyMap()) }
             .setNegativeButton(R.string.phrase_cancel, null)
             .show()
     }
@@ -864,9 +854,9 @@ class MainActivity : AppCompatActivity() {
             // for a separate Terminal-tab session open on the same host, which the reboot takes
             // down too. Armed only after this connection succeeded, and withdrawn below unless the
             // command actually reached the shell.
-            val expectsDisconnect = play.name == ManagedPlays.PLAY_REBOOT_HOST &&
-                TerminalSessionHolder.expectDisconnect(host.id)
-            var dispatched = false
+            val isReboot = RebootHostPlay.isRebootPlay(play)
+            val expectsDisconnect = isReboot && TerminalSessionHolder.expectDisconnect(host.id)
+            var rebootSent = false
 
             try {
                 val result = PlayRunner.execute(
@@ -875,11 +865,20 @@ class MainActivity : AppCompatActivity() {
                     values = values,
                     onLine = { line -> appendSessionLog("[Play] ${line.trimEnd()}") }
                 )
-                dispatched = result.dispatched
                 recordPlayInCommandHistory(host, result)
+                val rebootOutcome = if (isReboot) RebootHostPlay.outcome(result) else null
+                rebootSent = rebootOutcome == RebootHostPlay.Outcome.SENT
+                val rebootLine = rebootOutcome?.let {
+                    RebootHostPlay.logLine(this@MainActivity, it, HostLabels.shortLabel(this@MainActivity, host))
+                }
                 withContext(Dispatchers.Main) {
                     isPlayRunning = false
-                    if (result.success) {
+                    if (rebootLine != null) {
+                        appendSessionLog(rebootLine)
+                        if (!rebootSent) {
+                            Toast.makeText(this@MainActivity, rebootLine, Toast.LENGTH_LONG).show()
+                        }
+                    } else if (result.success) {
                         appendSessionLog(getString(R.string.play_run_finished, play.name))
                     } else {
                         appendSessionLog(getString(R.string.play_run_failed, play.name, result.message))
@@ -889,7 +888,9 @@ class MainActivity : AppCompatActivity() {
                     uploadConsoleLogToDriveIfEnabled()
                 }
             } finally {
-                if (expectsDisconnect && !dispatched) {
+                // Keep the mark only for a reboot that was sent; a refused or failed one leaves
+                // the terminal session up, and its next real drop must still read as an error.
+                if (expectsDisconnect && !rebootSent) {
                     TerminalSessionHolder.cancelExpectedDisconnect(host.id)
                 }
                 if (!isLocal) backend.disconnect()
@@ -1196,7 +1197,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
 
     companion object {
         private const val TAG = "MainActivity"
