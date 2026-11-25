@@ -605,11 +605,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showPlaySelectionDialog(plays: List<Play>, host: SshConnectionConfig) {
-        val playNames = plays.map { it.name }.toTypedArray()
+        val offered = plays.filter { RebootHostPlay.isOfferedFor(it, host) }
+        val playNames = offered.map { it.name }.toTypedArray()
         AlertDialog.Builder(this)
             .setTitle(R.string.plays_title)
             .setItems(playNames) { _, which ->
-                val play = plays[which]
+                val play = offered[which]
                 if (RebootHostPlay.isRebootPlay(play)) {
                     showRebootConfirmDialog(
                         activity = this,

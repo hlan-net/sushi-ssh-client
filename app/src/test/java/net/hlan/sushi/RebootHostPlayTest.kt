@@ -71,6 +71,25 @@ class RebootHostPlayTest {
         assertFalse(RebootHostPlay.isRebootPlay(managed.copy(name = "Update packages")))
     }
 
+    /** sudo's refusal can come on a channel that then closes with no exit status. */
+    @Test
+    fun passwordRefusalWithoutExitStatus_isNotSent() {
+        val refused = result(false, -1, output = listOf("sudo: a password is required"))
+        assertEquals(RebootHostPlay.Outcome.NEEDS_PASSWORDLESS_SUDO, RebootHostPlay.outcome(refused))
+    }
+
+    @Test
+    fun notOfferedForTheLocalShell() {
+        val reboot = Play(name = ManagedPlays.PLAY_REBOOT_HOST, description = "", scriptTemplate = RebootHostPlay.SCRIPT, managed = true)
+        val local = SshConnectionConfig(kind = HostKind.LOCAL, alias = "Local shell", host = "", port = 0, username = "", password = "")
+        val ssh = SshConnectionConfig(alias = "ekho", host = "ekho.local", port = 22, username = "pi", password = "")
+        val other = reboot.copy(name = "Update packages", managed = false)
+
+        assertFalse(RebootHostPlay.isOfferedFor(reboot, local))
+        assertTrue(RebootHostPlay.isOfferedFor(reboot, ssh))
+        assertTrue(RebootHostPlay.isOfferedFor(other, local))
+    }
+
     @Test
     fun scriptDoesNotPromptForAPassword() {
         assertEquals("sudo -n reboot", RebootHostPlay.SCRIPT)

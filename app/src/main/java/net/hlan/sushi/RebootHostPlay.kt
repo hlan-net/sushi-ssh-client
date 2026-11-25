@@ -29,6 +29,14 @@ object RebootHostPlay {
     fun isRebootPlay(play: Play): Boolean = play.managed && play.name == ManagedPlays.PLAY_REBOOT_HOST
 
     /**
+     * Whether [play] may be offered for [host]. The local shell runs on the Android device itself
+     * (`LocalShellBackend`), where rebooting is never what the user meant — on a rooted device
+     * with sudo it would reboot the phone — so the reboot Play is not offered there.
+     */
+    fun isOfferedFor(play: Play, host: SshConnectionConfig): Boolean =
+        !(isRebootPlay(play) && host.kind == HostKind.LOCAL)
+
+    /**
      * Exit 0 is sent. So is a dispatched run with no exit status (`null` on a timeout, `-1` when
      * the channel closed first): a reboot takes the Play's own connection down with it, often
      * before sshd reports anything, and calling that a failure would contradict what the host is
@@ -38,8 +46,10 @@ object RebootHostPlay {
         val status = result.exitStatus
         return when {
             !result.dispatched -> Outcome.FAILED
-            status == 0 || status == null || status == -1 -> Outcome.SENT
+            // Checked first: sudo's refusal can arrive on a channel that then closes without an
+            // exit status, and that run changed nothing.
             needsPassword(result) -> Outcome.NEEDS_PASSWORDLESS_SUDO
+            status == 0 || status == null || status == -1 -> Outcome.SENT
             else -> Outcome.FAILED
         }
     }
