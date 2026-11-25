@@ -47,19 +47,30 @@ class SshSettings(private val context: Context) {
     }
 
     // Host Management
+    /**
+     * The saved hosts, or an empty list when the blob does not parse. A parse failure flags the
+     * corruption once ([hasCorruptHosts]) so Hosts can offer [restoreHostsFromBackup]; it stays
+     * flagged until the user answers with Restore or Dismiss. A good read on an install from
+     * before the backup existed seeds it, so the first corruption after an upgrade is covered too.
+     */
     fun getHosts(): List<SshConnectionConfig> {
         val json = prefs.getString(KEY_HOSTS_JSON, null) ?: return emptyList()
-        return try {
-            hostListAdapter.fromJson(json) ?: emptyList()
+        val hosts = try {
+            hostListAdapter.fromJson(json)
         } catch (e: Exception) {
-            Log.w(TAG, "Saved hosts JSON is corrupt; treating as empty rather than crashing", e)
-            prefs.edit().putBoolean(KEY_HOSTS_CORRUPT, true).apply()
-            emptyList()
+            if (!hasCorruptHosts()) {
+                Log.w(TAG, "Saved hosts JSON is corrupt; treating as empty rather than crashing", e)
+                prefs.edit().putBoolean(KEY_HOSTS_CORRUPT, true).apply()
+            }
+            return emptyList()
+        } ?: return emptyList()
+        if (!prefs.contains(KEY_HOSTS_JSON_BACKUP) && !hasCorruptHosts()) {
+            prefs.edit().putString(KEY_HOSTS_JSON_BACKUP, json).apply()
         }
+        return hosts
     }
 
     fun saveHost(config: SshConnectionConfig) {
-        backupHostsJsonIfValid()
         val currentHosts = getHosts().toMutableList()
         val index = currentHosts.indexOfFirst { it.id == config.id }
         if (index != -1) {
@@ -67,11 +78,10 @@ class SshSettings(private val context: Context) {
         } else {
             currentHosts.add(config)
         }
-        prefs.edit().putString(KEY_HOSTS_JSON, hostListAdapter.toJson(currentHosts)).apply()
+        writeHosts(currentHosts)
     }
 
     fun deleteHost(id: String) {
-        backupHostsJsonIfValid()
         val currentHosts = getHosts().toMutableList()
         val removed = currentHosts.removeAll { it.id == id }
         val updatedHosts = currentHosts.map { host ->
@@ -90,7 +100,7 @@ class SshSettings(private val context: Context) {
             }
         }
         if (removed) {
-            prefs.edit().putString(KEY_HOSTS_JSON, hostListAdapter.toJson(updatedHosts)).apply()
+            writeHosts(updatedHosts)
         }
         if (getActiveHostId() == id) {
             setActiveHostId(null)
@@ -98,44 +108,62 @@ class SshSettings(private val context: Context) {
     }
 
     /**
-     * Keeps the last hosts JSON known to parse under [KEY_HOSTS_JSON_BACKUP], called before every
-     * write to [KEY_HOSTS_JSON]. A blob that is already corrupt when this runs is left out of the
-     * backup — overwriting a still-good older backup with garbage would defeat the point of
-     * having one — so whatever the most recent *good* state was stays recoverable.
+     * Writes [hosts] and, unless a corruption is unanswered, makes the same JSON the backup: the
+     * backup is the last list written successfully, so Restore never lags a write behind. While
+     * [hasCorruptHosts] is set the backup holds what Restore brings back and must not move —
+     * the callers read [getHosts] first, which is what sets the flag before this runs.
      */
-    private fun backupHostsJsonIfValid() {
-        val json = prefs.getString(KEY_HOSTS_JSON, null) ?: return
-        if (runCatching { hostListAdapter.fromJson(json) }.getOrNull() == null) {
-            return
+    private fun writeHosts(hosts: List<SshConnectionConfig>) {
+        val json = hostListAdapter.toJson(hosts)
+        val editor = prefs.edit().putString(KEY_HOSTS_JSON, json)
+        if (!hasCorruptHosts()) {
+            editor.putString(KEY_HOSTS_JSON_BACKUP, json)
         }
-        prefs.edit().putString(KEY_HOSTS_JSON_BACKUP, json).apply()
+        editor.apply()
     }
 
-    /** True once [getHosts] has hit a parse failure, until [restoreHostsFromBackup] or [dismissHostsCorruptionNotice]. */
+    private fun parseHosts(json: String?): List<SshConnectionConfig>? =
+        json?.let { runCatching { hostListAdapter.fromJson(it) }.getOrNull() }
+
+    /** True from the first failed parse in [getHosts] until [restoreHostsFromBackup] or [dismissHostsCorruptionNotice]. */
     fun hasCorruptHosts(): Boolean = prefs.getBoolean(KEY_HOSTS_CORRUPT, false)
 
-    /** Whether [restoreHostsFromBackup] has a parseable blob to restore. */
-    fun hasHostsBackup(): Boolean {
-        val backup = prefs.getString(KEY_HOSTS_JSON_BACKUP, null) ?: return false
-        return runCatching { hostListAdapter.fromJson(backup) }.getOrNull() != null
-    }
+    /** Whether [restoreHostsFromBackup] has a parseable list to restore. */
+    fun hasHostsBackup(): Boolean = parseHosts(prefs.getString(KEY_HOSTS_JSON_BACKUP, null)) != null
 
-    /** Restores the hosts list from [KEY_HOSTS_JSON_BACKUP]. False if there is nothing usable to restore. */
+    /**
+     * Restores the backup, keeping hosts added since the corruption: a host in both keeps the
+     * current copy, which is the newer one, and a local shell the seed added since is dropped
+     * when the backup has its own. False if there is no usable backup.
+     */
     fun restoreHostsFromBackup(): Boolean {
-        val backup = prefs.getString(KEY_HOSTS_JSON_BACKUP, null) ?: return false
-        if (runCatching { hostListAdapter.fromJson(backup) }.getOrNull() == null) {
-            return false
-        }
+        val backup = parseHosts(prefs.getString(KEY_HOSTS_JSON_BACKUP, null)) ?: return false
+        val current = parseHosts(prefs.getString(KEY_HOSTS_JSON, null)).orEmpty()
+        val backupIds = backup.map { it.id }.toSet()
+        val backupHasLocal = backup.any { it.kind == HostKind.LOCAL }
+        val merged = backup.map { saved -> current.firstOrNull { it.id == saved.id } ?: saved } +
+            current.filter { it.id !in backupIds && !(it.kind == HostKind.LOCAL && backupHasLocal) }
+        val json = hostListAdapter.toJson(merged)
         prefs.edit()
-            .putString(KEY_HOSTS_JSON, backup)
+            .putString(KEY_HOSTS_JSON, json)
+            .putString(KEY_HOSTS_JSON_BACKUP, json)
             .putBoolean(KEY_HOSTS_CORRUPT, false)
             .apply()
         return true
     }
 
-    /** Acknowledges the corruption notice without restoring, so it does not keep reappearing. */
+    /**
+     * Answers the notice without restoring. A blob that still does not parse is replaced with an
+     * empty list, or the next [getHosts] would flag it — and show the notice — again. The backup
+     * is left alone until the next write replaces it.
+     */
     fun dismissHostsCorruptionNotice() {
-        prefs.edit().putBoolean(KEY_HOSTS_CORRUPT, false).apply()
+        val editor = prefs.edit().putBoolean(KEY_HOSTS_CORRUPT, false)
+        val live = prefs.getString(KEY_HOSTS_JSON, null)
+        if (live != null && parseHosts(live) == null) {
+            editor.putString(KEY_HOSTS_JSON, hostListAdapter.toJson(emptyList()))
+        }
+        editor.apply()
     }
 
     fun getActiveHostId(): String? = prefs.getString(KEY_ACTIVE_HOST_ID, null)
@@ -173,6 +201,13 @@ class SshSettings(private val context: Context) {
     }
 
     fun seedLocalHostIfMissing() {
+        // A blob that does not parse is left as it is until the user answers the corruption
+        // notice: seeding would write over it before they have seen anything.
+        val json = prefs.getString(KEY_HOSTS_JSON, null)
+        if (json != null && parseHosts(json) == null) {
+            getHosts() // flags it
+            return
+        }
         if (getHosts().any { it.kind == HostKind.LOCAL }) return
         val local = SshConnectionConfig(
             kind = HostKind.LOCAL,

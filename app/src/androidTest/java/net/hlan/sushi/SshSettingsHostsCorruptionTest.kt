@@ -44,9 +44,13 @@ class SshSettingsHostsCorruptionTest {
     private fun host(alias: String) =
         SshConnectionConfig(alias = alias, host = "$alias.local", port = 22, username = "pi", password = "")
 
+    private fun corrupt() = prefs.edit().putString(KEY_HOSTS_JSON, "not json").commit()
+
+    private fun aliases() = sshSettings.getHosts().map { it.alias }
+
     @Test
     fun corruptBlob_getHostsReturnsEmptyAndFlagsCorruption() {
-        prefs.edit().putString(KEY_HOSTS_JSON, "not json").commit()
+        corrupt()
 
         assertTrue(sshSettings.getHosts().isEmpty())
         assertTrue(sshSettings.hasCorruptHosts())
@@ -59,44 +63,90 @@ class SshSettingsHostsCorruptionTest {
         assertFalse(sshSettings.hasCorruptHosts())
     }
 
+    /** The backup is the list just written, so a single saved host is already recoverable. */
     @Test
-    fun savingAHost_backsUpThePreviousValidBlob() {
+    fun theFirstSave_isAlreadyBackedUp() {
         sshSettings.saveHost(host("ekho"))
-        assertFalse("nothing to back up yet on the very first save", sshSettings.hasHostsBackup())
+        corrupt()
+        sshSettings.getHosts()
 
+        assertTrue(sshSettings.restoreHostsFromBackup())
+        assertEquals(listOf("ekho"), aliases())
+    }
+
+    /** Restore brings back the latest write, not the one before it. */
+    @Test
+    fun restore_bringsBackTheLatestWrite() {
+        sshSettings.saveHost(host("ekho"))
         sshSettings.saveHost(host("larry"))
+        corrupt()
+        sshSettings.getHosts()
+
+        assertTrue(sshSettings.restoreHostsFromBackup())
+
+        assertEquals(listOf("ekho", "larry"), aliases())
+        assertFalse(sshSettings.hasCorruptHosts())
+    }
+
+    /** An install from before the backup existed gets one from its first good read. */
+    @Test
+    fun aGoodReadSeedsAMissingBackup() {
+        sshSettings.saveHost(host("ekho"))
+        prefs.edit().remove(KEY_HOSTS_JSON_BACKUP).commit()
+
+        sshSettings.getHosts()
 
         assertTrue(sshSettings.hasHostsBackup())
     }
 
+    /**
+     * Writes while the corruption is unanswered do not move the backup, and Restore keeps what
+     * was added in the meantime.
+     */
     @Test
-    fun corruptingTheBlobAfterAGoodSave_leavesTheBackupRestorable() {
+    fun hostsAddedWhileCorrupt_surviveRestore_andDoNotReplaceTheBackup() {
         sshSettings.saveHost(host("ekho"))
-        sshSettings.saveHost(host("larry")) // backs up the single-host ("ekho") blob
+        sshSettings.saveHost(host("larry"))
+        corrupt()
+        sshSettings.getHosts()
 
-        prefs.edit().putString(KEY_HOSTS_JSON, "not json").commit()
-        assertTrue(sshSettings.getHosts().isEmpty())
-        assertTrue(sshSettings.hasCorruptHosts())
+        sshSettings.saveHost(host("mira"))
+        sshSettings.saveHost(host("ville"))
 
         assertTrue(sshSettings.restoreHostsFromBackup())
-
-        assertEquals(listOf("ekho"), sshSettings.getHosts().map { it.alias })
-        assertFalse(sshSettings.hasCorruptHosts())
+        assertEquals(listOf("ekho", "larry", "mira", "ville"), aliases())
     }
 
+    /** The app-start seed does not write over a blob that fails to parse. */
     @Test
-    fun aCorruptBlobIsNeverBackedUpOverAGoodOne() {
+    fun seedLocalHost_leavesACorruptBlobAlone() {
         sshSettings.saveHost(host("ekho"))
-        sshSettings.saveHost(host("larry")) // backup now holds the "ekho" blob
+        corrupt()
 
-        prefs.edit().putString(KEY_HOSTS_JSON, "not json").commit()
-        sshSettings.getHosts() // observe the corruption, as the corruption-notice path would
+        sshSettings.seedLocalHostIfMissing()
 
-        // A further write while the live blob is corrupt must not clobber the good backup.
+        assertEquals("not json", prefs.getString(KEY_HOSTS_JSON, null))
+        assertTrue(sshSettings.hasCorruptHosts())
+        assertTrue(sshSettings.restoreHostsFromBackup())
+        assertEquals(listOf("ekho"), aliases())
+    }
+
+    /** A local shell the seed added after the corruption is not duplicated by Restore. */
+    @Test
+    fun restore_doesNotDuplicateTheLocalShell() {
+        sshSettings.seedLocalHostIfMissing()
+        sshSettings.saveHost(host("ekho"))
+        corrupt()
+        sshSettings.getHosts()
+        // The user dismisses nothing yet but adds a host, which writes a valid list; a later
+        // seed on that list adds its own local shell.
         sshSettings.saveHost(host("mira"))
+        sshSettings.seedLocalHostIfMissing()
 
         assertTrue(sshSettings.restoreHostsFromBackup())
-        assertEquals(listOf("ekho"), sshSettings.getHosts().map { it.alias })
+
+        assertEquals(1, sshSettings.getHosts().count { it.kind == HostKind.LOCAL })
+        assertTrue(aliases().containsAll(listOf("ekho", "mira")))
     }
 
     @Test
@@ -104,16 +154,17 @@ class SshSettingsHostsCorruptionTest {
         assertFalse(sshSettings.restoreHostsFromBackup())
     }
 
+    /** Dismiss answers the notice for good: the next read does not flag the same blob again. */
     @Test
-    fun dismissHostsCorruptionNotice_clearsTheFlagWithoutTouchingTheBlob() {
-        prefs.edit().putString(KEY_HOSTS_JSON, "not json").commit()
+    fun dismiss_answersTheNoticeForGood() {
+        corrupt()
         sshSettings.getHosts()
         assertTrue(sshSettings.hasCorruptHosts())
 
         sshSettings.dismissHostsCorruptionNotice()
 
+        assertTrue(sshSettings.getHosts().isEmpty())
         assertFalse(sshSettings.hasCorruptHosts())
-        assertTrue("dismissing must not fix the underlying blob", sshSettings.getHosts().isEmpty())
     }
 
     companion object {

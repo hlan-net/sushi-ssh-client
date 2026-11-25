@@ -92,13 +92,13 @@ class HostsActivity : AppCompatActivity() {
                 if (hasBackup) R.string.hosts_corrupt_message_with_backup
                 else R.string.hosts_corrupt_message_no_backup
             )
+            // Not cancelable: one stray tap outside or a Back press must not throw away the
+            // Restore choice (Figma node-id=145-2). Only the buttons answer it.
+            .setCancelable(false)
             .setNegativeButton(R.string.action_dismiss) { _, _ ->
                 corruptionNoticeAnswered = true
                 sshSettings.dismissHostsCorruptionNotice()
-            }
-            .setOnCancelListener {
-                corruptionNoticeAnswered = true
-                sshSettings.dismissHostsCorruptionNotice()
+                refreshHosts()
             }
         if (hasBackup) {
             builder.setPositiveButton(R.string.action_restore) { _, _ ->
