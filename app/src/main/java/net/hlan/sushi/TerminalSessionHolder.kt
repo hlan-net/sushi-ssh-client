@@ -9,8 +9,13 @@ package net.hlan.sushi
 object TerminalSessionHolder {
     private var activeBackend: TerminalBackend? = null
     private var activeSshClient: SshClient? = null
+    // Written on the main thread, read by a Play's IO coroutine in expectDisconnect.
+    @Volatile
     private var activeHostConfig: SshConnectionConfig? = null
     private var connectionListeners = mutableListOf<ConnectionListener>()
+    // Set from a Play's IO coroutine, read on the main thread by TerminalActivity.
+    @Volatile
+    private var expectedDisconnectHostId: String? = null
 
     fun setActiveConnection(backend: TerminalBackend, config: SshConnectionConfig) {
         activeBackend = backend
@@ -20,11 +25,19 @@ object TerminalSessionHolder {
     }
 
     fun clearActiveConnection() {
+        // An expectation only ever belongs to the active session, so it ends with it — it must not
+        // survive to misclassify a later, unrelated disconnect.
+        synchronized(expectationLock) {
+            expectedDisconnectHostId = null
+            activeHostConfig = null
+        }
         activeBackend = null
         activeSshClient = null
-        activeHostConfig = null
         notifyDisconnected()
     }
+
+    /** Makes the check-then-set in [expectDisconnect] atomic against [clearActiveConnection]. */
+    private val expectationLock = Any()
 
     fun getActiveBackend(): TerminalBackend? = activeBackend
 
@@ -34,6 +47,42 @@ object TerminalSessionHolder {
     fun getActiveConfig(): SshConnectionConfig? = activeHostConfig
 
     fun isConnected(): Boolean = activeBackend?.isConnected() == true
+
+    /**
+     * Marks the next disconnect of the terminal session as expected — a Play that reboots the
+     * host, for instance — so the terminal shows it as a routine drop rather than an error.
+     *
+     * Armed only when the active session is on [hostId]: a reboot of any other host has no
+     * disconnect here to explain, and a pending mark for it would mislabel whatever disconnect
+     * of that host came later. Returns whether it was armed.
+     */
+    fun expectDisconnect(hostId: String): Boolean = synchronized(expectationLock) {
+        if (activeHostConfig?.id != hostId) {
+            return false
+        }
+        expectedDisconnectHostId = hostId
+        true
+    }
+
+    /** Withdraws [expectDisconnect] for [hostId] — the command that would have caused it never ran. */
+    fun cancelExpectedDisconnect(hostId: String) = synchronized(expectationLock) {
+        if (expectedDisconnectHostId == hostId) {
+            expectedDisconnectHostId = null
+        }
+    }
+
+    /**
+     * Consumes the expectation set by [expectDisconnect]: true only the first time it is checked
+     * for the matching [hostId]. A mismatched or already-consumed call clears nothing further,
+     * so a later, unrelated disconnect of the same host is not silently swallowed.
+     */
+    fun consumeExpectedDisconnect(hostId: String): Boolean = synchronized(expectationLock) {
+        val expected = expectedDisconnectHostId == hostId
+        if (expected) {
+            expectedDisconnectHostId = null
+        }
+        expected
+    }
 
     fun addListener(listener: ConnectionListener) {
         connectionListeners.add(listener)

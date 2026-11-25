@@ -80,4 +80,64 @@ class TerminalSessionHolderTest {
         TerminalSessionHolder.setActiveConnection(backend, config)
         assertEquals("a removed listener must not be notified again", 1, connectedCount)
     }
+
+    // --- expectDisconnect / consumeExpectedDisconnect (ROADMAP.md v0.9.x: Reboot Host) ---
+
+    @Test
+    fun expectDisconnect_armsForTheActiveHost_andIsConsumedOnce() {
+        TerminalSessionHolder.setActiveConnection(backend, config)
+
+        assertTrue(TerminalSessionHolder.expectDisconnect(config.id))
+
+        assertTrue(TerminalSessionHolder.consumeExpectedDisconnect(config.id))
+        assertFalse(
+            "consuming again must not report a second expected disconnect",
+            TerminalSessionHolder.consumeExpectedDisconnect(config.id)
+        )
+    }
+
+    @Test
+    fun expectDisconnect_doesNotArmForAHostWithNoActiveSession() {
+        // Rebooting host B while the terminal is on host A: nothing here will disconnect, and a
+        // pending mark for B would mislabel some later, unrelated disconnect of B.
+        val otherHost = config.copy(id = "other-host-id", host = "other.local")
+        TerminalSessionHolder.setActiveConnection(backend, config)
+
+        assertFalse(TerminalSessionHolder.expectDisconnect(otherHost.id))
+
+        TerminalSessionHolder.clearActiveConnection()
+        TerminalSessionHolder.setActiveConnection(backend, otherHost)
+        assertFalse(TerminalSessionHolder.consumeExpectedDisconnect(otherHost.id))
+    }
+
+    @Test
+    fun expectDisconnect_doesNotArmWithNoSessionAtAll() {
+        assertFalse(TerminalSessionHolder.expectDisconnect(config.id))
+        assertFalse(TerminalSessionHolder.consumeExpectedDisconnect(config.id))
+    }
+
+    @Test
+    fun cancelExpectedDisconnect_withdrawsIt() {
+        // The reboot command never reached the shell, so no disconnect is coming.
+        TerminalSessionHolder.setActiveConnection(backend, config)
+        TerminalSessionHolder.expectDisconnect(config.id)
+
+        TerminalSessionHolder.cancelExpectedDisconnect(config.id)
+
+        assertFalse(TerminalSessionHolder.consumeExpectedDisconnect(config.id))
+    }
+
+    @Test
+    fun clearActiveConnection_dropsAPendingExpectation() {
+        TerminalSessionHolder.setActiveConnection(backend, config)
+        TerminalSessionHolder.expectDisconnect(config.id)
+
+        TerminalSessionHolder.clearActiveConnection()
+        TerminalSessionHolder.setActiveConnection(backend, config)
+
+        assertFalse(
+            "a session that ended for its own reason must not leave the mark for the next one",
+            TerminalSessionHolder.consumeExpectedDisconnect(config.id)
+        )
+    }
 }
