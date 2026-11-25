@@ -56,6 +56,20 @@ class SshSettingsHostsCorruptionTest {
         assertTrue(sshSettings.hasCorruptHosts())
     }
 
+    /** Moshi returns null for the JSON literal `null` instead of throwing; it is still corruption. */
+    @Test
+    fun nullLiteralBlob_isFlaggedAndKeepsTheBackup() {
+        sshSettings.saveHost(host("ekho"))
+        prefs.edit().putString(KEY_HOSTS_JSON, "null").commit()
+
+        assertTrue(sshSettings.getHosts().isEmpty())
+        assertTrue(sshSettings.hasCorruptHosts())
+
+        sshSettings.saveHost(host("mira"))
+        assertTrue(sshSettings.restoreHostsFromBackup())
+        assertEquals(listOf("ekho", "mira"), aliases())
+    }
+
     @Test
     fun validBlob_doesNotFlagCorruption() {
         sshSettings.saveHost(host("ekho"))

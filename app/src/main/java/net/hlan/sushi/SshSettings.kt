@@ -55,15 +55,20 @@ class SshSettings(private val context: Context) {
      */
     fun getHosts(): List<SshConnectionConfig> {
         val json = prefs.getString(KEY_HOSTS_JSON, null) ?: return emptyList()
+        // A blob that is not a list at all — the JSON literal `null`, which Moshi returns as null
+        // rather than throwing — is as unusable as one that does not parse, and counts the same.
         val hosts = try {
             hostListAdapter.fromJson(json)
         } catch (e: Exception) {
+            Log.w(TAG, "Saved hosts JSON is corrupt; treating as empty rather than crashing", e)
+            null
+        }
+        if (hosts == null) {
             if (!hasCorruptHosts()) {
-                Log.w(TAG, "Saved hosts JSON is corrupt; treating as empty rather than crashing", e)
                 prefs.edit().putBoolean(KEY_HOSTS_CORRUPT, true).apply()
             }
             return emptyList()
-        } ?: return emptyList()
+        }
         if (!prefs.contains(KEY_HOSTS_JSON_BACKUP) && !hasCorruptHosts()) {
             prefs.edit().putString(KEY_HOSTS_JSON_BACKUP, json).apply()
         }
